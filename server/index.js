@@ -16,6 +16,7 @@ import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conver
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
+import * as autotrust from './autotrust.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -107,7 +108,9 @@ function hookSettings(wsId) {
     hooks[e] = [{ ...(e === 'PreToolUse' ? { matcher: '*' } : {}), hooks: [cmd(e)] }];
   }
   const file = path.join(HOOKS_DIR, `${wsId}.json`);
-  fs.writeFileSync(file, JSON.stringify({ hooks }, null, 2));
+  // bypassPermissions shows a one-time "are you sure" screen unless this is set: it would block the session.
+  const extra = autotrust.config().skipPermissions ? { skipDangerousModePermissionPrompt: true } : {};
+  fs.writeFileSync(file, JSON.stringify({ hooks, ...extra }, null, 2));
   return file;
 }
 
@@ -188,7 +191,7 @@ function startAgent(wsId) {
   if (ws.model) args.push('--model', ws.model);
   const effort = ws.effort || agent?.effort;
   if (effort) args.push('--effort', effort);
-  const mode = ws.permission_mode || agent?.permissionMode;
+  const mode = autotrust.permissionMode(ws.permission_mode || agent?.permissionMode);
   if (mode) args.push('--permission-mode', mode);
   if (ws.has_conversation) {
     args.push('--resume', ws.session_id);
@@ -203,6 +206,7 @@ function startAgent(wsId) {
   }
   // autostart marks agents to bring back if the hub restarts (update, crash, reboot).
   db.prepare('UPDATE workspaces SET autostart = 1 WHERE id = ?').run(ws.id);
+  autotrust.markTrusted(ws.cwd);
   const s = spawn(`${ws.id}:agent`, CLAUDE, args, ws.cwd, {
     env: { CLAUDE_HUB_WORKSPACE: ws.id },
     onExit: () => {
@@ -239,6 +243,7 @@ function trustedByUser(dir) {
 // approved before. A brand-new session in an unknown folder still asks (that's when the check matters);
 // if an agent launched it, the agent tells the user.
 function trustIsKnown(ws, project) {
+  if (autotrust.config().trustFolders) return true; // Réglages → "Faire confiance à tous les dossiers"
   return real(ws.cwd) === real(homedir) || !!ws.has_conversation || !!ws.predecessor || trustedByUser(ws.cwd) || (project && trustedByUser(project.path));
 }
 
@@ -285,7 +290,8 @@ function startAgentTab(wsId, tabId) {
   const project = ws.project_id ? getProject(ws.project_id) : null;
   const args = ['--agent', agent.slug, '--add-dir', MEMORY_DIR, '--append-system-prompt', systemPrompt(ws, project), '-n', `${agent.label} · ${ws.name}`];
   if (agent.effort) args.push('--effort', agent.effort);
-  if (agent.permissionMode) args.push('--permission-mode', agent.permissionMode);
+  const mode = autotrust.permissionMode(agent.permissionMode);
+  if (mode) args.push('--permission-mode', mode);
   if (transcriptExists(ws.cwd, tab.session_id)) {
     const pid = externalHolder(tab.session_id);
     if (pid) throw Object.assign(new Error(`Cette conversation est encore ouverte ailleurs (process ${pid}).`), { busy: true });
@@ -294,6 +300,7 @@ function startAgentTab(wsId, tabId) {
     args.push('--session-id', tab.session_id);
     if (agent.initialPrompt) args.push(agent.initialPrompt);
   }
+  autotrust.markTrusted(ws.cwd);
   const s = spawn(`${wsId}:ag-${tabId}`, CLAUDE, args, ws.cwd, { env: { CLAUDE_HUB_WORKSPACE: ws.id } });
   watchTrustPrompt(s, { ...ws, owner_agent: null, has_conversation: transcriptExists(ws.cwd, tab.session_id) ? 1 : ws.has_conversation }, project);
   return s;
@@ -978,6 +985,8 @@ app.get('/api/usage', wrap(async (req, res) => {
   res.json(await usage.report({ range, refresh: req.query.refresh === '1' }));
 }));
 app.get('/api/relay', (req, res) => res.json({ ...relay.config(), learned: relay.learnedWindows() }));
+app.get('/api/autotrust', (req, res) => res.json(autotrust.config()));
+app.put('/api/autotrust', wrap(async (req, res) => res.json(autotrust.setConfig(req.body || {}))));
 app.put('/api/relay', wrap(async (req, res) => res.json({ ...relay.setConfig(req.body || {}), learned: relay.learnedWindows() })));
 
 const OPENERS = {

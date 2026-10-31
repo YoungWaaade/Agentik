@@ -158,6 +158,7 @@ export function SettingsPage({ me }) {
               )}
             </div>
           </section>
+          <AutoTrust />
           <ContextRelay />
           <RemoteAccess />
           <section>
@@ -176,6 +177,27 @@ export function SettingsPage({ me }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Sessions that never block on "Do you trust this folder?" or on permission requests.
+function AutoTrust() {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => { api.get('/api/autotrust').then(setCfg).catch(() => {}); }, []);
+  const save = (patch) => api.put('/api/autotrust', patch).then(setCfg).catch((e) => alert(e.message));
+  if (!cfg) return null;
+  return (
+    <section>
+      <h2>Confiance automatique</h2>
+      <div className="settings-row">
+        <span>Marquer chaque dossier de session comme de confiance avant le lancement (plus de « Do you trust this folder? »)</span>
+        <button className="btn-ghost" onClick={() => save({ trustFolders: !cfg.trustFolders })}>{cfg.trustFolders ? 'Désactiver' : 'Activer'}</button>
+      </div>
+      <div className="settings-row">
+        <span>Lancer les sessions sans demandes de permission (bypassPermissions), sauf si la session ou son agent a choisi un autre mode. Prend effet au prochain lancement.</span>
+        <button className="btn-ghost" onClick={() => save({ skipPermissions: !cfg.skipPermissions })}>{cfg.skipPermissions ? 'Désactiver' : 'Activer'}</button>
+      </div>
+    </section>
   );
 }
 
