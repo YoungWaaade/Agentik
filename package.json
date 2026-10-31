@@ -7,7 +7,9 @@
     "build": "vite build",
     "start": "vite build && node server/index.js",
     "serve": "node server/index.js",
-    "service": "./scripts/install-service.sh"
+    "service": "./scripts/install-service.sh",
+    "pair": "node scripts/pair-phone.mjs",
+    "service:linux": "./scripts/install-service-linux.sh"
   },
   "type": "module",
   "dependencies": {

@@ -11,7 +11,7 @@ import { db, HUB_DIR, HOOKS_DIR, WORKTREES_DIR, MEMORY_DIR, memoryFile, resolveW
 import * as git from './git.js';
 import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } from './history.js';
 import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
-import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
+import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv, SHELL } from './pty.js';
 import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation } from './chat.js';
 import * as remote from './remote.js';
 import * as relay from './relay.js';
@@ -271,7 +271,7 @@ function startRun(wsId) {
   const ws = getWorkspace(wsId);
   const project = ws?.project_id && getProject(ws.project_id);
   if (!project?.run_command) throw new Error("aucune commande d'exécution définie pour ce projet");
-  const s = spawn(`${wsId}:run`, process.env.SHELL || '/bin/zsh', ['-lc', project.run_command], ws.cwd, { onExit: () => pushWorkspace(wsId) });
+  const s = spawn(`${wsId}:run`, SHELL, ['-lc', project.run_command], ws.cwd, { onExit: () => pushWorkspace(wsId) });
   pushWorkspace(wsId);
   return s;
 }
@@ -323,21 +323,23 @@ function ensureSession(key) {
 const app = express();
 app.use(express.json({ limit: '5mb' }));
 
-const ORIGINS = new Set([`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, `http://supersept.localhost:${PORT}`, 'http://localhost:5173', 'http://127.0.0.1:5173']);
+const ORIGINS = new Set([`http://localhost:${PORT}`, `http://127.0.0.1:${PORT}`, `http://supersept.localhost:${PORT}`, 'http://localhost:5173', 'http://127.0.0.1:5173',
+  // Extra origins, comma-separated (e.g. a reverse proxy address used from an SSH tunnel).
+  ...(process.env.SUPERSEPT_ORIGINS || '').split(',').map((o) => o.trim().replace(/\/+$/, '')).filter(Boolean)]);
 const allowedOrigin = (o) => !o || ORIGINS.has(o);
 const dist = path.join(ROOT, 'dist');
 // This server can spawn processes: refuse cross-site requests, and anyone off this Mac without the phone token.
 function trusted(req) {
-  if (remote.isLoopback(req.socket.remoteAddress)) return allowedOrigin(req.headers.origin);
+  if (remote.isLocal(req)) return allowedOrigin(req.headers.origin);
   const o = req.headers.origin;
-  return remote.enabled() && remote.authed(req) && (!o || o === `http://${req.headers.host}`);
+  return remote.enabled() && remote.authed(req) && (!o || o === `http://${req.headers.host}` || o === `https://${req.headers.host}`);
 }
 app.use((req, res, next) => {
-  const local = remote.isLoopback(req.socket.remoteAddress);
+  const local = remote.isLocal(req);
   if (!local && remote.enabled() && req.path === '/pair') {
     if (!remote.tokenOk(req.query.token)) return res.status(403).type('html').send(remote.PAIR_PAGE);
     // Serve the app right here: "Add to Home Screen" keeps this URL, so the home screen app pairs itself on launch.
-    res.setHeader('Set-Cookie', remote.cookie());
+    res.setHeader('Set-Cookie', remote.cookie(remote.isHttps(req)));
     return fs.existsSync(dist) ? res.sendFile(path.join(dist, 'index.html')) : res.redirect('/');
   }
   if (!trusted(req)) {
@@ -353,8 +355,10 @@ const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => re
 
 app.get('/api/state', (req, res) => res.json(state()));
 
-let fullName = null;
-try { fullName = execFileSync('id', ['-F'], { encoding: 'utf8' }).trim(); } catch {}
+let fullName = process.env.SUPERSEPT_USER_NAME || null;
+if (!fullName) try { fullName = execFileSync('id', ['-F'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch {}
+// Linux has no `id -F`: the full name is the first GECOS field of the passwd entry.
+if (!fullName) try { fullName = execFileSync('getent', ['passwd', os.userInfo().username], { encoding: 'utf8' }).split(':')[4]?.split(',')[0].trim() || null; } catch {}
 app.get('/api/me', (req, res) => res.json({ name: fullName || os.userInfo().username, home: homedir, claude: CLAUDE, hubDir: HUB_DIR, port: PORT }));
 
 // ---------- phone access ----------
@@ -376,7 +380,7 @@ app.post('/api/remote/rotate', wrap(async (req, res) => {
 }));
 
 // ---------- GitHub: list repos, clone a repo into a new project, link a project ----------
-const SESSIONS_ROOT = path.join(homedir, 'claude sessions');
+const SESSIONS_ROOT = process.env.SUPERSEPT_PROJECTS_DIR ? path.resolve(process.env.SUPERSEPT_PROJECTS_DIR.replace(/^~(?=\/|$)/, homedir)) : path.join(homedir, 'claude sessions');
 const ghRun = (args, opts = {}) => new Promise((ok, ko) => execFile(GH || 'gh', args, { maxBuffer: 20 * 1024 * 1024, timeout: 10 * 60 * 1000, ...opts },
   (e, out, err) => (e ? ko(new Error((err || e.message).trim().split('\n').pop() || 'gh a échoué')) : ok(out))));
 const REPO_RE = /^(?:https?:\/\/github\.com\/|git@github\.com:)?([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/;
@@ -1268,7 +1272,7 @@ app.post('/api/hook/:id/:event', (req, res) => {
 
 app.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').json({
   name: 'Supersept', short_name: 'Supersept', display: 'standalone', background_color: '#151110', theme_color: '#151110',
-  start_url: remote.isLoopback(req.socket.remoteAddress) ? '/' : remote.pairPath(),
+  start_url: remote.isLocal(req) ? '/' : remote.pairPath(),
   icons: [{ src: '/icon.png', sizes: '400x400', type: 'image/png' }],
 }));
 
@@ -1289,6 +1293,11 @@ server.on('connection', (sock) => {
 
 server.on('upgrade', (req, socket, head) => {
   if (!trusted(req)) return socket.destroy();
+  // Through a local reverse proxy the socket looks loopback: still drop it when phone access is revoked.
+  if (!remote.isLocal(req) && !remoteSockets.has(socket)) {
+    remoteSockets.add(socket);
+    socket.on('close', () => remoteSockets.delete(socket));
+  }
   wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
 });
 
@@ -1344,7 +1353,7 @@ for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').
 initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}) });
 
 server.listen(PORT, remote.listenHost(), () => {
-  console.log(`Supersept → http://localhost:${PORT}${remote.enabled() ? ' (accès téléphone activé)' : ''}`);
+  console.log(`Supersept → http://localhost:${PORT} (écoute sur ${remote.listenHost()})${remote.enabled() ? ' (accès téléphone activé)' : ''}${remote.behindProxy ? ' (derrière un proxy)' : ''}`);
   // Chat agents whose turn was cut by the restart pick up where they were.
   resumeInterrupted();
   // Bring back the agents that were running when the hub stopped.
