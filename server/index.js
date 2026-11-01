@@ -36,7 +36,7 @@ const statsCache = new Map();
 
 function broadcast(msg) {
   const s = JSON.stringify(msg);
-  for (const c of eventClients) c.send(s);
+  for (const c of eventClients) if (c.readyState === 1) try { c.send(s); } catch {}
 }
 
 const getProject = (id) => db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
@@ -1388,10 +1388,15 @@ wss.on('connection', (ws, req) => {
     ws.on('message', (raw) => {
       let m;
       try { m = JSON.parse(raw); } catch { return; }
+      ws.alive = true;
+      // The page's heartbeat: a socket the phone froze in the background never answers, and the page reopens one.
+      if (m?.type === 'ping') return ws.send('{"type":"pong"}');
       if (m?.type !== 'presence') return;
       const view = m.view?.ws ? { ws: String(m.view.ws) } : m.view?.chat ? { chat: String(m.view.chat) } : null;
       ws.presence = { endpoint: typeof m.endpoint === 'string' ? m.endpoint : null, visible: !!m.visible, view, at: Date.now() };
     });
+    ws.alive = true;
+    ws.on('pong', () => { ws.alive = true; });
     ws.on('close', () => eventClients.delete(ws));
     return;
   }
@@ -1427,6 +1432,16 @@ wss.on('connection', (ws, req) => {
   });
   ws.on('close', () => s.clients.delete(ws));
 });
+
+// Event sockets: a protocol ping every 25 s keeps proxies and mobile NATs from closing an idle
+// connection, and drops the ones whose phone vanished (no pong since the previous ping).
+setInterval(() => {
+  for (const c of eventClients) {
+    if (!c.alive) { eventClients.delete(c); c.terminate(); continue; }
+    c.alive = false;
+    try { c.ping(); } catch {}
+  }
+}, 25_000);
 
 // Keep diff counters fresh for live agents.
 setInterval(() => {

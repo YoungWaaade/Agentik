@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck } from 'react-icons/lu';
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
+import { checkLive } from '../live.js';
 import BotAvatar, { accentOf } from './BotAvatar.jsx';
 import { splitAgents } from '../agentTeam.js';
 import { Message, convTitle, lastKey } from './AgentChat.jsx';
@@ -157,6 +158,7 @@ export function AgentScreen({ agent, go }) {
     stick.current = true;
     try {
       const r = await api.post(`/api/agents/${agent.slug}/chat`, { text: v, conversation: active, images: imgs });
+      checkLive(); // the message and the reply come back over the socket: make sure it is not dead
       if (r.conversation !== active) { await loadConvs(agent.slug); setActive(r.conversation); }
     } catch (e) { setError(e.message); setText(v); setImages(imgs); }
   };

@@ -6,7 +6,8 @@ import Board from './components/Board.jsx';
 import ProjectMenu from './components/ProjectMenu.jsx';
 import AgentsPage from './components/AgentsPage.jsx';
 import AgentChat from './components/AgentChat.jsx';
-import { onChatEvent } from './chatStore.js';
+import { onChatEvent, resyncChats } from './chatStore.js';
+import { startLive } from './live.js';
 import { MemoryPage, HistoryPage, SettingsPage } from './components/Pages.jsx';
 import NewWorkspacePage from './components/NewWorkspacePage.jsx';
 import AddProject from './components/AddProject.jsx';
@@ -63,38 +64,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    let sock, timer, dead = false;
-    const connect = () => {
-      sock = new WebSocket(wsUrl('/ws/events'));
-      sock.onopen = () => { setConnected(true); load(); reloadIfOutdated(); attachPresence(sock); };
-      sock.onclose = () => { setConnected(false); if (!dead) timer = setTimeout(connect, 1500); };
-      sock.onmessage = (e) => {
-        const m = JSON.parse(e.data);
-        if (m.type === 'reload') load();
-        if (m.type === 'chat' || m.type === 'chat-busy' || m.type === 'chat-reset' || m.type === 'chat-convs') onChatEvent(m);
-        if (m.type === 'relay') {
-          const size = m.tokens && m.window ? ` (${Math.round(m.tokens / 1000)}k / ${Math.round(m.window / 1000)}k tokens)` : '';
-          if (m.kind === 'workspace') {
-            toast({ title: 'Session relayée', text: `« ${m.name} » avait un contexte plein${size} : elle continue dans une nouvelle session.`, route: { kind: 'ws', id: m.to } });
-            if (routeRef.current.kind === 'ws' && routeRef.current.id === m.from) location.hash = `#/ws/${m.to}`;
-          } else toast({ title: 'Session relayée', text: `Conversation de ${m.label} : contexte plein${size}, elle continue sur une nouvelle session.`, route: { kind: 'agent', id: m.agent } });
-        }
-        if (m.type === 'workspace') {
-          setData((d) => {
-            const prev = d.workspaces.find((w) => w.id === m.workspace.id);
-            if (prev && prev.status !== m.workspace.status) notify(m.workspace, d.projects, routeRef.current);
-            return {
-              ...d,
-              workspaces: prev ? d.workspaces.map((w) => (w.id === m.workspace.id ? m.workspace : w)) : [m.workspace, ...d.workspaces],
-            };
-          });
-        }
-      };
+    const onMessage = (m) => {
+      if (m.type === 'reload') load();
+      if (m.type === 'chat' || m.type === 'chat-busy' || m.type === 'chat-reset' || m.type === 'chat-convs') onChatEvent(m);
+      if (m.type === 'relay') {
+        const size = m.tokens && m.window ? ` (${Math.round(m.tokens / 1000)}k / ${Math.round(m.window / 1000)}k tokens)` : '';
+        if (m.kind === 'workspace') {
+          toast({ title: 'Session relayée', text: `« ${m.name} » avait un contexte plein${size} : elle continue dans une nouvelle session.`, route: { kind: 'ws', id: m.to } });
+          if (routeRef.current.kind === 'ws' && routeRef.current.id === m.from) location.hash = `#/ws/${m.to}`;
+        } else toast({ title: 'Session relayée', text: `Conversation de ${m.label} : contexte plein${size}, elle continue sur une nouvelle session.`, route: { kind: 'agent', id: m.agent } });
+      }
+      if (m.type === 'workspace') {
+        setData((d) => {
+          const prev = d.workspaces.find((w) => w.id === m.workspace.id);
+          if (prev && prev.status !== m.workspace.status) notify(m.workspace, d.projects, routeRef.current);
+          return {
+            ...d,
+            workspaces: prev ? d.workspaces.map((w) => (w.id === m.workspace.id ? m.workspace : w)) : [m.workspace, ...d.workspaces],
+          };
+        });
+      }
     };
-    connect();
+    const stop = startLive({
+      url: wsUrl('/ws/events'),
+      onOpen: (sock) => { load(); reloadIfOutdated(); attachPresence(sock); },
+      onMessage,
+      onStatus: setConnected,
+      resync: () => { load().catch(() => {}); resyncChats(); },
+      poll: () => { load().catch(() => {}); resyncChats({ onlyViewing: true }); },
+    });
     // Phones ask from a tap (Notifications screen): iOS ignores a prompt that no gesture started.
     if (!isPhone && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
-    return () => { dead = true; clearTimeout(timer); sock?.close(); };
+    return stop;
   }, [load]);
 
   const attention = data.workspaces.filter((w) => !w.archived && ['review', 'waiting', 'error'].includes(w.status)).length;

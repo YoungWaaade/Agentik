@@ -3,6 +3,7 @@ async function req(method, url, body) {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : {},
     body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store', // live data: never a stale copy from the browser cache (iOS)
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || res.statusText);

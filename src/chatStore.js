@@ -18,9 +18,30 @@ const get = (agent, conv) => {
 };
 
 export async function loadChat(agent, conv) {
+  const before = chats.get(k(agent, conv));
+  const ver = before?.ver || 0;
   const r = await api.get(`/api/agents/${agent}/chat?conversation=${conv}`);
-  chats.set(k(agent, conv), { messages: r.messages, busy: r.busy, loaded: true });
+  // Live events that arrived during the request win over the (older) snapshot.
+  const c = get(agent, conv);
+  const top = r.messages.reduce((n, m) => Math.max(n, m.id), 0);
+  const newer = c.ver !== ver ? c.messages.filter((m) => m.id > top) : [];
+  chats.set(k(agent, conv), { messages: [...r.messages, ...newer], busy: c.ver !== ver ? c.busy : r.busy, loaded: true, ver: c.ver || 0 });
   emit();
+}
+
+// After the live socket was cut (phone in the background, network lost): reload what is on screen and
+// every chat already loaded, so no message or busy state is missed.
+let resyncing = null;
+export function resyncChats({ onlyViewing = false } = {}) {
+  if (resyncing) return resyncing;
+  const keys = onlyViewing ? (viewing ? [viewing] : []) : [...chats.keys()].filter((x) => chats.get(x).loaded || x === viewing);
+  const agents = onlyViewing ? (viewing ? [viewing.split(':')[0]] : []) : [...convs.keys()];
+  const jobs = [
+    ...keys.map((x) => { const i = x.lastIndexOf(':'); return loadChat(x.slice(0, i), Number(x.slice(i + 1))); }),
+    ...agents.map((a) => loadConvs(a)),
+  ].map((p) => p.catch(() => {}));
+  resyncing = Promise.all(jobs).finally(() => { resyncing = null; });
+  return resyncing;
 }
 export async function loadConvs(agent) {
   const list = await api.get(`/api/agents/${agent}/conversations`);
@@ -36,6 +57,7 @@ export function onChatEvent(m) {
   }
   const conv = m.conversation ?? m.message?.conversation ?? 0;
   const c = get(m.agent, conv);
+  c.ver = (c.ver || 0) + 1;
   if (m.type === 'chat') {
     const i = c.messages.findIndex((x) => x.id === m.message.id);
     c.messages = i >= 0 ? c.messages.map((x, j) => (j === i ? m.message : x)) : [...c.messages, m.message];
@@ -66,7 +88,8 @@ const useTick = () => {
 export function useChat(agent, conv) {
   useTick();
   useEffect(() => {
-    if (agent && conv !== null && conv !== undefined && !get(agent, conv).loaded) loadChat(agent, conv).catch(() => {});
+    // Always refetched when shown (cached chats may have missed events while the socket was down).
+    if (agent && conv !== null && conv !== undefined) loadChat(agent, conv).catch(() => {});
   }, [agent, conv]);
   return agent && conv !== null && conv !== undefined ? get(agent, conv) : null;
 }
