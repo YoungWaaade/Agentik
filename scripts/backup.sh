@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightly backup of everything Supersept needs (memory, database, agents, conversations, projects) with restic.
+# Nightly backup of everything YoungHub needs (memory, database, agents, conversations, projects) with restic.
 # Configuration: ~/.config/supersept/backup.env (see docs/deploiement-vps.md), for example
 #   RESTIC_REPOSITORY=sftp:u123456@u123456.your-storagebox.de:supersept
 #   RESTIC_PASSWORD_FILE=/home/<toi>/.config/supersept/restic-password
@@ -16,7 +16,7 @@ HUB="${CLAUDE_HUB_DIR:-$HOME/.claude-hub}"
 PROJECTS_DIR="${PROJECTS_DIR:-$HOME/claude sessions}"
 PROJECTS_DIR="${PROJECTS_DIR/#\~/$HOME}"
 
-# 1. Consistent snapshot of the SQLite database (safe while Supersept is running, WAL included).
+# 1. Consistent snapshot of the SQLite database (safe while YoungHub is running, WAL included).
 mkdir -p "$HUB/backup"
 if [ -f "$HUB/hub.db" ]; then
   sqlite3 "$HUB/hub.db" ".backup '$HUB/backup/hub.db'"
@@ -31,7 +31,7 @@ fi
 if [ "${1:-}" = "--check" ]; then restic check; exit; fi
 restic cat config >/dev/null 2>&1 || restic init
 
-# 2. Every project folder known to Supersept (outside the home too).
+# 2. Every project folder known to YoungHub (outside the home too).
 mapfile -t PROJECTS < <(sqlite3 "$HUB/backup/hub.db" "SELECT path FROM projects" 2>/dev/null || true)
 
 PATHS=("$HUB" "$HOME/.claude" "$HOME/.config/supersept")

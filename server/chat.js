@@ -1,5 +1,5 @@
 // Chat agents: each message runs one headless Claude Code turn (`claude -p`, stream-json) that
-// resumes the agent's conversation. Agents act through the Supersept MCP tools (projects,
+// resumes the agent's conversation. Agents act through the YoungHub MCP tools (projects,
 // sessions…), never by editing files themselves; they speak briefly and work in the background.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -85,7 +85,7 @@ export function resumeInterrupted() {
     db.prepare('UPDATE agent_convs SET running = 0 WHERE agent = ? AND conversation = ?').run(agent, conversation);
     if (!getAgent(agent)) continue;
     try {
-      sendToAgent(agent, "[Supersept] Ton dernier tour a été interrompu par un redémarrage de Supersept. Regarde où tu en étais (supersept sessions --mine) et termine ce qui restait à faire, sans refaire ce qui est déjà fait.", { internal: true, conversation });
+      sendToAgent(agent, "[YoungHub] Ton dernier tour a été interrompu par un redémarrage de YoungHub. Regarde où tu en étais (supersept sessions --mine) et termine ce qui restait à faire, sans refaire ce qui est déjà fait.", { internal: true, conversation });
     } catch {}
   }
 }
@@ -100,7 +100,7 @@ export function stopTurn(agent, conv = null) {
 
 function systemPrompt(a) {
   return [
-    `Tu es « ${a.label} », un agent de Supersept. Tu parles avec ${ctx.userName} dans un chat.`,
+    `Tu es « ${a.label} », un agent de YoungHub. Tu parles avec ${ctx.userName} dans un chat.`,
     '',
     'Style — très important :',
     '- Réponds très simplement et efficacement : 1 à 3 phrases courtes, en français, comme un collègue.',
@@ -119,7 +119,7 @@ function systemPrompt(a) {
     '    supersept memory PROJECT_ID   /   supersept set-memory PROJECT_ID --content "…"',
     "- Le travail concret est fait par les sessions que tu lances : donne-leur une mission complète, précise et autonome.",
     "- Avant de créer un projet, regarde les projets existants (supersept projects) et réutilise le plus pertinent. Crée un projet seulement si rien ne convient.",
-    "- Ne fais jamais de boucle d'attente. Tu recevras automatiquement un message « [Supersept] » quand une de tes sessions se termine ou attend une réponse. Alors regarde-la (supersept session ID) et fais un point d'une phrase.",
+    "- Ne fais jamais de boucle d'attente. Tu recevras automatiquement un message « [YoungHub] » quand une de tes sessions se termine ou attend une réponse. Alors regarde-la (supersept session ID) et fais un point d'une phrase.",
     "- Si une session te pose une question que tu peux trancher sans risque, réponds-lui toi-même (supersept send). Demande à l'utilisateur seulement pour les décisions importantes : supprimer, publier, payer, envoyer quelque chose à l'extérieur.",
     '',
     ...(a.manager ? managerSection(a) : [
@@ -138,7 +138,7 @@ function managerSection(a) {
     '',
     "Tu coordonnes l'équipe d'agents de l'utilisateur :",
     ...(team.length ? team.map((x) => `    - ${x.label} (identifiant ${x.slug}) : ${x.description || 'pas de description'}`) : ["    (aucun autre agent pour l'instant)"]),
-    "- Pour chaque mission, choisis l'agent le plus adapté et confie-la-lui : supersept ask-agent IDENTIFIANT \"mission complète\". Sa réponse te revient automatiquement dans un message « [Supersept] … a répondu ». Fais alors une synthèse d'une ou deux phrases à l'utilisateur.",
+    "- Pour chaque mission, choisis l'agent le plus adapté et confie-la-lui : supersept ask-agent IDENTIFIANT \"mission complète\". Sa réponse te revient automatiquement dans un message « [YoungHub] … a répondu ». Fais alors une synthèse d'une ou deux phrases à l'utilisateur.",
     "- Tu peux confier plusieurs missions en parallèle à des agents différents.",
     '- Si aucun agent ne convient, lance toi-même une session (supersept start-session).',
     "- Si un besoin revient souvent et qu'aucun agent ne le couvre, propose à l'utilisateur de créer un agent ; crée-le seulement après son accord : supersept create-agent --name \"Nom\" --description \"quand l'utiliser\" --prompt \"instructions\".",
@@ -146,13 +146,14 @@ function managerSection(a) {
   ];
 }
 
-// Each agent gets a home folder with a `supersept` launcher on its PATH.
+// Each agent gets a home folder with a `supersept` launcher (and its `younghub` alias) on its PATH.
 function agentHome(agent) {
   const dir = path.join(HUB_DIR, 'agent-home', agent);
   const bin = path.join(dir, 'bin');
   fs.mkdirSync(bin, { recursive: true });
-  const launcher = path.join(bin, 'supersept');
-  fs.writeFileSync(launcher, `#!/bin/sh\nexec "${process.execPath}" "${CLI}" "$@"\n`, { mode: 0o755 });
+  for (const name of ['supersept', 'younghub']) {
+    fs.writeFileSync(path.join(bin, name), `#!/bin/sh\nexec "${process.execPath}" "${CLI}" "$@"\n`, { mode: 0o755 });
+  }
   return { dir, bin };
 }
 
@@ -163,7 +164,7 @@ function describeTool(name, input = {}) {
   const q = (s) => (s ? ` « ${String(s).slice(0, 70)} »` : '');
   if (name === 'Bash') {
     const cmd = String(input.command || '');
-    const verb = (/supersept\s+([\w-]+)/.exec(cmd) || [])[1];
+    const verb = (/(?:supersept|younghub)\s+([\w-]+)/.exec(cmd) || [])[1];
     switch (verb) {
       case 'projects': return { icon: 'folder', label: 'Regarde tes projets' };
       case 'create-project': return { icon: 'folder-plus', label: `Crée le projet${q(flag(cmd, 'name'))}` };
@@ -181,7 +182,7 @@ function describeTool(name, input = {}) {
         return { icon: 'send', label: `Confie une mission à ${label}`, agent: who };
       }
       case 'create-agent': return { icon: 'bot', label: `Crée l'agent${q(flag(cmd, 'name'))}` };
-      default: return { icon: 'tool', label: 'Commande Supersept' };
+      default: return { icon: 'tool', label: 'Commande YoungHub' };
     }
   }
   const t = name;
@@ -199,7 +200,7 @@ function recap(agent, conv) {
   const msgs = db.prepare("SELECT role, text FROM chat_messages WHERE agent = ? AND conversation = ? AND role IN ('user', 'assistant') ORDER BY id DESC LIMIT 30").all(agent, conv).reverse();
   if (msgs.length < 2) return '';
   const lines = msgs.slice(0, -1).map((m) => `${m.role === 'user' ? 'Utilisateur' : 'Toi'} : ${String(m.text || '').slice(0, 600)}`);
-  return `[Supersept] Reprise d'une ancienne conversation. Voici ce qui s'était dit :\n${lines.join('\n')}\n\nNouveau message :\n`;
+  return `[YoungHub] Reprise d'une ancienne conversation. Voici ce qui s'était dit :\n${lines.join('\n')}\n\nNouveau message :\n`;
 }
 
 // from: slug of the agent delegating this message (a manager like Nami), fromConv: its conversation;
@@ -242,7 +243,7 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
 function spawnTurn(a, agent, conv, st, text, format) {
   const { dir, bin } = agentHome(agent);
   const args = ['-p', '--output-format', format, ...(format === 'stream-json' ? ['--verbose'] : []),
-    '--allowedTools', 'Bash(supersept:*)', 'mcp__figma', 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
+    '--allowedTools', 'Bash(supersept:*)', 'Bash(younghub:*)', 'mcp__figma', 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
     '--disallowedTools', 'Edit', 'Write', 'NotebookEdit',
     '--add-dir', path.join(HUB_DIR, 'attachments'),
     '--append-system-prompt', systemPrompt(a)];
@@ -364,7 +365,7 @@ function runNext(agent, conv) {
     // A delegated conversation reports each answer back to the manager's conversation, which sums it up.
     const { manager, manager_conv: managerConv } = getConv(agent, conv) || {};
     if (reply && manager && manager !== agent && getAgent(manager)) {
-      try { sendToAgent(manager, `[Supersept] ${a.label} a répondu : ${reply.text.slice(0, 2000)}`, { internal: true, conversation: managerConv }); } catch {}
+      try { sendToAgent(manager, `[YoungHub] ${a.label} a répondu : ${reply.text.slice(0, 2000)}`, { internal: true, conversation: managerConv }); } catch {}
     } else if (reply && !shuttingDown) {
       // The user's own conversation: one phone notification per turn, with its last answer (not each step).
       try { ctx.onReply?.(a, conv, reply); } catch {}

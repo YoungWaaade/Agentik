@@ -1,8 +1,8 @@
-# Faire tourner Supersept sur un VPS Hetzner
+# Faire tourner YoungHub sur un VPS Hetzner
 
-Ce guide déplace Supersept du Mac vers un serveur Hetzner Cloud. À la fin :
+Ce guide déplace YoungHub du Mac vers un serveur Hetzner Cloud. À la fin :
 
-- Supersept, Claude Code, la mémoire, les projets, les worktrees et les agents vivent **sur le serveur**, allumé 24 h/24 ;
+- YoungHub, Claude Code, la mémoire, les projets, les worktrees et les agents vivent **sur le serveur**, allumé 24 h/24 ;
 - tu y accèdes depuis l'iPhone **et** depuis le Mac par une adresse HTTPS privée (Tailscale), jamais exposée sur internet ;
 - tout est sauvegardé chaque nuit, et les données du Mac ont été reprises.
 
@@ -20,7 +20,7 @@ Durée : environ 1 h, dont 20 min d'attente (copie des données).
 | Pièces jointes, maisons des agents, réglages | `~/.claude-hub/attachments`, `agent-home/`, `autotrust.json`, `relay.json`… | copiés |
 | Accès téléphone | `~/.claude-hub/remote.json` | **pas copié** : on relie à nouveau le téléphone |
 | Conversations Claude Code | `~/.claude/projects/<chemin-encodé>/*.jsonl` (dossier nommé d'après le chemin) | copiées, dossiers renommés, chemins réécrits, dates conservées |
-| Agents Supersept | `~/.claude/agents/*.md` | copiés |
+| Agents YoungHub | `~/.claude/agents/*.md` | copiés |
 | Réglages Claude Code | `~/.claude/settings.json`, `CLAUDE.md`, `skills/`, `commands/` | copiés |
 | Dossiers de confiance, serveurs MCP | `~/.claude.json` | fusionnés (les MCP propres au Mac comme Pencil sont ignorés) |
 | Connexion Claude Code | Trousseau macOS | **à refaire** sur le serveur (`claude` puis /login) |
@@ -40,7 +40,7 @@ Elles ne changent rien sur le Mac tant que les variables ne sont pas définies :
 | `SUPERSEPT_PUBLIC_URL` | adresse HTTPS affichée avec le QR code d'appairage |
 | `SUPERSEPT_ORIGINS` | origines supplémentaires autorisées pour l'accès local (séparées par des virgules) |
 | `SUPERSEPT_PROJECTS_DIR` | où créer et cloner les projets (par défaut `~/claude sessions`) |
-| `SUPERSEPT_USER_NAME` | ton nom affiché (Linux n'a pas `id -F`, Supersept lit sinon le champ GECOS) |
+| `SUPERSEPT_USER_NAME` | ton nom affiché (Linux n'a pas `id -F`, YoungHub lit sinon le champ GECOS) |
 
 Autres changements : le shell par défaut bascule sur bash si zsh n'existe pas, le cookie d'appairage est marqué `Secure` en HTTPS, les WebSockets relayés sont coupés quand on révoque l'accès, et `npm run pair` affiche le QR code dans le terminal (le serveur n'a pas d'écran).
 
@@ -69,7 +69,7 @@ Chaque session Claude Code consomme environ 300 à 500 Mo de RAM, plus ce que la
 ## 3. Créer le serveur
 
 1. Sur le Mac, crée une clé SSH si tu n'en as pas : `ls ~/.ssh/id_ed25519.pub || ssh-keygen -t ed25519 -C "mac"`.
-2. [console.hetzner.cloud](https://console.hetzner.cloud) → nouveau projet « Supersept » → **Ajouter un serveur** :
+2. [console.hetzner.cloud](https://console.hetzner.cloud) → nouveau projet « YoungHub » → **Ajouter un serveur** :
    - Emplacement : Nuremberg ou Falkenstein ;
    - Image : Ubuntu 24.04 ;
    - Type : CX33 (ou CAX21) ;
@@ -99,14 +99,14 @@ sudo bash setup-vps.sh emre        # « emre » = ton futur utilisateur
 
 Ce qu'il fait :
 
-- **Mises à jour** : `apt upgrade`, puis mises à jour de sécurité automatiques (`unattended-upgrades`), **sans redémarrage automatique** (il couperait les sessions). Quand la connexion SSH affiche « System restart required », redémarre à un moment calme : `sudo reboot`. Supersept repart seul et relance les agents qui tournaient ;
+- **Mises à jour** : `apt upgrade`, puis mises à jour de sécurité automatiques (`unattended-upgrades`), **sans redémarrage automatique** (il couperait les sessions). Quand la connexion SSH affiche « System restart required », redémarre à un moment calme : `sudo reboot`. YoungHub repart seul et relance les agents qui tournaient ;
 - **Utilisateur non-root** `emre`, membre de `sudo` (sans mot de passe : le compte n'en a pas, il n'est joignable que par clé), qui reçoit ta clé SSH ;
 - **SSH** : connexion par clé uniquement, root interdit (seulement si ta clé est bien en place, pour ne pas te bloquer dehors), et **fail2ban** ;
 - **Pare-feu ufw** : tout fermé sauf SSH et Tailscale, en plus du pare-feu Hetzner ;
 - **Swap** de 4 Go et limites `inotify` relevées, pour beaucoup d'agents en parallèle ;
 - **Node.js 22**, git, **gh**, sqlite3, ripgrep, restic, outils de compilation (pour `node-pty`) ;
 - **Tailscale**, et **Claude Code** (installeur officiel, dans `~/.local/bin`) ;
-- **Supersept** cloné dans `~/supersept`, compilé et installé comme **service systemd** (`supersept.service`) : il démarre au boot et redémarre s'il plante ;
+- **YoungHub** cloné dans `~/supersept`, compilé et installé comme **service systemd** (`supersept.service`) : il démarre au boot et redémarre s'il plante ;
 - **Tailscale Serve** : `https://supersept.<ton-tailnet>.ts.net` → `127.0.0.1:4317`, avec un vrai certificat HTTPS ;
 - **Sauvegarde** chaque nuit à 3 h 30 (`supersept-backup.timer`).
 
@@ -116,7 +116,7 @@ Options : `TS_AUTHKEY=tskey-…` (rejoindre Tailscale sans ouvrir de lien), `SWA
 
 ### Pourquoi systemd et pas Docker
 
-Supersept lance de vrais terminaux, avec Claude Code, git, gh, npm, ta clé SSH et tes outils. Dans un conteneur, chaque outil dont un agent a besoin (Python, un navigateur, une base…) devrait être ajouté à l'image, et les chemins seraient encore différents. systemd fait la même chose plus simplement : démarrage au boot, redémarrage en cas de plantage, logs (`journalctl -u supersept -f`).
+YoungHub lance de vrais terminaux, avec Claude Code, git, gh, npm, ta clé SSH et tes outils. Dans un conteneur, chaque outil dont un agent a besoin (Python, un navigateur, une base…) devrait être ajouté à l'image, et les chemins seraient encore différents. systemd fait la même chose plus simplement : démarrage au boot, redémarrage en cas de plantage, logs (`journalctl -u supersept -f`).
 
 Commandes utiles :
 
@@ -164,7 +164,7 @@ Clés des services externes (voix, etc.) : mets-les dans `~/.config/supersept/en
 
 ## 6. Migrer les données du Mac
 
-À faire **depuis le Mac**, dans le dossier de Supersept, une fois le serveur prêt.
+À faire **depuis le Mac**, dans le dossier de YoungHub, une fois le serveur prêt.
 
 ```bash
 # 0. Pour taper « supersept » au lieu de l'IP : ajoute dans ~/.ssh/config
@@ -175,7 +175,7 @@ Clés des services externes (voix, etc.) : mets-les dans `~/.config/supersept/en
 # 1. Simulation : liste ce qui sera copié, et la taille
 ./scripts/migrate-to-vps.sh emre@supersept
 
-# 2. Arrêter les deux Supersept (choisis un moment sans session en cours)
+# 2. Arrêter les deux YoungHub (choisis un moment sans session en cours)
 launchctl bootout gui/$(id -u)/sh.supersept.local
 ssh emre@supersept sudo systemctl stop supersept
 
@@ -188,7 +188,7 @@ ssh emre@supersept 'cd ~/supersept && ./scripts/install-service-linux.sh'
 
 Ce que fait le script :
 
-1. il vérifie que les deux Supersept sont arrêtés (base et conversations copiées dans un état cohérent) ;
+1. il vérifie que les deux YoungHub sont arrêtés (base et conversations copiées dans un état cohérent) ;
 2. il archive ce qui existe déjà sur le serveur (`~/avant-migration-<date>.tgz`) ;
 3. il copie `~/.claude-hub`, les conversations, agents, réglages et skills de `~/.claude`, et chaque dossier de projet enregistré, **sans** `node_modules` ni `.next` ;
 4. il envoie `~/.claude.json` sous le nom `~/.claude.json.from-mac` ;
@@ -197,7 +197,7 @@ Ce que fait le script :
 Après la migration :
 
 - dans chaque projet qui en a besoin, refais `npm install` (ou demande-le à un agent) ;
-- **ne relance pas** Supersept sur le Mac : deux copies qui tournent en même temps divergeraient. Pour le désactiver pour de bon : `rm ~/Library/LaunchAgents/sh.supersept.local.plist` ;
+- **ne relance pas** YoungHub sur le Mac : deux copies qui tournent en même temps divergeraient. Pour le désactiver pour de bon : `rm ~/Library/LaunchAgents/sh.supersept.local.plist` ;
 - les **plugins** Claude Code ne sont pas copiés (beaucoup sont propres au Mac) : réinstalle ceux que tu veux avec `/plugin` ;
 - un projet situé hors de ton dossier perso (disque externe…) est signalé : copie-le à la main ;
 - garde les données du Mac quelques semaines avant de les supprimer.
@@ -208,7 +208,7 @@ Après la migration :
 
 ### Recommandé : Tailscale + HTTPS (déjà configuré par le script)
 
-Rien n'est ouvert sur internet. Seuls tes appareils connectés à ton compte Tailscale voient le serveur, et le trafic est chiffré (WireGuard + HTTPS). En plus, chaque appareil doit être relié par le jeton secret de Supersept.
+Rien n'est ouvert sur internet. Seuls tes appareils connectés à ton compte Tailscale voient le serveur, et le trafic est chiffré (WireGuard + HTTPS). En plus, chaque appareil doit être relié par le jeton secret de YoungHub.
 
 1. Installe **Tailscale** sur l'iPhone (App Store), connecte-toi avec le **même compte**, et active le VPN.
 2. En SSH sur le serveur :
@@ -237,17 +237,17 @@ Pour aller plus loin : une fois Tailscale validé partout, tu peux fermer le por
 
 ### Alternative : domaine + HTTPS public (déconseillé)
 
-Seulement si tu ne peux pas installer Tailscale sur un appareil. Supersept peut lancer des commandes sur le serveur : l'exposer sur internet revient à confier tout le serveur à un seul jeton. Si tu le fais quand même :
+Seulement si tu ne peux pas installer Tailscale sur un appareil. YoungHub peut lancer des commandes sur le serveur : l'exposer sur internet revient à confier tout le serveur à un seul jeton. Si tu le fais quand même :
 
 - Caddy en reverse proxy (`supersept.ton-domaine.fr { reverse_proxy 127.0.0.1:4317 }`, certificat automatique), ports 80/443 ouverts dans les deux pare-feux ;
 - garde `SUPERSEPT_HOST=127.0.0.1` et `SUPERSEPT_BEHIND_PROXY=1`, et mets `SUPERSEPT_PUBLIC_URL=https://supersept.ton-domaine.fr` ;
-- ajoute **une authentification devant** (Cloudflare Access, ou `basic_auth` dans Caddy), en plus du jeton de Supersept.
+- ajoute **une authentification devant** (Cloudflare Access, ou `basic_auth` dans Caddy), en plus du jeton de YoungHub.
 
 ---
 
 ### Notifications push sur l'iPhone (écran verrouillé)
 
-Supersept envoie de vraies notifications Web Push (même l'app fermée) : session terminée / en attente / en erreur, et chaque réponse d'un agent dans tes conversations (Nami…). Pas de notif pour l'écran que tu as déjà sous les yeux, ni pour les missions qu'un agent délègue à un autre.
+YoungHub envoie de vraies notifications Web Push (même l'app fermée) : session terminée / en attente / en erreur, et chaque réponse d'un agent dans tes conversations (Nami…). Pas de notif pour l'écran que tu as déjà sous les yeux, ni pour les missions qu'un agent délègue à un autre.
 
 - **Clés VAPID** : `SUPERSEPT_VAPID_PUBLIC_KEY` / `SUPERSEPT_VAPID_PRIVATE_KEY` (+ `SUPERSEPT_VAPID_SUBJECT`, par défaut `SUPERSEPT_PUBLIC_URL`) dans `~/.config/supersept/env`, écrites par `node scripts/vapid-keys.mjs` (appelé aussi par `install-service-linux.sh`, idempotent). Sans elles, le serveur en génère dans `~/.claude-hub/vapid.json`. Les changer invalide les abonnements (les téléphones se réabonnent seuls à l'ouverture suivante).
 - **iPhone (iOS 16.4+)** : Safari → `https://supersept.<tailnet>.ts.net/pair?token=…` (QR de `npm run pair`) → Partager → **Sur l'écran d'accueil** → ouvrir l'app depuis l'icône → cloche en haut → **Activer les notifications** → Autoriser. Une notif de test arrive aussitôt.
@@ -259,7 +259,7 @@ Supersept envoie de vraies notifications Web Push (même l'app fermée) : sessio
 Deux niveaux :
 
 1. **Sauvegardes Hetzner** (cochées à la création) : image complète du disque chaque jour, 7 conservées. Restauration en un clic, mais tout le serveur revient en arrière d'un coup.
-2. **restic chaque nuit** (`scripts/backup.sh`, 3 h 30) : sauvegarde chiffrée et incrémentale de `~/.claude-hub` (avec une copie cohérente de la base SQLite, faite même pendant que Supersept tourne), `~/.claude` (conversations, agents, identifiants), `~/.claude.json`, `~/.config/supersept` et tous les dossiers de projets, sans `node_modules`. Elle garde 7 jours, 4 semaines et 6 mois, et permet de récupérer un seul fichier, par exemple une mémoire écrasée.
+2. **restic chaque nuit** (`scripts/backup.sh`, 3 h 30) : sauvegarde chiffrée et incrémentale de `~/.claude-hub` (avec une copie cohérente de la base SQLite, faite même pendant que YoungHub tourne), `~/.claude` (conversations, agents, identifiants), `~/.claude.json`, `~/.config/supersept` et tous les dossiers de projets, sans `node_modules`. Elle garde 7 jours, 4 semaines et 6 mois, et permet de récupérer un seul fichier, par exemple une mémoire écrasée.
 
 Destination conseillée : une **Storage Box Hetzner BX11** (1 To, environ 4 €/mois) dans un autre centre de données que le serveur.
 
@@ -294,7 +294,7 @@ Sans `backup.env`, le timer fait quand même une copie cohérente de la base dan
 
 ---
 
-## 9. Mettre à jour Supersept sur le serveur
+## 9. Mettre à jour YoungHub sur le serveur
 
 ```bash
 cd ~/supersept && git pull && ./scripts/install-service-linux.sh
@@ -312,7 +312,7 @@ cd ~/supersept && git pull && ./scripts/install-service-linux.sh
 | `gh` : « not logged in » dans une session | `gh auth status`, puis `gh auth login` |
 | Le serveur rame, sessions tuées | `free -h` ; si le swap est plein, passe en CX43 / CAX31 |
 | `node-pty` ne compile pas | `sudo apt install build-essential python3`, puis `npm ci` |
-| Pas de notification sur l'iPhone | L'app doit être ouverte depuis l'écran d'accueil (pas Safari) ; Réglages iOS → Notifications → Supersept ; `curl -X POST http://127.0.0.1:4317/api/push/test` ; `journalctl -u supersept \| grep 'Web Push'` |
+| Pas de notification sur l'iPhone | L'app doit être ouverte depuis l'écran d'accueil (pas Safari) ; Réglages iOS → Notifications → YoungHub ; `curl -X POST http://127.0.0.1:4317/api/push/test` ; `journalctl -u supersept \| grep 'Web Push'` |
 | Rien ne répond | `systemctl status supersept`, `journalctl -u supersept -n 100` |
 
 ## Coût mensuel estimé (HT, octobre 2026 : à vérifier à la commande)

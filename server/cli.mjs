@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// `supersept` command used by chat agents (through Claude Code's Bash tool) to drive Supersept.
+// `supersept` command used by chat agents (through Claude Code's Bash tool) to drive YoungHub.
 import * as ops from './ops.js';
 
-const HELP = `supersept — piloter Supersept
+const HELP = `supersept (alias : younghub) — piloter YoungHub
 
   supersept projects
   supersept create-project --name "Nom" [--github owner/repo | --folder ~/chemin]

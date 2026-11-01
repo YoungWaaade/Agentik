@@ -134,7 +134,7 @@ export default function Sidebar({ data, route, go, connected, me, onNew, onNewSe
       else setClosedSections((c) => ({ ...c, sessions: false }));
       const projectId = target === '__sessions__' ? null : target;
       api.patch(`/api/workspaces/${id}`, { project_id: projectId })
-        .then((w) => { if ((w.project_id ?? null) !== projectId) throw new Error("Le serveur Supersept n'a pas pris en compte le déplacement : il doit être redémarré pour cette version."); })
+        .then((w) => { if ((w.project_id ?? null) !== projectId) throw new Error("Le serveur YoungHub n'a pas pris en compte le déplacement : il doit être redémarré pour cette version."); })
         .catch((err) => alert(err.message));
     },
   });
@@ -269,7 +269,7 @@ export default function Sidebar({ data, route, go, connected, me, onNew, onNewSe
         <footer className="sb-footer">
           <button className="sb-account" onClick={() => go({ kind: 'settings' })}>
             <span className="sb-avatar">{initials(me?.name)}</span>
-            <span className="sb-account-name">{me?.name || 'Supersept'}</span>
+            <span className="sb-account-name">{me?.name || 'YoungHub'}</span>
           </button>
           <span className={`sb-pill ${connected ? '' : 'error'}`} title={connected ? 'Serveur local connecté — les sessions tournent' : 'Serveur local injoignable'}>
             {connected ? <span className="sb-pill-dot" /> : null}
@@ -284,7 +284,7 @@ export default function Sidebar({ data, route, go, connected, me, onNew, onNewSe
 }
 
 function initials(name) {
-  const words = (name || 'Supersept').trim().split(/\s+/);
+  const words = (name || 'YoungHub').trim().split(/\s+/);
   return ((words[0]?.[0] || '') + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase();
 }
 

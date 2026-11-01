@@ -71,7 +71,7 @@ function Tabs({ tab, go, agents }) {
   );
 }
 
-// An agent answered, or a [Supersept] notice (session finished…) landed, in a conversation not on screen:
+// An agent answered, or a [YoungHub] notice (session finished…) landed, in a conversation not on screen:
 // show a banner at the top for a few seconds; tapping it opens that conversation.
 function useAgentBanner(agents, route) {
   const [item, setItem] = useState(null);
@@ -85,7 +85,7 @@ function useAgentBanner(agents, route) {
       if (!a) return;
       const text = message.role === 'system' ? systemLabel(message.text) : (message.text || '').replace(/\s+/g, ' ').slice(0, 140);
       if (!text) return;
-      setItem({ agent, conversation, title: message.role === 'system' ? `${a.label} · Supersept` : a.label, text });
+      setItem({ agent, conversation, title: message.role === 'system' ? `${a.label} · YoungHub` : a.label, text });
       clearTimeout(timer);
       timer = setTimeout(() => setItem(null), 6000);
     });
@@ -121,7 +121,7 @@ function ListScreen({ data, projectsById, go, connected, tabs }) {
   return (
     <>
       <header className="m-head">
-        <h1>Supersept</h1>
+        <h1>YoungHub</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
         <PushBell go={go} />
         <button className="m-iconbtn" onClick={() => go({ kind: 'new' })} aria-label="Nouvel espace"><LuPlus size={20} /></button>

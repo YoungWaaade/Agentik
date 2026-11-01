@@ -1,4 +1,4 @@
-// Web Push: lock-screen notifications on the phone (iOS 16.4+ once Supersept is on the home screen),
+// Web Push: lock-screen notifications on the phone (iOS 16.4+ once YoungHub is on the home screen),
 // even with the app closed. The browser subscribes with our VAPID public key; we send through its push service.
 //
 // VAPID keys come from the server config (SUPERSEPT_VAPID_PUBLIC_KEY / SUPERSEPT_VAPID_PRIVATE_KEY in

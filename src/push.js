@@ -66,9 +66,9 @@ async function subscribeWith(r) {
 
 // Must run from a tap: iOS only shows the permission prompt for a user gesture, so ask first, before any await.
 export async function enablePush() {
-  if (!pushSupported()) throw new Error(pushState() === 'install' ? "Ajoute d'abord Supersept à l'écran d'accueil." : 'Ce navigateur ne gère pas les notifications push.');
+  if (!pushSupported()) throw new Error(pushState() === 'install' ? "Ajoute d'abord YoungHub à l'écran d'accueil." : 'Ce navigateur ne gère pas les notifications push.');
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') { changed(); throw new Error(perm === 'denied' ? 'Notifications refusées. Réactive-les dans Réglages → Notifications → Supersept.' : 'Permission non accordée.'); }
+  if (perm !== 'granted') { changed(); throw new Error(perm === 'denied' ? 'Notifications refusées. Réactive-les dans Réglages → Notifications → YoungHub.' : 'Permission non accordée.'); }
   await ready;
   if (!reg) reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
   await navigator.serviceWorker.ready;

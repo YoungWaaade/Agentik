@@ -98,7 +98,7 @@ async function refreshStats(id) {
 }
 
 // ---------- agent launch ----------
-// PreToolUse prints the answer: that's how Supersept stops a turn whose context got too heavy (see the hook).
+// PreToolUse prints the answer: that's how YoungHub stops a turn whose context got too heavy (see the hook).
 function hookSettings(wsId) {
   const cmd = (event) => ({
     type: 'command',
@@ -142,8 +142,8 @@ function systemPrompt(ws, project) {
   const content = memoryExcerpt(fs.existsSync(mem) ? fs.readFileSync(mem, 'utf8').trim() : '', mem);
   return [
     project
-      ? `Tu tournes dans Supersept, workspace "${ws.name}" du projet "${project.name}" (${project.path}).`
-      : `Tu tournes dans Supersept, session libre "${ws.name}" (hors projet) dans ${ws.cwd}.`,
+      ? `Tu tournes dans YoungHub, workspace "${ws.name}" du projet "${project.name}" (${project.path}).`
+      : `Tu tournes dans YoungHub, session libre "${ws.name}" (hors projet) dans ${ws.cwd}.`,
     ws.is_worktree ? `Ce workspace est un git worktree isolé sur la branche "${ws.branch}" (base: ${ws.base_branch}). Ne travaille que dans ${ws.cwd}.` : '',
     `Mémoire persistante ${project ? 'du projet' : 'des sessions libres'} : ${mem}`,
     `Elle est partagée entre toutes les sessions ${project ? 'de ce projet' : 'libres'}. Quand tu apprends quelque chose de durable (décisions, conventions, commandes utiles, état d'avancement, pièges), mets-la à jour de façon concise (puces courtes, sections par thème). N'y mets rien d'éphémère. Garde-la courte (moins de ${MEMORY_INLINE_MAX} caractères) : fusionne ou retire les règles redondantes plutôt que d'en empiler.`,
@@ -1050,7 +1050,7 @@ function reportToOwner(wsId, what, text, { label = 'Son dernier message' } = {})
   const owner = ws.owner_agent && getAgent(ws.owner_agent);
   for (const [agent, conv] of reportTargets(ws)) {
     const by = owner && agent !== owner.slug ? ` (lancée par ${owner.label})` : '';
-    const msg = `[Supersept] La session « ${ws.name} » (id ${ws.id})${by} ${what}.${text ? ` ${label} : ${String(text).slice(0, 1500)}` : ''}`;
+    const msg = `[YoungHub] La session « ${ws.name} » (id ${ws.id})${by} ${what}.${text ? ` ${label} : ${String(text).slice(0, 1500)}` : ''}`;
     try { sendToAgent(agent, msg, { internal: true, conversation: conv }); } catch {}
   }
 }
@@ -1133,7 +1133,7 @@ function instructionsOf(ws) {
   for (const w of chainOf(ws)) {
     for (const e of db.prepare("SELECT text, at FROM events WHERE workspace_id = ? AND kind = 'prompt' ORDER BY at").all(w.id)) {
       const t = String(e.text || '').trim();
-      if (!t || /^\[Supersept\]|^<task-notification>|\[Message long : lis le fichier|Ce message est long : il est en entier dans/.test(t)) continue;
+      if (!t || /^\[(?:Supersept|YoungHub)\]|^<task-notification>|\[Message long : lis le fichier|Ce message est long : il est en entier dans/.test(t)) continue;
       const key = t.replace(/\s+/g, ' ').slice(0, 200);
       if (w.initial_prompt && w.initial_prompt.replace(/\s+/g, ' ').startsWith(key)) continue;
       const dup = out.find((o) => o.key === key && Math.abs(o.at - e.at) < 60000);
@@ -1231,7 +1231,7 @@ function onApiError(id, error, transcript) {
   const canRelay = tooLong && relay.config().enabled && !(ws.predecessor && stopsOf(id) === 0);
   const weight = l ? ` Son contexte : ${l.tokens} tokens${l.images ? ` et ${l.images} images (${mb(l.imageBytes)} Mo en base64 ; une requête ne peut pas dépasser ~32 Mo)` : ''}.` : '';
   const msg = `Erreur de l'API : ${String(error).slice(0, 300).replace(/[.\s]+$/, '')}.${tooLong ? weight : ''} ${canRelay
-    ? 'Supersept la relaie vers une nouvelle session (même id, même dossier), qui reprend avec la mission et toutes les consignes.'
+    ? 'YoungHub la relaie vers une nouvelle session (même id, même dossier), qui reprend avec la mission et toutes les consignes.'
     : tooLong ? "Elle ne peut plus continuer : relance une nouvelle session avec une mission plus courte, moins de captures, et une mémoire de projet allégée."
     : 'Renvoie-lui un message pour réessayer.'}`;
   logEvent(id, 'error', msg);
@@ -1255,8 +1255,8 @@ app.post('/api/hook/:id/:event', (req, res) => {
       if (!wrappingUp.has(id)) { wrappingUp.add(id); logEvent(id, 'relay', `Contexte trop chargé en cours de tour (${o.text}) : outils refusés, relais à la fin du tour`); }
       const asking = relaying.get(id)?.phase === 'asking';
       return res.json({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: asking
-        ? `[Supersept] Contexte trop chargé (${o.text}) : n'appelle aucun outil, écris seulement ton résumé de passation.`
-        : `[Supersept] Contexte trop chargé (${o.text}) : au-delà, l'API refusera les requêtes. N'appelle plus aucun outil. Termine ton tour maintenant par un court point d'étape (fait, en cours, reste à faire) : Supersept relaie ensuite ce travail vers une nouvelle session qui reprendra la suite.` } });
+        ? `[YoungHub] Contexte trop chargé (${o.text}) : n'appelle aucun outil, écris seulement ton résumé de passation.`
+        : `[YoungHub] Contexte trop chargé (${o.text}) : au-delà, l'API refusera les requêtes. N'appelle plus aucun outil. Termine ton tour maintenant par un court point d'étape (fait, en cours, reste à faire) : YoungHub relaie ensuite ce travail vers une nouvelle session qui reprendra la suite.` } });
     }
   }
   res.json({});
@@ -1338,14 +1338,14 @@ app.post('/api/push/unsubscribe', wrap(async (req, res) => { push.unsubscribe(re
 app.post('/api/push/test', wrap(async (req, res) => {
   const only = req.body?.endpoint || null;
   if (!only && !remote.isLocal(req)) throw new Error('appareil non abonné');
-  const r = await push.notify('test', { title: req.body?.title || 'Supersept', body: req.body?.body || 'Les notifications marchent : tu seras prévenu ici quand une session ou un agent a du nouveau.', url: req.body?.url || '/', tag: 'test' }, { only });
+  const r = await push.notify('test', { title: req.body?.title || 'YoungHub', body: req.body?.body || 'Les notifications marchent : tu seras prévenu ici quand une session ou un agent a du nouveau.', url: req.body?.url || '/', tag: 'test' }, { only });
   if (!r.sent && r.failed) throw new Error(`envoi refusé par le service push : ${r.errors[0]}`);
   res.json(r);
 }));
 push.setPresenceSource(() => [...eventClients].map((c) => c.presence).filter(Boolean));
 
 app.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').json({
-  name: 'Supersept', short_name: 'Supersept', id: '/', scope: '/', display: 'standalone', lang: 'fr',
+  name: 'YoungHub', short_name: 'YoungHub', id: '/', scope: '/', display: 'standalone', lang: 'fr',
   description: 'Tes sessions Claude Code et tes agents, depuis le téléphone',
   background_color: '#151110', theme_color: '#151110',
   start_url: remote.isLocal(req) ? '/' : remote.pairPath(),
@@ -1468,7 +1468,7 @@ function pushReply(a, conv, reply) {
 initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}), onReply: pushReply });
 
 server.listen(PORT, remote.listenHost(), () => {
-  console.log(`Supersept → http://localhost:${PORT} (écoute sur ${remote.listenHost()})${remote.enabled() ? ' (accès téléphone activé)' : ''}${remote.behindProxy ? ' (derrière un proxy)' : ''}`);
+  console.log(`YoungHub → http://localhost:${PORT} (écoute sur ${remote.listenHost()})${remote.enabled() ? ' (accès téléphone activé)' : ''}${remote.behindProxy ? ' (derrière un proxy)' : ''}`);
   // Chat agents whose turn was cut by the restart pick up where they were.
   resumeInterrupted();
   // Bring back the agents that were running when the hub stopped.

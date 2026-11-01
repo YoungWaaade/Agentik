@@ -1,4 +1,4 @@
-// Sessions that never block: before launching, Supersept marks the session folder as trusted in Claude
+// Sessions that never block: before launching, YoungHub marks the session folder as trusted in Claude
 // Code (~/.claude.json, projects[dir].hasTrustDialogAccepted) and, unless the workspace or its agent chose
 // a permission mode, starts Claude Code in bypassPermissions. Both are on by default and can be turned off
 // in Réglages (stored in ~/.claude-hub/autotrust.json).

@@ -1,6 +1,6 @@
 // Rewrites the Mac's absolute paths (/Users/<toi>) into the server's (/home/<toi>) once the data is copied,
 // so projects, workspaces, conversations, memories and git worktrees keep working. Run it ON THE SERVER,
-// with Supersept stopped:
+// with YoungHub stopped:
 //   node scripts/rewrite-paths.mjs --from /Users/emre --to /home/emre [--dry-run]
 // migrate-to-vps.sh runs it for you. Re-running it is harmless (nothing left to replace).
 //

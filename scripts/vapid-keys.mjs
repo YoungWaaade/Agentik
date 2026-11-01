@@ -3,7 +3,7 @@
 // Idempotent: keeps existing keys (changing them invalidates every phone's subscription).
 //   node scripts/vapid-keys.mjs            add the keys if missing
 //   node scripts/vapid-keys.mjs --rotate   replace them (phones re-subscribe at their next launch)
-// Then restart Supersept (sudo systemctl restart supersept) when no session is running.
+// Then restart YoungHub (sudo systemctl restart supersept) when no session is running.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -29,4 +29,4 @@ ${publicUrl ? '' : '#'}SUPERSEPT_VAPID_SUBJECT=${publicUrl || 'mailto:toi@exampl
 `;
 fs.writeFileSync(file, text, { mode: 0o600 });
 fs.chmodSync(file, 0o600);
-console.log(`Clés VAPID écrites dans ${file}. Redémarre Supersept quand aucune session ne tourne : sudo systemctl restart supersept`);
+console.log(`Clés VAPID écrites dans ${file}. Redémarre YoungHub quand aucune session ne tourne : sudo systemctl restart supersept`);

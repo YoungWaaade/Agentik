@@ -1,4 +1,4 @@
-// What a chat agent can do in Supersept. Shared by the `supersept` CLI (used through Bash) and the
+// What a chat agent can do in YoungHub. Shared by the `supersept` CLI (used through Bash) and the
 // MCP server (blocked by some enterprise policies, kept for when it's allowed).
 const BASE = () => process.env.SUPERSEPT_URL || 'http://127.0.0.1:4317';
 const AGENT = () => process.env.SUPERSEPT_AGENT || null;

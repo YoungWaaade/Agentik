@@ -1,4 +1,4 @@
-# Supersept
+# YoungHub
 
 Une interface locale façon [Superset](https://superset.sh) pour faire tourner plusieurs sessions **Claude Code** en parallèle, les ranger par projet et garder une mémoire par projet. Tout tourne sur ta machine : rien n'est hébergé, rien n'est envoyé ailleurs que ce que Claude Code envoie déjà.
 
@@ -25,7 +25,7 @@ npm install
 npm run service
 ```
 
-`npm run service` compile l'interface et installe Supersept comme service macOS : il démarre tout seul à l'ouverture de session et redémarre s'il plante.
+`npm run service` compile l'interface et installe YoungHub comme service macOS : il démarre tout seul à l'ouverture de session et redémarre s'il plante.
 
 Ouvre ensuite **http://supersept.localhost:4317** (ou http://localhost:4317 si ton navigateur ne gère pas les adresses `.localhost`).
 
@@ -37,12 +37,12 @@ Astuce : pour l'avoir dans le Dock comme une app, utilise Chrome (menu ⋮ → C
 npm start
 ```
 
-Supersept tourne tant que le terminal reste ouvert.
+YoungHub tourne tant que le terminal reste ouvert.
 
 ## Utilisation
 
 1. **Ajoute un projet** : bouton dossier à côté de « PROJETS » dans la sidebar.
-   - **Ouvrir un dossier** existant (Supersept propose aussi ceux où tu as déjà utilisé Claude Code) ;
+   - **Ouvrir un dossier** existant (YoungHub propose aussi ceux où tu as déjà utilisé Claude Code) ;
    - **Cloner depuis GitHub** : choisis un de tes repos (ou colle son URL), il est cloné dans `~/claude sessions/<repo>` et devient un projet (nécessite `gh`) ;
    - **Nouveau projet vide** dans `~/claude sessions/`, que tu pourras relier à GitHub plus tard (clic droit sur le projet → Relier à un repo GitHub).
 2. **Nouvel espace de travail** (⌘N) : décris la tâche, choisis le projet, **Worktree** (branche isolée) ou **Local** (ton dossier), puis le modèle et l'effort.
@@ -63,10 +63,10 @@ Raccourcis : ⌘N nouvel espace · ⌘K rechercher · ⌘T terminal · ⌘D divi
 
 ## Depuis ton iPhone
 
-Supersept a une vue mobile : liste des espaces (ceux qui attendent ta réponse en premier), terminal de Claude avec une barre de saisie et les touches qui manquent au clavier iOS (Esc, flèches, ⇧Tab, ^C…), et création d'un nouvel espace.
+YoungHub a une vue mobile : liste des espaces (ceux qui attendent ta réponse en premier), terminal de Claude avec une barre de saisie et les touches qui manquent au clavier iOS (Esc, flèches, ⇧Tab, ^C…), et création d'un nouvel espace.
 
 1. Sur le Mac : **Réglages → Accès depuis le téléphone → Activer**.
-2. Scanne le QR code avec l'appareil photo de l'iPhone, puis dans Safari : **Partager → Sur l'écran d'accueil**. Tu as une icône Supersept qui s'ouvre en plein écran comme une app.
+2. Scanne le QR code avec l'appareil photo de l'iPhone, puis dans Safari : **Partager → Sur l'écran d'accueil**. Tu as une icône YoungHub qui s'ouvre en plein écran comme une app.
 3. Pour y accéder hors de chez toi, installe [Tailscale](https://tailscale.com/download) sur le Mac et l'iPhone (même compte) : un QR code « Tailscale » apparaît. Sans Tailscale, ça ne marche que sur le même Wi‑Fi.
 
 Si l'iPhone n'arrive pas à se connecter, le pare-feu de macOS bloque peut-être `node` : Réglages Système → Réseau → Pare-feu → Options, et autorise les connexions entrantes pour `node`.
@@ -75,7 +75,7 @@ Le Mac doit rester allumé et réveillé (Réglages Système → Batterie → Op
 
 ## Sur un serveur (VPS)
 
-Supersept peut aussi tourner en permanence sur un serveur Linux (Hetzner, Ubuntu 24.04), accessible en HTTPS privé depuis l'iPhone et le Mac via Tailscale : voir **[docs/deploiement-vps.md](docs/deploiement-vps.md)** (installation `scripts/setup-vps.sh`, service systemd, appairage `npm run pair`, sauvegardes, migration des données du Mac avec `scripts/migrate-to-vps.sh`).
+YoungHub peut aussi tourner en permanence sur un serveur Linux (Hetzner, Ubuntu 24.04), accessible en HTTPS privé depuis l'iPhone et le Mac via Tailscale : voir **[docs/deploiement-vps.md](docs/deploiement-vps.md)** (installation `scripts/setup-vps.sh`, service systemd, appairage `npm run pair`, sauvegardes, migration des données du Mac avec `scripts/migrate-to-vps.sh`).
 
 ## Où sont les données
 
@@ -85,7 +85,7 @@ Tout est dans `~/.claude-hub/` :
 |---|---|
 | `hub.db` | projets, espaces, activité (SQLite) |
 | `memory/<projet>.md` | la mémoire de chaque projet |
-| `worktrees/` | les git worktrees créés par Supersept |
+| `worktrees/` | les git worktrees créés par YoungHub |
 | `attachments/` | les pièces jointes envoyées à Claude |
 | `remote.json` | l'accès téléphone (activé ou non, jeton d'appairage) |
 
@@ -93,7 +93,7 @@ Les conversations elles-mêmes restent celles de Claude Code (`~/.claude/project
 
 ## Sécurité
 
-Supersept peut lancer des terminaux sur ta machine, il est donc verrouillé :
+YoungHub peut lancer des terminaux sur ta machine, il est donc verrouillé :
 
 - il n'écoute que sur `127.0.0.1` : il est inaccessible depuis le réseau, sauf si tu actives l'accès téléphone ;
 - avec l'accès téléphone, seuls les appareils qui ont scanné le QR code (un jeton secret) peuvent se connecter. « Révoquer » change le jeton et déconnecte tous les téléphones. Sur un Wi‑Fi partagé, préfère Tailscale : le trafic local n'est pas chiffré ;

@@ -1,4 +1,4 @@
-// Supersept service worker: makes the home screen app installable and shows Web Push notifications
+// YoungHub service worker: makes the home screen app installable and shows Web Push notifications
 // (sessions that finished or wait for an answer, agents' replies), even with the app closed.
 // No fetch handler on purpose: the app always talks to the live server, nothing is cached here.
 
@@ -11,7 +11,7 @@ self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data?.text() }; }
   // iOS revokes the subscription of a site whose pushes show nothing: always show one.
-  e.waitUntil(self.registration.showNotification(d.title || 'Supersept', {
+  e.waitUntil(self.registration.showNotification(d.title || 'YoungHub', {
     body: d.body || '',
     tag: d.tag || undefined, // a newer notification about the same session/chat replaces the previous one
     renotify: !!d.tag,

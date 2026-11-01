@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Installs Supersept as a systemd service on Linux (the counterpart of install-service.sh on macOS):
+# Installs YoungHub as a systemd service on Linux (the counterpart of install-service.sh on macOS):
 # starts at boot, restarts if it crashes, logs in journald (journalctl -u supersept -f).
-# Run it as the user Supersept belongs to (not root); it uses sudo for the unit file.
+# Run it as the user YoungHub belongs to (not root); it uses sudo for the unit file.
 # Idempotent: never restarts a running service on its own (that would kill the live sessions).
 #   ./scripts/install-service-linux.sh            install / update
 #   ./scripts/install-service-linux.sh --restart  also restart now
@@ -20,7 +20,7 @@ chmod 700 "$CONF_DIR"
 if [ ! -f "$ENV_FILE" ]; then
   TS_NAME="$(tailscale status --json 2>/dev/null | sed -n 's/.*"DNSName": *"\([^"]*\)\.".*/\1/p' | head -1 || true)"
   cat > "$ENV_FILE" <<EOF
-# Supersept configuration (read by systemd at start: sudo systemctl restart supersept after a change).
+# YoungHub configuration (read by systemd at start: sudo systemctl restart supersept after a change).
 PORT=4317
 # Listen on loopback only: phones come through Tailscale Serve (HTTPS), never directly.
 SUPERSEPT_HOST=127.0.0.1
@@ -48,7 +48,7 @@ node scripts/vapid-keys.mjs
 TMP="$(mktemp)"
 cat > "$TMP" <<EOF
 [Unit]
-Description=Supersept (sessions Claude Code)
+Description=YoungHub (sessions Claude Code)
 After=network-online.target tailscaled.service
 Wants=network-online.target
 
@@ -87,12 +87,12 @@ sudo systemctl enable supersept >/dev/null 2>&1
 
 if ! systemctl is-active --quiet supersept; then
   sudo systemctl start supersept
-  echo "→ Supersept démarré"
+  echo "→ YoungHub démarré"
 elif [ "${1:-}" = "--restart" ]; then
   sudo systemctl restart supersept
-  echo "→ Supersept redémarré"
+  echo "→ YoungHub redémarré"
 else
-  echo "→ Supersept tourne déjà : pas de redémarrage automatique (les sessions en cours seraient coupées)."
+  echo "→ YoungHub tourne déjà : pas de redémarrage automatique (les sessions en cours seraient coupées)."
   echo "  Pour appliquer le nouveau code : sudo systemctl restart supersept (quand aucune session ne tourne)."
 fi
 echo "Logs : journalctl -u supersept -f"

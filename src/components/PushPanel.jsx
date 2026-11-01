@@ -46,7 +46,7 @@ export function PushSettings() {
         )}
       </div>
       <div className="settings-row">
-        <span>Notifications push sur cet appareil, même Supersept fermé (sur iPhone : depuis l'app ajoutée à l'écran d'accueil)</span>
+        <span>Notifications push sur cet appareil, même YoungHub fermé (sur iPhone : depuis l'app ajoutée à l'écran d'accueil)</span>
         {p.state === 'on' ? (
           <span style={{ display: 'flex', gap: 6 }}>
             <button className="btn-ghost" disabled={p.busy} onClick={p.test}>Tester</button>
@@ -78,12 +78,12 @@ export function PushScreen({ go }) {
       <div className="m-scroll m-form">
         {p.state === 'install' && (
           <div className="m-push-card">
-            <strong>Ajoute d'abord Supersept à l'écran d'accueil</strong>
+            <strong>Ajoute d'abord YoungHub à l'écran d'accueil</strong>
             <p>Sur iPhone, les notifications ne marchent que depuis l'app installée :</p>
             <ol>
               <li>Dans Safari, touche <LuShare size={15} /> <b>Partager</b></li>
               <li>Choisis <LuSquarePlus size={15} /> <b>Sur l'écran d'accueil</b>, puis <b>Ajouter</b></li>
-              <li>Ouvre Supersept depuis sa nouvelle icône et reviens ici</li>
+              <li>Ouvre YoungHub depuis sa nouvelle icône et reviens ici</li>
             </ol>
           </div>
         )}
@@ -96,12 +96,12 @@ export function PushScreen({ go }) {
         {p.state === 'denied' && (
           <div className="m-push-card">
             <strong>Notifications refusées</strong>
-            <p>Réactive-les dans Réglages → Notifications → Supersept, puis reviens ici.</p>
+            <p>Réactive-les dans Réglages → Notifications → YoungHub, puis reviens ici.</p>
           </div>
         )}
         {p.state === 'off' && (
           <>
-            <p className="m-push-lead">Sois prévenu sur l'écran verrouillé quand une session a terminé ou attend ta réponse, et quand Nami ou un autre agent te répond, même Supersept fermé.</p>
+            <p className="m-push-lead">Sois prévenu sur l'écran verrouillé quand une session a terminé ou attend ta réponse, et quand Nami ou un autre agent te répond, même YoungHub fermé.</p>
             <button className="m-primary" disabled={p.busy} onClick={p.enable}><LuBell size={18} /> {p.busy ? 'Activation…' : 'Activer les notifications'}</button>
           </>
         )}
@@ -145,7 +145,7 @@ export function PushCallout({ go }) {
   return (
     <div className="m-push-callout" role="button" onClick={() => go({ kind: 'notifs' })}>
       <LuBell size={18} />
-      <span><strong>Active les notifications</strong>{state === 'install' ? 'Ajoute d\'abord Supersept à l\'écran d\'accueil' : 'Sessions terminées et réponses des agents, sur l\'écran verrouillé'}</span>
+      <span><strong>Active les notifications</strong>{state === 'install' ? 'Ajoute d\'abord YoungHub à l\'écran d\'accueil' : 'Sessions terminées et réponses des agents, sur l\'écran verrouillé'}</span>
       <button onClick={hide} aria-label="Masquer">✕</button>
     </div>
   );

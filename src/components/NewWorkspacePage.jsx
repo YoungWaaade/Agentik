@@ -17,7 +17,7 @@ const PLACEHOLDERS = [
 ];
 const SUGGESTIONS = [
   ['Explique-moi comment fonctionne ce repo', 'Explique-moi comment fonctionne ce repository : son architecture, ses points d\'entrée, comment le lancer et le tester. Ajoute l\'essentiel à la mémoire du projet.'],
-  ['Mettre à jour la mémoire du projet', 'Parcours le projet et mets à jour la mémoire du projet (Supersept) avec les conventions, commandes utiles et décisions importantes que tu trouves. Reste concis.'],
+  ['Mettre à jour la mémoire du projet', 'Parcours le projet et mets à jour la mémoire du projet (YoungHub) avec les conventions, commandes utiles et décisions importantes que tu trouves. Reste concis.'],
   ['Trouve un petit bug et corrige-le', 'Trouve un petit bug dans cette codebase et corrige-le. Explique ce que tu as trouvé et comment tu l\'as vérifié.'],
 ];
 const MODELS = [['', 'Modèle par défaut'], ['fable', 'Fable'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];

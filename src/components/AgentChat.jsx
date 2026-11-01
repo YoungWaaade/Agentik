@@ -39,9 +39,9 @@ function Markdown({ text }) {
   });
 }
 
-// "[Supersept] La session « X » (id …) vient de terminer. …" → "Session « X » terminée"
+// "[YoungHub] La session « X » (id …) vient de terminer. …" → "Session « X » terminée"
 export function systemLabel(text) {
-  const reply = /^\[Supersept\] (.+?) a répondu/.exec(text || '');
+  const reply = /^\[(?:Supersept|YoungHub)\] (.+?) a répondu/.exec(text || '');
   if (reply) return `${reply[1]} a répondu`;
   const m = /La session « (.+?) » \(id [^)]+\) (vient de terminer|attend une réponse)/.exec(text || '');
   if (!m) return text;

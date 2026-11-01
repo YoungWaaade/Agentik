@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Prepares a fresh Ubuntu 24.04 server (Hetzner Cloud) to run Supersept. Idempotent: run it again any time,
+# Prepares a fresh Ubuntu 24.04 server (Hetzner Cloud) to run YoungHub. Idempotent: run it again any time,
 # it only does what is missing.
 #
 #   curl -fsSLO https://raw.githubusercontent.com/YoungWaaade/supersept/main/scripts/setup-vps.sh
 #   sudo bash setup-vps.sh <utilisateur>
 #
 # Options (environment variables):
-#   SUPERSEPT_REPO   git URL of Supersept        (default: https://github.com/YoungWaaade/supersept.git)
+#   SUPERSEPT_REPO   git URL of YoungHub        (default: https://github.com/YoungWaaade/supersept.git)
 #   SUPERSEPT_BRANCH branch to check out          (default: main)
 #   TS_AUTHKEY       Tailscale auth key, to join the tailnet without opening a link (optional)
 #   SWAP_SIZE        swap file size               (default: 4G, "0" = none)
@@ -15,7 +15,7 @@
 #
 # What it does: system updates + automatic security updates, a sudo user with your SSH key, SSH without
 # password nor root, ufw firewall (SSH + Tailscale only), fail2ban, swap, Node.js 22, git, gh, Claude Code,
-# Tailscale (+ HTTPS through Tailscale Serve), Supersept as a systemd service, nightly backup timer.
+# Tailscale (+ HTTPS through Tailscale Serve), YoungHub as a systemd service, nightly backup timer.
 # What it does NOT do: log in to Claude, GitHub or Tailscale for you (see the end of the run).
 set -euo pipefail
 
@@ -61,7 +61,7 @@ Unattended-Upgrade::Automatic-Reboot "false";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 EOF
 systemctl enable --now unattended-upgrades >/dev/null
-# needrestart must never restart Supersept after a library update (same reason).
+# needrestart must never restart YoungHub after a library update (same reason).
 if [ -d /etc/needrestart ]; then
   mkdir -p /etc/needrestart/conf.d
   echo '$nrconf{override_rc}{qr(^supersept)} = 0;' > /etc/needrestart/conf.d/90-supersept.conf
@@ -186,7 +186,7 @@ as_user 'git config --global init.defaultBranch main; git config --global pull.r
 as_user 'git config --global --get user.name >/dev/null' || warn "git : configure ton identité (git config --global user.name / user.email)"
 
 # ---------------------------------------------------------------- supersept
-say "Supersept"
+say "YoungHub"
 APP_DIR="$HOME_DIR/supersept"
 if [ ! -d "$APP_DIR/.git" ]; then
   if ! as_user "git clone --branch '$BRANCH' '$REPO' '$APP_DIR'"; then
@@ -195,7 +195,7 @@ if [ ! -d "$APP_DIR/.git" ]; then
 fi
 if [ -f "$APP_DIR/package.json" ]; then
   as_user "cd '$APP_DIR' && ./scripts/install-service-linux.sh"
-  # HTTPS for the phone: Tailscale Serve proxies https://<machine>.<tailnet>.ts.net to Supersept on loopback.
+  # HTTPS for the phone: Tailscale Serve proxies https://<machine>.<tailnet>.ts.net to YoungHub on loopback.
   if tailscale status >/dev/null 2>&1; then
     if ! tailscale serve status 2>/dev/null | grep -q '127.0.0.1:4317'; then
       tailscale serve --bg --https=443 http://127.0.0.1:4317 \
@@ -205,14 +205,14 @@ if [ -f "$APP_DIR/package.json" ]; then
     ENV_FILE="$HOME_DIR/.config/supersept/env"
     if [ -n "$TS_NAME" ] && ! grep -q "^SUPERSEPT_PUBLIC_URL=https://" "$ENV_FILE"; then
       sed -i "s|^SUPERSEPT_PUBLIC_URL=.*|SUPERSEPT_PUBLIC_URL=https://$TS_NAME|" "$ENV_FILE"
-      warn "Adresse publique enregistrée (https://$TS_NAME) : prise en compte au prochain redémarrage de Supersept."
+      warn "Adresse publique enregistrée (https://$TS_NAME) : prise en compte au prochain redémarrage de YoungHub."
     fi
   fi
 
   # Nightly backup at 03:30 (does a local database snapshot until restic is configured).
   cat > /etc/systemd/system/supersept-backup.service <<EOF
 [Unit]
-Description=Sauvegarde Supersept
+Description=Sauvegarde YoungHub
 After=network-online.target
 
 [Service]
@@ -225,7 +225,7 @@ IOSchedulingClass=idle
 EOF
   cat > /etc/systemd/system/supersept-backup.timer <<'EOF'
 [Unit]
-Description=Sauvegarde Supersept chaque nuit
+Description=Sauvegarde YoungHub chaque nuit
 
 [Timer]
 OnCalendar=*-*-* 03:30
@@ -247,7 +247,7 @@ cat <<EOF
   2. GitHub : « gh auth login » (GitHub.com → HTTPS → navigateur, code à 8 caractères), puis « gh auth setup-git ».
      Identité git : git config --global user.name "…" ; git config --global user.email "…"
   3. Tailscale : si ce n'est pas fait, « sudo tailscale up --ssh --hostname supersept », puis relance ce script.
-  4. Redémarre Supersept pour prendre la config : sudo systemctl restart supersept
+  4. Redémarre YoungHub pour prendre la config : sudo systemctl restart supersept
   5. Téléphone : « cd ~/supersept && npm run pair », scanne le QR code (Tailscale allumé sur l'iPhone).
   6. Sauvegardes distantes : remplis ~/.config/supersept/backup.env (voir docs/deploiement-vps.md).
 EOF

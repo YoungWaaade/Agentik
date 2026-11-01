@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Copies Supersept's data from this Mac to the server, then rewrites the paths there (/Users/… → /home/…).
+# Copies YoungHub's data from this Mac to the server, then rewrites the paths there (/Users/… → /home/…).
 # Run it ON THE MAC, once the server is ready (setup-vps.sh done, SSH works):
 #   ./scripts/migrate-to-vps.sh emre@supersept            # simulation: shows what would be copied
 #   ./scripts/migrate-to-vps.sh emre@supersept --apply    # does it
-# Both Supersepts must be stopped (the Mac one and the server one), so the database and the
+# Both YoungHubs must be stopped (the Mac one and the server one), so the database and the
 # conversations are copied in a consistent state.
 #
 # Copied: ~/.claude-hub (database, memories, worktrees, attachments, agents' homes), ~/.claude (conversations,
-# agents, CLAUDE.md, settings, skills, commands), every project folder registered in Supersept, and
+# agents, CLAUDE.md, settings, skills, commands), every project folder registered in YoungHub, and
 # ~/.claude.json as ~/.claude.json.from-mac (only folder trust and MCP servers are merged).
 # Not copied: node_modules / .next (reinstall on the server), Claude and GitHub logins (log in again on the
 # server), the phone pairing (pair again), plugins (reinstall the ones you want), live session files.
@@ -33,11 +33,11 @@ echo "serveur : $HOST, dossier perso $REMOTE_HOME"
 printf '%s\n' "$REMOTE_INFO" | grep -q '^node-ok$' || die "node absent du serveur : lance d'abord setup-vps.sh"
 if [ "$APPLY" = 1 ]; then
   if curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/api/state"; then
-    die "Supersept tourne encore sur ce Mac. Arrête-le d'abord (les sessions en cours seront coupées) :
+    die "YoungHub tourne encore sur ce Mac. Arrête-le d'abord (les sessions en cours seront coupées) :
     launchctl bootout gui/\$(id -u)/sh.supersept.local"
   fi
   if ssh "$HOST" 'systemctl is-active --quiet supersept'; then
-    die "Supersept tourne sur le serveur. Arrête-le : ssh $HOST sudo systemctl stop supersept"
+    die "YoungHub tourne sur le serveur. Arrête-le : ssh $HOST sudo systemctl stop supersept"
   fi
 fi
 
@@ -71,7 +71,7 @@ for p in ${OUTSIDE[@]+"${OUTSIDE[@]}"}; do warn "hors du dossier perso, à copie
 
 if [ "$APPLY" = 0 ]; then
   echo
-  echo "Simulation uniquement. Relance avec --apply pour copier (les deux Supersept doivent être arrêtés)."
+  echo "Simulation uniquement. Relance avec --apply pour copier (les deux YoungHub doivent être arrêtés)."
   exit 0
 fi
 
@@ -98,5 +98,5 @@ cat <<EOF
   cd ~/supersept && ./scripts/install-service-linux.sh   # réinstalle les dépendances, recompile, démarre
   # puis, dans chaque projet qui en a besoin : npm install (les node_modules n'ont pas été copiés)
   npm run pair                                           # relie à nouveau le téléphone
-Sur ce Mac, Supersept reste arrêté : ne le relance pas en parallèle (deux copies divergeraient).
+Sur ce Mac, YoungHub reste arrêté : ne le relance pas en parallèle (deux copies divergeraient).
 EOF

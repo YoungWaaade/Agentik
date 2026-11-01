@@ -1,5 +1,5 @@
 #!/bin/zsh
-# Installs Supersept as a macOS LaunchAgent: starts at login, restarts if it crashes.
+# Installs YoungHub as a macOS LaunchAgent: starts at login, restarts if it crashes.
 # Open it at http://supersept.localhost:4317
 set -e
 cd "$(dirname "$0")/.."
@@ -37,4 +37,4 @@ EOF
 
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "Supersept tourne → http://supersept.localhost:4317"
+echo "YoungHub tourne → http://supersept.localhost:4317"

@@ -51,7 +51,7 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
             )}
           </div>
         )}
-        {!agents.length && <p className="m-note">Aucun agent. Crée-en un depuis Supersept sur ton Mac (onglet Agents).</p>}
+        {!agents.length && <p className="m-note">Aucun agent. Crée-en un depuis YoungHub sur ton Mac (onglet Agents).</p>}
       </div>
       {tabs}
     </>

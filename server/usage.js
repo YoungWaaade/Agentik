@@ -1,4 +1,4 @@
-// Token usage of the Claude Code sessions run by Supersept, read from Claude Code's own transcripts
+// Token usage of the Claude Code sessions run by YoungHub, read from Claude Code's own transcripts
 // (~/.claude/projects/**/*.jsonl, sub-agents included) and priced at the public API rates (pricing.json).
 //
 // Each assistant message carries message.usage; Claude Code writes one line per content block, so a
@@ -20,7 +20,7 @@ const DEFAULT_PRICING = path.join(path.dirname(fileURLToPath(import.meta.url)), 
 const USER_PRICING = path.join(HUB_DIR, 'pricing.json');
 const AGENT_HOME = path.join(HUB_DIR, 'agent-home');
 const DAY = 86_400_000;
-// A message is counted for a session only from the moment Supersept knew it (a resumed old conversation
+// A message is counted for a session only from the moment YoungHub knew it (a resumed old conversation
 // keeps its earlier history in the same file); a little slack for clocks and the launch itself.
 const SLACK = 2 * 60_000;
 
@@ -143,7 +143,7 @@ export function scan() {
   return scanning;
 }
 
-// ---------- attribution to Supersept sessions, agents and projects ----------
+// ---------- attribution to YoungHub sessions, agents and projects ----------
 
 const real = (p) => { try { return fs.realpathSync(p); } catch { return p; } };
 
@@ -177,8 +177,8 @@ function owners() {
     else if (r.kind !== 'chat' && wsById[r.from_ref]) bySession.set(r.old_session, wsOwner(wsById[r.from_ref]));
   }
   const hubStart = Math.min(...workspaces.map((w) => w.created_at), ...db.prepare('SELECT created_at FROM projects').all().map((p) => p.created_at), Date.now());
-  // Conversations Supersept no longer points at (after /clear, or a chat reset): matched by their first
-  // prompts (logged by the hooks), or by a folder only Supersept uses.
+  // Conversations YoungHub no longer points at (after /clear, or a chat reset): matched by their first
+  // prompts (logged by the hooks), or by a folder only YoungHub uses.
   const prompts = new Map();
   for (const e of db.prepare("SELECT e.text, w.id FROM events e JOIN workspaces w ON w.id = e.workspace_id WHERE e.kind = 'prompt' AND e.text IS NOT NULL").all()) {
     if (!prompts.has(e.text)) prompts.set(e.text, e.id);

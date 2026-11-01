@@ -1,6 +1,6 @@
 // Custom agents, stored in Claude Code's native format (~/.claude/agents/<slug>.md) so they
-// also work outside Supersept (`claude --agent <slug>`, or as subagents inside a session).
-// Supersept-only settings (icon, effort, permission mode, first message) live in the same
+// also work outside YoungHub (`claude --agent <slug>`, or as subagents inside a session).
+// YoungHub-only settings (icon, effort, permission mode, first message) live in the same
 // frontmatter; Claude Code ignores keys it doesn't know.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -64,7 +64,7 @@ export function saveAgent(slug, data) {
     const v = k === 'name' ? slug : String(meta[k] ?? '').trim();
     if (v) lines.push(`${k}: ${k === 'description' || k === 'initialPrompt' ? JSON.stringify(v) : yamlValue(v)}`);
   }
-  // The display name may differ from the slug: keep it as a Supersept label.
+  // The display name may differ from the slug: keep it as a YoungHub label.
   if (String(data.label || '').trim()) lines.push(`label: ${JSON.stringify(String(data.label).trim())}`);
   lines.push('---', '', String(data.prompt).trim(), '');
   fs.mkdirSync(AGENTS_DIR, { recursive: true });

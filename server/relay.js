@@ -157,10 +157,10 @@ export function measure({ tokens, model, requested = null, window = null }) {
 const SECTIONS = '1. Mission (le but final, avec les consignes et contraintes données par l\'utilisateur)\n2. État actuel (ce qui est fait, ce qui marche, ce qui a été testé)\n3. Fichiers, branches, commits et liens clés\n4. Points ouverts, décisions en attente, pièges rencontrés\n5. Prochaine étape (précise, actionnable)';
 
 // Asked to the old conversation, in its last turn.
-export const HANDOFF_REQUEST = `[Supersept] Ton contexte est presque plein : Supersept va relayer ce travail vers une nouvelle session, qui ne verra que ce que tu écris maintenant. Ne fais aucune autre action. Réponds uniquement par un résumé de passation complet et autonome, en Markdown, avec ces sections :\n${SECTIONS}`;
+export const HANDOFF_REQUEST = `[YoungHub] Ton contexte est presque plein : YoungHub va relayer ce travail vers une nouvelle session, qui ne verra que ce que tu écris maintenant. Ne fais aucune autre action. Réponds uniquement par un résumé de passation complet et autonome, en Markdown, avec ces sections :\n${SECTIONS}`;
 
 // First message of the new conversation.
-export const handoffIntro = (summary, from, byClaude = true) => `[Supersept] Relais automatique : tu reprends ${from}, dont le contexte était plein. Voici ${byClaude ? 'le résumé de passation écrit par la session précédente' : 'ce que Supersept a pu récupérer de la session précédente (elle n\'a pas pu écrire de résumé)'}. Repars de la prochaine étape, sans refaire ce qui est déjà fait ; en cas de doute sur l'état réel, vérifie (git status, fichiers) avant d'agir.\n\n${summary.trim()}`;
+export const handoffIntro = (summary, from, byClaude = true) => `[YoungHub] Relais automatique : tu reprends ${from}, dont le contexte était plein. Voici ${byClaude ? 'le résumé de passation écrit par la session précédente' : 'ce que YoungHub a pu récupérer de la session précédente (elle n\'a pas pu écrire de résumé)'}. Repars de la prochaine étape, sans refaire ce qui est déjà fait ; en cas de doute sur l'état réel, vérifie (git status, fichiers) avant d'agir.\n\n${summary.trim()}`;
 
 // The handoff a relayed session was started with, without its header (for a relay of a relay).
-export const stripIntro = (text) => String(text || '').replace(/^\[Supersept\] Relais automatique[^\n]*\n\n/, '').replace(/\n\nTranscript complet de la session précédente[\s\S]*$/, '');
+export const stripIntro = (text) => String(text || '').replace(/^\[(?:Supersept|YoungHub)\] Relais automatique[^\n]*\n\n/, '').replace(/\n\nTranscript complet de la session précédente[\s\S]*$/, '');

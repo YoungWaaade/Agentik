@@ -1,5 +1,5 @@
 // Turns phone access on (if needed) and gives the pairing link, as a QR code in the terminal or as an image.
-// Meant for a server without a screen: run it over SSH on the machine where Supersept runs.
+// Meant for a server without a screen: run it over SSH on the machine where YoungHub runs.
 //   npm run pair                         link + QR code (big, black on white)
 //   npm run pair -- --compact            smaller QR code (half blocks: needs a terminal without line spacing)
 //   npm run pair -- --png ~/pair.png     QR code saved as a PNG image
@@ -25,7 +25,7 @@ let st;
 try {
   st = await (await fetch(`${BASE}/api/remote`)).json();
 } catch {
-  fail(`Supersept ne répond pas sur ${BASE} : vérifie qu'il tourne (systemctl status supersept).`);
+  fail(`YoungHub ne répond pas sur ${BASE} : vérifie qu'il tourne (systemctl status supersept).`);
 }
 if (st.error) fail(`Refusé : ${st.error}`);
 if (!st.enabled) st = await (await post('/api/remote', { enabled: true })).json();
@@ -80,4 +80,4 @@ for (const a of argv.includes('--all') ? list : [best]) {
   log(terminalQR(a.url, argv.includes('--compact')));
 }
 log('\nScanne-le avec l\'appareil photo de l\'iPhone (Tailscale allumé), ouvre dans Safari, puis Partager → Sur l\'écran d\'accueil.');
-log('QR code illisible ? --compact, ou --png ~/pair.png. Ce lien donne le contrôle de Supersept : ne le partage pas (--rotate le révoque).');
+log('QR code illisible ? --compact, ou --png ~/pair.png. Ce lien donne le contrôle de YoungHub : ne le partage pas (--rotate le révoque).');
