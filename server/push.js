@@ -4,6 +4,7 @@
 // VAPID keys come from the server config (SUPERSEPT_VAPID_PUBLIC_KEY / SUPERSEPT_VAPID_PRIVATE_KEY in
 // ~/.config/supersept/env, see scripts/vapid-keys.mjs). Without them, a pair is generated once and kept in
 // ~/.claude-hub/vapid.json (0600), so it works out of the box; never in the repository.
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import webpush from 'web-push';
@@ -126,8 +127,9 @@ export async function notify(kind, payload, { target = null, only = null } = {})
 }
 
 // The Topic header replaces a pending, undelivered notification with the same topic (max 32 chars).
-// Letters and digits only: Apple rejects a topic with '-' or '_' (400 BadWebPushTopic), so the push is lost.
-const topicOf = (tag) => (tag ? String(tag).replace(/[^A-Za-z0-9]/g, '').slice(0, 32) : undefined);
+// Apple reads it as base64url and answers 400 BadWebPushTopic (push lost) for a '-' and for a length of
+// 4n+1 ("chatnami6"): a 32-char hex digest of the tag is always valid.
+const topicOf = (tag) => (tag ? crypto.createHash('sha256').update(String(tag)).digest('hex').slice(0, 32) : undefined);
 
 // ---- agent avatars as notification icons ----------------------------------------------------------
 // Resolved on every push from the agent's config, never from a fixed list: the avatar field of

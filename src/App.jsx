@@ -90,7 +90,8 @@ export default function App() {
       onOpen: (sock) => { load(); reloadIfOutdated(); attachPresence(sock); },
       onMessage,
       onStatus: setConnected,
-      resync: () => { load().catch(() => {}); resyncChats(); },
+      // Back from the background: an app kept in memory since before a deploy reloads the new bundle.
+      resync: () => { load().catch(() => {}); resyncChats(); reloadIfOutdated(); },
       poll: () => { load().catch(() => {}); resyncChats({ onlyViewing: true }); },
     });
     // Phones ask from a tap (Notifications screen): iOS ignores a prompt that no gesture started.

@@ -1384,20 +1384,29 @@ wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/ws/events') {
     eventClients.add(ws);
+    // Remote devices (phones): one line per connection and per close, to see reconnections in the journal.
+    const remoteDev = !remote.isLocal(req) || !!req.headers['x-forwarded-for'];
+    const dev = remoteDev ? `${/iPhone|iPad|Android/.exec(req.headers['user-agent'] || '')?.[0] || 'navigateur'} ${req.headers['x-forwarded-for'] || ''}`.trim() : null;
+    const since = Date.now();
+    let pings = 0;
+    if (dev) console.log(`WS events : connexion ${dev} (${eventClients.size} ouverts)`);
     // The page says which screen it shows and whether it is in the foreground: no push for what is on screen.
     ws.on('message', (raw) => {
       let m;
       try { m = JSON.parse(raw); } catch { return; }
       ws.alive = true;
       // The page's heartbeat: a socket the phone froze in the background never answers, and the page reopens one.
-      if (m?.type === 'ping') return ws.send('{"type":"pong"}');
+      if (m?.type === 'ping') { pings++; return ws.send('{"type":"pong"}'); }
       if (m?.type !== 'presence') return;
       const view = m.view?.ws ? { ws: String(m.view.ws) } : m.view?.chat ? { chat: String(m.view.chat) } : null;
       ws.presence = { endpoint: typeof m.endpoint === 'string' ? m.endpoint : null, visible: !!m.visible, view, at: Date.now() };
     });
     ws.alive = true;
     ws.on('pong', () => { ws.alive = true; });
-    ws.on('close', () => eventClients.delete(ws));
+    ws.on('close', (code) => {
+      eventClients.delete(ws);
+      if (dev) console.log(`WS events : fermeture ${dev} (code ${code}, ${Math.round((Date.now() - since) / 1000)} s, ${pings} pings)`);
+    });
     return;
   }
   if (url.pathname !== '/ws/term') return ws.close();
