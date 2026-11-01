@@ -15,6 +15,7 @@ import WorkspaceMenu from './components/WorkspaceMenu.jsx';
 import Empty from './components/Empty.jsx';
 import MobileApp from './components/MobileApp.jsx';
 import { isPhone } from './components/Terminal.jsx';
+import { attachPresence, pushEndpoint } from './push.js';
 
 // After a hub update the socket reconnects but the page keeps the old bundle: reload if stale.
 async function reloadIfOutdated() {
@@ -65,7 +66,7 @@ export default function App() {
     let sock, timer, dead = false;
     const connect = () => {
       sock = new WebSocket(wsUrl('/ws/events'));
-      sock.onopen = () => { setConnected(true); load(); reloadIfOutdated(); };
+      sock.onopen = () => { setConnected(true); load(); reloadIfOutdated(); attachPresence(sock); };
       sock.onclose = () => { setConnected(false); if (!dead) timer = setTimeout(connect, 1500); };
       sock.onmessage = (e) => {
         const m = JSON.parse(e.data);
@@ -91,7 +92,8 @@ export default function App() {
       };
     };
     connect();
-    if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+    // Phones ask from a tap (Notifications screen): iOS ignores a prompt that no gesture started.
+    if (!isPhone && 'Notification' in window && Notification.permission === 'default') Notification.requestPermission();
     return () => { dead = true; clearTimeout(timer); sock?.close(); };
   }, [load]);
 
@@ -197,6 +199,7 @@ export default function App() {
 
 function notify(ws, projects, route) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (pushEndpoint()) return; // this device gets Web Push from the server instead (no double notification)
   if (!['review', 'waiting', 'error'].includes(ws.status)) return;
   if (!document.hidden && route.kind === 'ws' && route.id === ws.id) return;
   const project = projects.find((p) => p.id === ws.project_id);

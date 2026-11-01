@@ -17,6 +17,7 @@ import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
 import * as autotrust from './autotrust.js';
+import * as push from './push.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -261,6 +262,7 @@ function watchTrustPrompt(s, ws, project) {
       logEvent(ws.id, 'waiting', msg);
       setStatus(ws.id, 'waiting', msg);
       reportToOwner(ws.id, 'attend une réponse', msg);
+      pushSession(ws.id, 'waiting', msg);
     }
   });
   setTimeout(() => sub.dispose(), 60000);
@@ -334,7 +336,10 @@ function trusted(req) {
   const o = req.headers.origin;
   return remote.enabled() && remote.authed(req) && (!o || o === `http://${req.headers.host}` || o === `https://${req.headers.host}`);
 }
+// Static files with nothing secret, that iOS may fetch outside the page (home screen icon, service worker updates).
+const PUBLIC_FILES = new Set(['/sw.js', '/icon.png', '/apple-touch-icon.png', '/favicon.png']);
 app.use((req, res, next) => {
+  if (req.method === 'GET' && PUBLIC_FILES.has(req.path)) return next();
   const local = remote.isLocal(req);
   if (!local && remote.enabled() && req.path === '/pair') {
     if (!remote.tokenOk(req.query.token)) return res.status(403).type('html').send(remote.PAIR_PAGE);
@@ -1050,6 +1055,16 @@ function reportToOwner(wsId, what, text, { label = 'Son dernier message' } = {})
   }
 }
 
+// Lock-screen notification on the phones (Web Push): the session finished, waits for an answer, or failed.
+// Not while a relay hands it over (the new session will speak), nor on a device showing that session.
+function pushSession(wsId, status, text) {
+  const ws = getWorkspace(wsId);
+  if (!ws || ws.successor || relaying.has(wsId)) return;
+  const head = { waiting: 'Attend ta réponse', error: 'Erreur' }[status];
+  const body = [head, push.summary(text)].filter(Boolean).join(' · ') || 'Terminé, à revoir';
+  push.notify('sessions', { title: ws.name, body, url: `/#/ws/${ws.id}`, tag: `ws-${ws.id}` }, { target: { ws: ws.id } }).catch(() => {});
+}
+
 // ---------- automatic relay (context full) ----------
 const relaying = new Map(); // workspace id → { phase, timer, pending, tokens, window, reason, transcript }
 const compactPending = new Set();
@@ -1218,6 +1233,7 @@ function onApiError(id, error, transcript) {
   logEvent(id, 'error', msg);
   setStatus(id, 'error', msg);
   reportToOwner(id, 'est bloquée par une erreur', msg, { label: 'Détail' });
+  pushSession(id, 'error', msg);
   if (canRelay) relayNow(id, 'requête trop longue');
 }
 
@@ -1263,6 +1279,7 @@ app.post('/api/hook/:id/:event', (req, res) => {
       logEvent(id, 'waiting', msg);
       setStatus(id, 'waiting', msg);
       reportToOwner(id, 'attend une réponse', msg);
+      if (ws.status !== 'waiting') pushSession(id, 'waiting', msg); // already told: no second push for the same wait
       break;
     }
     case 'Stop': {
@@ -1274,6 +1291,7 @@ app.post('/api/hook/:id/:event', (req, res) => {
       setStatus(id, 'review', text?.slice(0, 600) ?? null);
       refreshStats(id);
       reportToOwner(id, 'vient de terminer', text);
+      pushSession(id, 'review', text);
       const o = overload(ws, body.transcript_path, { firstTurn: !!ws.predecessor && stopsOf(id) < 2 });
       if (o || compactPending.has(id)) beginRelay(id, { reason: o ? o.reason : 'auto-compact' });
       break;
@@ -1298,10 +1316,31 @@ app.post('/api/hook/:id/:event', (req, res) => {
   }
 });
 
+// ---------- Web Push (phone notifications, see push.js) ----------
+// Each device identifies itself by its subscription endpoint (only the browser and we know it).
+app.get('/api/push', (req, res) => res.json(push.status(req.query.endpoint)));
+app.post('/api/push/subscribe', wrap(async (req, res) => res.json(push.subscribe(req.body?.subscription, { ua: String(req.headers['user-agent'] || '').slice(0, 300), prefs: req.body?.prefs }))));
+app.put('/api/push/prefs', wrap(async (req, res) => res.json(push.setPrefs(req.body?.endpoint, req.body?.prefs))));
+app.post('/api/push/unsubscribe', wrap(async (req, res) => { push.unsubscribe(req.body?.endpoint); res.json(push.status(null)); }));
+// Test notification: to the calling device (endpoint given), or to every device (from the server: curl, scripts).
+app.post('/api/push/test', wrap(async (req, res) => {
+  const only = req.body?.endpoint || null;
+  if (!only && !remote.isLocal(req)) throw new Error('appareil non abonné');
+  const r = await push.notify('test', { title: req.body?.title || 'Supersept', body: req.body?.body || 'Les notifications marchent : tu seras prévenu ici quand une session ou un agent a du nouveau.', url: req.body?.url || '/', tag: 'test' }, { only });
+  if (!r.sent && r.failed) throw new Error(`envoi refusé par le service push : ${r.errors[0]}`);
+  res.json(r);
+}));
+push.setPresenceSource(() => [...eventClients].map((c) => c.presence).filter(Boolean));
+
 app.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').json({
-  name: 'Supersept', short_name: 'Supersept', display: 'standalone', background_color: '#151110', theme_color: '#151110',
+  name: 'Supersept', short_name: 'Supersept', id: '/', scope: '/', display: 'standalone', lang: 'fr',
+  description: 'Tes sessions Claude Code et tes agents, depuis le téléphone',
+  background_color: '#151110', theme_color: '#151110',
   start_url: remote.isLocal(req) ? '/' : remote.pairPath(),
-  icons: [{ src: '/icon.png', sizes: '400x400', type: 'image/png' }],
+  icons: [
+    { src: '/icon.png', sizes: '400x400', type: 'image/png', purpose: 'any' },
+    { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+  ],
 }));
 
 if (fs.existsSync(dist)) {
@@ -1333,6 +1372,14 @@ wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/ws/events') {
     eventClients.add(ws);
+    // The page says which screen it shows and whether it is in the foreground: no push for what is on screen.
+    ws.on('message', (raw) => {
+      let m;
+      try { m = JSON.parse(raw); } catch { return; }
+      if (m?.type !== 'presence') return;
+      const view = m.view?.ws ? { ws: String(m.view.ws) } : m.view?.chat ? { chat: String(m.view.chat) } : null;
+      ws.presence = { endpoint: typeof m.endpoint === 'string' ? m.endpoint : null, visible: !!m.visible, view, at: Date.now() };
+    });
     ws.on('close', () => eventClients.delete(ws));
     return;
   }
@@ -1378,7 +1425,11 @@ setInterval(() => {
 db.prepare("UPDATE workspaces SET status = 'idle' WHERE status IN ('working', 'waiting')").run();
 for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').all()) refreshStats(id);
 
-initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}) });
+// An agent answered in a conversation with the user (not a mission delegated by another agent): tell the phones.
+function pushReply(a, conv, reply) {
+  push.notify('agents', { title: a.label, body: reply.text, url: `/#/agent/${a.slug}/${conv}`, tag: `chat-${a.slug}-${conv}` }, { target: { chat: `${a.slug}:${conv}` } }).catch(() => {});
+}
+initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}), onReply: pushReply });
 
 server.listen(PORT, remote.listenHost(), () => {
   console.log(`Supersept → http://localhost:${PORT} (écoute sur ${remote.listenHost()})${remote.enabled() ? ' (accès téléphone activé)' : ''}${remote.behindProxy ? ' (derrière un proxy)' : ''}`);

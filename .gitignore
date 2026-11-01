@@ -37,3 +37,4 @@ Thumbs.db
 backup-*/
 remote.json
 coverage/
+vapid.json

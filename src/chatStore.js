@@ -89,6 +89,13 @@ export function useChatBadges() {
   };
 }
 
+// The conversation on screen ("agent:conversation" or null), and a callback on any store change.
+export const getViewing = () => viewing;
+export function onStoreChange(f) {
+  subs.add(f);
+  return () => subs.delete(f);
+}
+
 // New chat messages as they arrive: { agent, conversation, message, viewed }. Returns the unsubscribe.
 export function onNewMessage(f) {
   msgSubs.add(f);

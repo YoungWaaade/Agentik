@@ -1113,3 +1113,27 @@ body.resizing { user-select: none; cursor: col-resize; }
   .usage-stats { grid-template-columns: repeat(2, 1fr); }
   .usage-tables { grid-template-columns: 1fr; }
 }
+
+/* Phone notifications (Web Push): bell, callout, screen */
+.m-bell { position: relative; }
+.m-bell-dot { position: absolute; top: 9px; right: 9px; width: 7px; height: 7px; border-radius: 50%; background: var(--amber-500); }
+.m-push-callout { display: flex; align-items: center; gap: 12px; margin: 12px 12px 4px; padding: 12px 8px 12px 14px; border-radius: 14px; border: 1px solid var(--ring); background: var(--fill-selected); color: var(--fg-80); font-size: 13px; cursor: pointer; }
+.m-push-callout > span { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.m-push-callout strong { font-size: 14px; color: var(--foreground); }
+.m-push-callout > button { justify-content: center; width: 32px; height: 32px; flex: none; border-radius: 8px; color: var(--muted-foreground); }
+.m-push-lead { margin: 4px 0 0; font-size: 15px; line-height: 1.5; color: var(--fg-80); }
+.m-push-card { padding: 16px; border-radius: 14px; border: 1px solid var(--ring); background: var(--fill-selected); font-size: 15px; line-height: 1.5; color: var(--fg-80); }
+.m-push-card strong { display: block; margin-bottom: 6px; font-size: 16px; color: var(--foreground); }
+.m-push-card p { margin: 0 0 8px; }
+.m-push-card ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.m-push-card svg { vertical-align: -2px; }
+.m-push-pref { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 12px 0; border-bottom: 1px solid var(--border); text-align: left; }
+.m-push-pref > span:first-child { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--muted-foreground); }
+.m-push-pref strong { font-size: 15px; color: var(--foreground); font-weight: 500; }
+.m-switch { position: relative; width: 46px; height: 28px; flex: none; border-radius: 14px; background: var(--ring); transition: background 150ms; }
+.m-switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform 150ms; }
+.m-switch.on { background: var(--green-500); }
+.m-switch.on::after { transform: translateX(18px); }
+.m-primary svg { margin-right: 6px; }
+.m-secondary { justify-content: center; gap: 6px; height: 44px; margin-top: 12px; border-radius: 12px; border: 1px solid var(--ring); font-size: 15px; color: var(--muted-foreground); }
+.m-push-ok { margin-top: 14px; font-size: 14px; color: var(--emerald-400); }

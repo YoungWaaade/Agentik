@@ -365,6 +365,9 @@ function runNext(agent, conv) {
     const { manager, manager_conv: managerConv } = getConv(agent, conv) || {};
     if (reply && manager && manager !== agent && getAgent(manager)) {
       try { sendToAgent(manager, `[Supersept] ${a.label} a répondu : ${reply.text.slice(0, 2000)}`, { internal: true, conversation: managerConv }); } catch {}
+    } else if (reply && !shuttingDown) {
+      // The user's own conversation: one phone notification per turn, with its last answer (not each step).
+      try { ctx.onReply?.(a, conv, reply); } catch {}
     }
     for (const m of tools.values()) if (m.meta.status === 'running') updateMessage(m, { meta: { ...m.meta, status: code ? 'error' : 'done' } });
     if (code && !reply && code !== 143 && code !== null) addMessage(agent, conv, 'error', `Je n'ai pas pu répondre (${String(errText).trim().split('\n').pop()?.slice(0, 200) || `code ${code}`}).`);

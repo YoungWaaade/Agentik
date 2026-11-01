@@ -7,6 +7,7 @@ import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chat
 import BotAvatar from './BotAvatar.jsx';
 import { splitAgents } from '../agentTeam.js';
 import { Message, convTitle, lastKey } from './AgentChat.jsx';
+import { PushBell, PushCallout } from './PushPanel.jsx';
 
 const SUGGESTIONS = ['Qu\'est-ce que tu peux faire pour moi ?', 'Fais le point sur mes sessions en cours'];
 
@@ -21,8 +22,10 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
       <header className="m-head">
         <h1>Agents</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
+        <PushBell go={go} />
       </header>
       <div className="m-scroll">
+        <PushCallout go={go} />
         {!connected && <p className="m-note">Connexion au Mac… Vérifie qu'il est allumé et sur le même réseau (ou Tailscale).</p>}
         {agents.length > 0 && (
           <div className="m-team">

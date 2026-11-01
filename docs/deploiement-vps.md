@@ -245,6 +245,15 @@ Seulement si tu ne peux pas installer Tailscale sur un appareil. Supersept peut 
 
 ---
 
+### Notifications push sur l'iPhone (écran verrouillé)
+
+Supersept envoie de vraies notifications Web Push (même l'app fermée) : session terminée / en attente / en erreur, et chaque réponse d'un agent dans tes conversations (Nami…). Pas de notif pour l'écran que tu as déjà sous les yeux, ni pour les missions qu'un agent délègue à un autre.
+
+- **Clés VAPID** : `SUPERSEPT_VAPID_PUBLIC_KEY` / `SUPERSEPT_VAPID_PRIVATE_KEY` (+ `SUPERSEPT_VAPID_SUBJECT`, par défaut `SUPERSEPT_PUBLIC_URL`) dans `~/.config/supersept/env`, écrites par `node scripts/vapid-keys.mjs` (appelé aussi par `install-service-linux.sh`, idempotent). Sans elles, le serveur en génère dans `~/.claude-hub/vapid.json`. Les changer invalide les abonnements (les téléphones se réabonnent seuls à l'ouverture suivante).
+- **iPhone (iOS 16.4+)** : Safari → `https://supersept.<tailnet>.ts.net/pair?token=…` (QR de `npm run pair`) → Partager → **Sur l'écran d'accueil** → ouvrir l'app depuis l'icône → cloche en haut → **Activer les notifications** → Autoriser. Une notif de test arrive aussitôt.
+- **Test depuis le serveur** : `curl -X POST http://127.0.0.1:4317/api/push/test` (envoie à tous les appareils abonnés).
+- Réglages par appareil (sessions / agents) sur l'écran Notifications du téléphone, ou Réglages → Notifications sur ordinateur.
+
 ## 8. Sauvegardes
 
 Deux niveaux :
@@ -303,6 +312,7 @@ cd ~/supersept && git pull && ./scripts/install-service-linux.sh
 | `gh` : « not logged in » dans une session | `gh auth status`, puis `gh auth login` |
 | Le serveur rame, sessions tuées | `free -h` ; si le swap est plein, passe en CX43 / CAX31 |
 | `node-pty` ne compile pas | `sudo apt install build-essential python3`, puis `npm ci` |
+| Pas de notification sur l'iPhone | L'app doit être ouverte depuis l'écran d'accueil (pas Safari) ; Réglages iOS → Notifications → Supersept ; `curl -X POST http://127.0.0.1:4317/api/push/test` ; `journalctl -u supersept \| grep 'Web Push'` |
 | Rien ne répond | `systemctl status supersept`, `journalctl -u supersept -n 100` |
 
 ## Coût mensuel estimé (HT, octobre 2026 : à vérifier à la commande)

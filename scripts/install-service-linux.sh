@@ -42,6 +42,8 @@ fi
 echo "→ dépendances et compilation"
 if [ ! -d node_modules ] || [ package-lock.json -nt node_modules/.package-lock.json ]; then npm ci --no-audit --no-fund; fi
 npm run build >/dev/null
+# Web Push keys (iPhone notifications), kept in the env file; never regenerated once there.
+node scripts/vapid-keys.mjs
 
 TMP="$(mktemp)"
 cat > "$TMP" <<EOF

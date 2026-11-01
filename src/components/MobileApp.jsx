@@ -7,6 +7,7 @@ import { StatusIndicator, ProjectThumbnail, AsciiSpinner, DiffStats } from './ui
 import { AgentListScreen, AgentScreen } from './MobileAgents.jsx';
 import { onNewMessage, useChatBadges, loadConvs } from '../chatStore.js';
 import { systemLabel, lastKey } from './AgentChat.jsx';
+import { PushScreen, PushBell, PushCallout } from './PushPanel.jsx';
 
 // Keys Claude Code needs that the iOS keyboard doesn't have.
 const KEYS = [
@@ -38,6 +39,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   const banner = useAgentBanner(agents, route);
   let screen;
   if (current) screen = <WorkspaceScreen key={current.id} ws={current} project={projectsById[current.project_id]} go={go} />;
+  else if (route.kind === 'notifs') screen = <PushScreen go={go} />;
   else if (route.kind === 'new') screen = <NewScreen projects={data.projects} go={go} load={load} />;
   else if (agent) screen = <AgentScreen key={agent.slug} agent={agent} go={go} />;
   else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
@@ -121,9 +123,11 @@ function ListScreen({ data, projectsById, go, connected, tabs }) {
       <header className="m-head">
         <h1>Supersept</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
+        <PushBell go={go} />
         <button className="m-iconbtn" onClick={() => go({ kind: 'new' })} aria-label="Nouvel espace"><LuPlus size={20} /></button>
       </header>
       <div className="m-scroll">
+        <PushCallout go={go} />
         {!connected && <p className="m-note">Connexion au Mac… Vérifie qu'il est allumé et sur le même réseau (ou Tailscale).</p>}
         {free.length > 0 && (
           <section>

@@ -89,6 +89,12 @@ export default function AgentChat({ agent, go }) {
     input.current?.focus();
   }, [agent.slug, active]);
   useEffect(() => () => setViewing(null), []);
+  // A notification about another conversation of this agent was tapped (see push.js).
+  useEffect(() => {
+    const on = (e) => { if (e.detail.agent === agent.slug) setActive(e.detail.conversation); };
+    addEventListener('m-open-conv', on);
+    return () => removeEventListener('m-open-conv', on);
+  }, [agent.slug]);
   // A conversation opens on its last message, before the first paint: no visible scrolling. While the view
   // is stuck to the bottom, late content (messages loading, images) keeps it there; a scroll up unsticks it.
   const stick = useRef(true);

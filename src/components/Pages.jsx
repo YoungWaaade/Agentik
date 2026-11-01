@@ -3,6 +3,7 @@ import { LuSearch, LuPlay, LuBrain } from 'react-icons/lu';
 import { api, ago } from '../api.js';
 import { ProjectThumbnail } from './ui.jsx';
 import { UsageSection } from './UsagePage.jsx';
+import { PushSettings } from './PushPanel.jsx';
 
 export function PageHeader({ title, children }) {
   return (
@@ -131,7 +132,6 @@ export function HistoryPage({ projects, go, routeId }) {
 }
 
 export function SettingsPage({ me }) {
-  const [perm, setPerm] = useState(() => ('Notification' in window ? Notification.permission : 'unsupported'));
   const [tab, setTab] = useState('general');
   const rows = me ? [
     ['Serveur', `http://localhost:${me.port}`],
@@ -149,15 +149,7 @@ export function SettingsPage({ me }) {
       <div className="page-scroll">
         {tab === 'usage' ? <div className="settings wide"><UsageSection /></div> : (
         <div className="settings">
-          <section>
-            <h2>Notifications</h2>
-            <div className="settings-row">
-              <span>Prévenir quand un agent a fini ou attend une réponse</span>
-              {perm === 'granted' ? <span className="tag green">activées</span> : (
-                <button className="btn-ghost" onClick={() => Notification.requestPermission().then(setPerm)} disabled={perm === 'unsupported'}>Activer</button>
-              )}
-            </div>
-          </section>
+          <PushSettings />
           <AutoTrust />
           <ContextRelay />
           <RemoteAccess />
