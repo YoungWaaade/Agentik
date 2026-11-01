@@ -5,7 +5,7 @@ import { VscNewFolder, VscFolderOpened, VscListFilter, VscGithubAlt } from 'reac
 import { WorkspaceIcon, ProjectThumbnail, DiffStats } from './ui.jsx';
 import { api } from '../api.js';
 import { useChatBadges } from '../chatStore.js';
-import BotAvatar from './BotAvatar.jsx';
+import BotAvatar, { accentOf } from './BotAvatar.jsx';
 import { splitAgents } from '../agentTeam.js';
 
 const DND_TYPE = 'application/x-supersept-workspace';
@@ -410,13 +410,14 @@ function ResizeHandle({ width, setWidth }) {
 // Agents as tiles: a big pixel bot with its name underneath.
 function AgentTile({ agent, active, busy, unread, onClick, lead }) {
   return (
-    <button className={`sb-agent-tile ${active ? 'active' : ''} ${lead ? 'lead' : ''}`} onClick={onClick} title={agent.description}>
+    <button className={`sb-agent-tile ${active ? 'active' : ''} ${lead ? 'lead' : ''} ${busy ? 'busy' : ''}`} onClick={onClick} title={agent.description}
+      style={{ '--acc': accentOf(agent.avatar, agent.slug) }}>
       <span className="sb-agent-bot">
-        <BotAvatar spec={agent.avatar} seed={agent.slug} size={lead ? 48 : 40} />
+        <BotAvatar spec={agent.avatar} seed={agent.slug} size={lead ? 60 : 56} busy={busy} />
         {busy ? <span className="sb-agent-badge busy"><span /><span /><span /></span> : unread > 0 ? <span className="sb-agent-badge">{unread}</span> : null}
       </span>
       {lead ? (
-        <span className="sb-agent-lead-text"><span className="sb-agent-name">{agent.label}</span><span className="sb-agent-role">Cheffe d’équipe</span></span>
+        <span className="sb-agent-lead-text"><span className="sb-agent-name">{agent.label}</span><span className="sb-agent-role">{busy ? <><i className="status-dot" /> En mission</> : 'Cheffe d’équipe'}</span></span>
       ) : <span className="sb-agent-name">{agent.label}</span>}
     </button>
   );

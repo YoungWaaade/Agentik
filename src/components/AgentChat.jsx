@@ -2,7 +2,7 @@ import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage } from 'react-icons/lu';
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
-import BotAvatar from './BotAvatar.jsx';
+import BotAvatar, { accentOf } from './BotAvatar.jsx';
 
 const ICONS = { folder: LuFolder, 'folder-plus': LuFolderPlus, play: LuPlay, layers: LuLayers, eye: LuEye, send: LuSend, archive: LuArchive, brain: LuBrain, search: LuSearch, globe: LuGlobe, tool: LuWrench, users: LuUsers, bot: LuBot, image: LuImage };
 const SUGGESTIONS = [
@@ -200,11 +200,11 @@ export default function AgentChat({ agent, go }) {
       onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) { e.preventDefault(); setDragging(true); } }}
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget) && setDragging(false)}
       onDrop={(e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}>
-      <header className="chat-head">
-        <BotAvatar spec={agent.avatar} seed={agent.slug} size={22} />
+      <header className="chat-head" style={{ '--acc': accentOf(agent.avatar, agent.slug) }}>
+        <BotAvatar spec={agent.avatar} seed={agent.slug} size={36} busy={!!chat?.busy} />
         <div className="chat-head-text">
           <span className="chat-name">{agent.label}</span>
-          <span className="chat-status">{chat?.busy ? 'travaille…' : badges.busy(agent.slug) ? 'travaille dans une autre conversation…' : 'disponible'}</span>
+          <span className="chat-status"><i className={`status-dot ${chat?.busy || badges.busy(agent.slug) ? 'on' : ''}`} />{chat?.busy ? 'travaille…' : badges.busy(agent.slug) ? 'travaille dans une autre conversation…' : 'disponible'}</span>
         </div>
         <span className="flex-1" />
         <span className="menu-anchor">
@@ -261,7 +261,7 @@ export default function AgentChat({ agent, go }) {
         <div className="chat-column">
           {!messages.length && chat?.loaded !== false && (
             <div className="chat-empty">
-              <BotAvatar spec={agent.avatar} seed={agent.slug} size={88} className="chat-empty-bot" />
+              <span className="chat-empty-stage" style={{ '--acc': accentOf(agent.avatar, agent.slug) }}><BotAvatar spec={agent.avatar} seed={agent.slug} size={184} className="chat-empty-bot" /></span>
               <h2>Salut, moi c'est {agent.label}</h2>
               <p>{agent.description}</p>
               <div className="chat-suggestions">
@@ -271,7 +271,7 @@ export default function AgentChat({ agent, go }) {
           )}
           {messages.map((m) => <Message key={m.id} m={m} agent={agent} go={go} />)}
           {chat?.busy && messages[messages.length - 1]?.role !== 'assistant' && (
-            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
+            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={26} className="msg-bot" busy /><div className="msg-typing"><span /><span /><span /></div></div>
           )}
         </div>
       </div>
@@ -341,7 +341,7 @@ export function Message({ m, agent, go }) {
   }
   return (
     <div className="msg agent">
-      <BotAvatar spec={agent.avatar} seed={agent.slug} size={24} className="msg-bot" />
+      <BotAvatar spec={agent.avatar} seed={agent.slug} size={26} className="msg-bot" />
       <div className="msg-text"><Markdown text={m.text || ''} /></div>
     </div>
   );

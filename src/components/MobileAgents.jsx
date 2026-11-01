@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck } from 'react-icons/lu';
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
-import BotAvatar from './BotAvatar.jsx';
+import BotAvatar, { accentOf } from './BotAvatar.jsx';
 import { splitAgents } from '../agentTeam.js';
 import { Message, convTitle, lastKey } from './AgentChat.jsx';
 import { PushBell, PushCallout } from './PushPanel.jsx';
@@ -30,19 +30,19 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
         {agents.length > 0 && (
           <div className="m-team">
             {lead && (
-              <button className="m-lead" onClick={() => open(lead)} title={lead.description}>
-                <Bot agent={lead} size={56} badges={badges} />
+              <button className={`m-lead ${badges.busy(lead.slug) ? 'busy' : ''}`} onClick={() => open(lead)} title={lead.description} style={{ '--acc': accentOf(lead.avatar, lead.slug) }}>
+                <Bot agent={lead} size={72} badges={badges} />
                 <span className="m-lead-text">
                   <span className="m-lead-name">{lead.label}</span>
-                  <span className="m-lead-role">Cheffe d’équipe</span>
+                  <span className="m-lead-role">{badges.busy(lead.slug) ? <><i className="status-dot" /> En mission</> : 'Cheffe d’équipe'}</span>
                 </span>
               </button>
             )}
             {others.length > 0 && (
               <div className="m-grid">
                 {others.map((a) => (
-                  <button key={a.slug} className="m-grid-tile" onClick={() => open(a)} title={a.description}>
-                    <Bot agent={a} size={52} badges={badges} />
+                  <button key={a.slug} className="m-grid-tile" onClick={() => open(a)} title={a.description} style={{ '--acc': accentOf(a.avatar, a.slug) }}>
+                    <Bot agent={a} size={76} badges={badges} />
                     <span className="m-grid-name">{a.label}</span>
                   </button>
                 ))}
@@ -63,7 +63,7 @@ function Bot({ agent, size, badges }) {
   const unread = badges.unread(agent.slug);
   return (
     <span className="m-bot">
-      <BotAvatar spec={agent.avatar} seed={agent.slug} size={size} />
+      <BotAvatar spec={agent.avatar} seed={agent.slug} size={size} busy={busy} />
       {busy ? <span className="m-bot-badge busy" aria-label="travaille"><span /><span /><span /></span> : unread > 0 ? <span className="m-bot-badge">{unread}</span> : null}
     </span>
   );
@@ -172,10 +172,10 @@ export function AgentScreen({ agent, go }) {
     <>
       <header className="m-head">
         <button className="m-iconbtn" onClick={() => go({ kind: 'agents' })} aria-label="Retour aux agents"><LuChevronLeft size={22} /></button>
-        <BotAvatar spec={agent.avatar} seed={agent.slug} size={28} />
+        <BotAvatar spec={agent.avatar} seed={agent.slug} size={36} busy={!!chat?.busy} />
         <div className="m-head-title">
           <span className="m-head-name">{agent.label}</span>
-          <span className={`m-head-sub ${chat?.busy ? 'm-busy' : ''}`}>{status}</span>
+          <span className={`m-head-sub ${chat?.busy ? 'm-busy' : ''}`} style={{ '--acc': accentOf(agent.avatar, agent.slug) }}><i className={`status-dot ${chat?.busy || badges.busy(agent.slug) ? 'on' : ''}`} />{status}</span>
         </div>
         <button className="m-conv-btn" onClick={() => setSheet(true)} aria-label="Conversations">
           <LuMessageSquare size={16} />
@@ -188,7 +188,7 @@ export function AgentScreen({ agent, go }) {
         <div className="chat-column">
           {!messages.length && chat?.loaded !== false && (
             <div className="chat-empty">
-              <BotAvatar spec={agent.avatar} seed={agent.slug} size={72} className="chat-empty-bot" />
+              <span className="chat-empty-stage" style={{ '--acc': accentOf(agent.avatar, agent.slug) }}><BotAvatar spec={agent.avatar} seed={agent.slug} size={156} className="chat-empty-bot" /></span>
               <h2>Salut, moi c'est {agent.label}</h2>
               {agent.description && <p>{agent.description}</p>}
               <div className="chat-suggestions">
@@ -198,7 +198,7 @@ export function AgentScreen({ agent, go }) {
           )}
           {messages.map((m) => <Message key={m.id} m={m} agent={agent} go={go} />)}
           {chat?.busy && messages[messages.length - 1]?.role !== 'assistant' && (
-            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
+            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={26} className="msg-bot" busy /><div className="msg-typing"><span /><span /><span /></div></div>
           )}
         </div>
       </div>
