@@ -1,6 +1,6 @@
 // Agent avatars, always a plain circle (no shadow, glow, border or hover effect; only a small green
 // dot while the agent works). Four kinds, from the avatar field of the agent's .md:
-//  - "/agents/orbs/<palette>.png" → animated orb (src/orb.js) — the default of every agent;
+//  - "/agents/orbs/<palette>.png" → animated glass orb (src/orb.js, src/orbGL.js) — the default of every agent;
 //  - an image path or URL (an uploaded photo: /api/attachments/…) → that picture;
 //  - "" / legacy spec / "photo" for an agent with a profile photo (PHOTOS, scripts/agent-photos.mjs:
 //    public/agents/<slug>.webp large, <slug>-sm.webp small) → the photo;
@@ -8,7 +8,8 @@
 // Anything else → the agent's default orb.
 
 import { memo, useEffect, useRef } from 'react';
-import { PALETTES, LAYERS, layerCss, baseCss, glassCss, orbOf, defaultOrb, orbPhase } from '../orb.js';
+import { PALETTES, orbOf, defaultOrb, orbPhase, orbPath } from '../orb.js';
+import { attachOrb } from '../orbGL.js';
 import '../orb.css';
 
 export const ACCENTS = {
@@ -103,7 +104,7 @@ export function avatarKind(spec, slug) {
 export const usesPhoto = (spec, slug) => avatarKind(spec, slug).kind === 'photo';
 export function accentOf(spec, seed) {
   const k = avatarKind(spec, seed);
-  if (k.kind === 'orb') return PALETTES[k.palette].c[2];
+  if (k.kind === 'orb') return PALETTES[k.palette].edge;
   return ACCENTS[parseAvatar(spec, seed).accent];
 }
 
@@ -333,32 +334,25 @@ export function portraitUrl(a, tier = 'xl') {
   return cache.get(key);
 }
 
-// Busy agents' orbs turn faster: the playback rate of the running CSS animations is changed in place
-// (no jump, unlike swapping the animation-duration).
-const BUSY_RATE = 2.6;
+// Glass orb: the still image (same shader, scripts/agent-orbs.mjs) under a canvas animated by the shared
+// WebGL renderer, which covers it from its first frame. Small idle orbs (message avatars, lists: often
+// many at once) and browsers without WebGL keep the still image. Busy agents' orbs move faster.
 function Orb({ palette, seed, size, busy, className }) {
   const ref = useRef(null);
-  const c = PALETTES[palette].c;
-  // Small orbs (message avatars, lists: often many at once) stay still unless the agent is working.
-  const tier = size <= 28 && !busy ? 'o-sm' : '';
+  const handle = useRef(null);
+  const live = size > 28 || busy;
   useEffect(() => {
-    const el = ref.current;
-    if (!el?.getAnimations) return;
-    for (const a of el.getAnimations({ subtree: true })) {
-      if (a.updatePlaybackRate) a.updatePlaybackRate(busy ? BUSY_RATE : 1);
-      else a.playbackRate = busy ? BUSY_RATE : 1;
-    }
-  }, [busy, palette, tier]);
+    if (!live || !ref.current) return undefined;
+    const h = attachOrb(ref.current, { palette, size, phase: orbPhase(seed), busy });
+    handle.current = h;
+    return () => { h?.dispose(); handle.current = null; };
+  }, [live, palette, size, seed]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { handle.current?.setBusy(busy); }, [busy]);
   return (
-    <span ref={ref} className={`bot-avatar orb ${tier} ${busy ? 'busy' : ''} ${className}`}
-      style={{ width: size, height: size, '--acc': c[2], '--phase': `${orbPhase(seed)}s` }} aria-hidden="true">
-      <span className="orb-core" style={{ background: baseCss(c) }}>
-        {LAYERS.map((l, i) => (
-          <i key={i} className={`orb-layer ${l.morph ? 'morph' : ''}`}
-            style={{ background: layerCss(l, c), '--turn': `${Math.abs(l.turn)}s`, animationDirection: l.morph ? 'alternate' : l.turn < 0 ? 'reverse' : 'normal' }} />
-        ))}
-        <i className="orb-glass" style={{ background: glassCss }} />
-      </span>
+    <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`}
+      style={{ width: size, height: size, '--acc': PALETTES[palette].edge }} aria-hidden="true">
+      <img className="orb-still" src={orbPath(palette)} alt="" draggable="false" width={size} height={size} decoding="async" />
+      {live && <canvas ref={ref} />}
       {busy && size >= 24 && <i className="portrait-dot" />}
     </span>
   );

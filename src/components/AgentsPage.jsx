@@ -118,7 +118,7 @@ function BotBuilder({ spec, seed, onChange }) {
     try { onChange(attachmentUrl((await uploadFile(f)).path)); } catch (err) { setError(err.message); }
   };
   return (
-    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? PALETTES[k.palette].c[2] : undefined }}>
+    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? PALETTES[k.palette].edge : undefined }}>
       <div className="bot-preview">
         <span className="chat-empty-stage"><BotAvatar spec={spec} seed={seed} size={132} /></span>
         <button type="button" className="btn-ghost" onClick={() => onChange(orbPath(names[Math.floor(Math.random() * names.length)]))}><LuDices size={14} /> Aléatoire</button>
