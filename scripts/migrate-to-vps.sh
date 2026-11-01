@@ -26,9 +26,11 @@ die()  { printf '\033[1;31m[x] %s\033[0m\n' "$*" >&2; exit 1; }
 
 say "Vérifications"
 command -v sqlite3 >/dev/null || die "sqlite3 introuvable"
-REMOTE_HOME="$(ssh -o BatchMode=yes "$HOST" 'echo $HOME')" || die "SSH vers $HOST impossible (clé SSH ?)"
+# One connection for both checks (fail2ban counts connections).
+REMOTE_INFO="$(ssh -o BatchMode=yes "$HOST" 'echo "$HOME"; command -v node >/dev/null && echo node-ok')" || die "SSH vers $HOST impossible (clé SSH ?)"
+REMOTE_HOME="$(printf '%s\n' "$REMOTE_INFO" | head -1)"
 echo "serveur : $HOST, dossier perso $REMOTE_HOME"
-ssh "$HOST" 'command -v node >/dev/null' || die "node absent du serveur : lance d'abord setup-vps.sh"
+printf '%s\n' "$REMOTE_INFO" | grep -q '^node-ok$' || die "node absent du serveur : lance d'abord setup-vps.sh"
 if [ "$APPLY" = 1 ]; then
   if curl -s -m 2 -o /dev/null "http://127.0.0.1:$PORT/api/state"; then
     die "Supersept tourne encore sur ce Mac. Arrête-le d'abord (les sessions en cours seront coupées) :
@@ -64,7 +66,8 @@ EXCLUDES=(
 say "À copier (tailles node_modules compris, ils ne seront pas copiés)"
 for r in "${REL[@]}"; do printf '  %8s  ~/%s\n' "$(du -sh "$HOME/$r" 2>/dev/null | cut -f1)" "$r"; done
 [ -f "$HOME/.claude.json" ] && echo "            ~/.claude.json → ~/.claude.json.from-mac"
-for p in "${OUTSIDE[@]}"; do warn "hors du dossier perso, à copier à la main : $p"; done
+# bash 3.2 (macOS) + set -u: an empty array expanded as "${a[@]}" is an "unbound variable".
+for p in ${OUTSIDE[@]+"${OUTSIDE[@]}"}; do warn "hors du dossier perso, à copier à la main : $p"; done
 
 if [ "$APPLY" = 0 ]; then
   echo
