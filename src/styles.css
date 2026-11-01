@@ -1133,25 +1133,17 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-secondary { justify-content: center; gap: 6px; height: 44px; margin-top: 12px; border-radius: 12px; border: 1px solid var(--ring); font-size: 15px; color: var(--muted-foreground); }
 .m-push-ok { margin-top: 14px; font-size: 14px; color: var(--emerald-400); }
 
-/* ---- Agent portraits: 3D art-toy renders (public/agents, scripts/agent-studio). The character makes the style;
-   the frame stays quiet: hairline edge, soft shadow, no glow. ---- */
-.portrait { --acc: #e07850; position: relative; display: inline-flex; flex: none; border-radius: var(--r); overflow: hidden; background: #1c1a19;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.8);
-  transition: transform 300ms cubic-bezier(.2, .8, .2, 1), filter 300ms var(--ease); }
-.portrait img { display: block; width: 100%; height: 100%; object-fit: cover; user-select: none; -webkit-user-drag: none; }
-.portrait::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.1); transition: box-shadow 300ms var(--ease); }
-.portrait.p-sm { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
-/* working: the hairline slowly takes the agent's colour */
-.portrait.busy::after { animation: portrait-busy 2.4s ease-in-out infinite; }
-@keyframes portrait-busy { 50% { box-shadow: inset 0 0 0 1.5px var(--acc), inset 0 1px 0 rgba(255, 255, 255, 0.1); } }
+/* ---- Agent avatars: profile photos (public/agents, scripts/agent-photos.mjs) or illustrated portraits.
+   A plain circle: no shadow, glow, border or hover effect. Only a small dot says the agent is working. ---- */
+.portrait { --acc: #e07850; position: relative; display: inline-flex; flex: none; border-radius: 50%; background: #1c1a19; box-shadow: none; }
+.portrait img { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; user-select: none; -webkit-user-drag: none; }
+.portrait-dot { position: absolute; right: 3%; bottom: 3%; width: max(7px, 16%); height: max(7px, 16%); max-width: 14px; max-height: 14px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 0 2px var(--sidebar-bg, #141312); }
 
 .status-dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #5c5856; flex: none; }
 .status-dot.on, .sb-agent-role .status-dot, .m-lead-role .status-dot { background: var(--acc, var(--primary)); animation: status-blink 1.6s ease-in-out infinite; }
 @keyframes status-blink { 50% { opacity: 0.35; } }
 
 /* sidebar tiles */
-.sb-agent-tile:hover .portrait, .m-grid-tile:active .portrait, .m-lead:active .portrait { transform: translateY(-1px) scale(1.03); filter: brightness(1.06); }
-.sb-agent-tile.active .portrait::after { box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.55); }
 .sb-agent-tile.lead { gap: 14px; }
 
 /* chat header + empty state */
@@ -1159,7 +1151,6 @@ body.resizing { user-select: none; cursor: col-resize; }
 .chat-name { font-size: 14px; }
 .chat-status { display: inline-flex; align-items: center; }
 .chat-empty-stage { position: relative; display: inline-flex; margin-bottom: 16px; }
-.chat-empty-stage .portrait { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), 0 24px 48px -20px rgba(0, 0, 0, 0.9); }
 .msg-bot { margin-top: 0; }
 
 /* mobile */
@@ -1168,11 +1159,10 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-lead-role { display: inline-flex; align-items: center; }
 
 /* builder */
-.bot-option .portrait { box-shadow: none; }
 .bot-option.on { border-color: var(--foreground); background: var(--fill-selected); }
 .bot-preview .chat-empty-stage { margin: 4px 8px; }
 .bot-studio-note { max-width: 150px; margin: 0; font-size: 11px; line-height: 15px; color: var(--muted-foreground); text-align: center; }
 
 @media (prefers-reduced-motion: reduce) {
-  .portrait, .portrait::after, .status-dot { animation: none !important; transition: none !important; }
+  .status-dot { animation: none !important; transition: none !important; }
 }

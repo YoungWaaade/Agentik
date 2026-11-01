@@ -1,10 +1,10 @@
-// Agent portraits. The team's agents have real 3D characters (art-toy busts with liquid-chrome or
-// latex hair, studio light, flat backdrop), rendered once by scripts/agent-studio into
-// public/agents/<slug>-bust.webp (large sizes) and <slug>-face.webp (small sizes, tighter crop).
-// Agents without a render — or whose avatar was customised in the editor — get an illustrated
-// portrait in the same spirit, generated as an SVG data URL from their spec.
+// Agent avatars. The team's agents have a profile photo (an illustration chosen by the user, only
+// cropped and resized by scripts/agent-photos.mjs): public/agents/<slug>.webp (large sizes) and
+// <slug>-sm.webp (small sizes). Agents without a photo — or whose avatar was customised in the
+// editor — get an illustrated portrait generated as an SVG data URL from their spec.
+// Always shown as a plain circle: no shadow, glow, border or hover effect.
 //
-// Spec: "" / legacy pixel spec / "studio" → the 3D render when there is one;
+// Spec: "" / legacy pixel spec / "studio" / "photo" → the photo when there is one;
 // "v2:accent,skin,hair,eyes,marks,accessory,mouth" → the customised illustrated portrait.
 
 import { memo } from 'react';
@@ -84,10 +84,10 @@ export function randomAvatar() {
   return Object.fromEntries(PARTS.map((p) => [p, r(PART_OPTIONS[p])]));
 }
 export const accentOf = (spec, seed) => ACCENTS[parseAvatar(spec, seed).accent];
-// Agents with a studio render (scripts/agent-studio).
-export const STUDIO = ['nami', 'anastasia', 'katerina', 'hammer', 'robin', 'claude'];
-export const hasStudio = (slug) => STUDIO.includes(slug);
-export const usesStudio = (spec, slug) => hasStudio(slug) && !(typeof spec === 'object' && spec) && !String(spec || '').startsWith('v2:');
+// Agents with a profile photo (scripts/agent-photos.mjs).
+export const PHOTOS = ['nami', 'anastasia', 'katerina', 'hammer', 'robin', 'claude'];
+export const hasPhoto = (slug) => PHOTOS.includes(slug);
+export const usesPhoto = (spec, slug) => hasPhoto(slug) && !(typeof spec === 'object' && spec) && !String(spec || '').startsWith('v2:');
 
 // ---- drawing ---------------------------------------------------------------------------------
 
@@ -319,11 +319,12 @@ function BotAvatar({ spec, seed, size = 16, className = '', busy = false }) {
   const a = parseAvatar(spec, seed);
   const acc = ACCENTS[a.accent];
   const tier = size >= 72 ? 'xl' : size >= 36 ? 'md' : 'sm';
-  const src = usesStudio(spec, seed) ? `/agents/${seed}-${size >= 48 ? 'bust' : 'face'}.webp` : portraitUrl(a, tier);
+  const src = usesPhoto(spec, seed) ? `/agents/${seed}${size >= 72 ? '' : '-sm'}.webp` : portraitUrl(a, tier);
   return (
     <span className={`bot-avatar portrait p-${tier} ${busy ? 'busy' : ''} ${className}`}
-      style={{ width: size, height: size, '--acc': acc, '--r': `${Math.round(size * (tier === 'sm' ? 0.3 : size >= 100 ? 0.16 : 0.22))}px` }} aria-hidden="true">
+      style={{ width: size, height: size, '--acc': acc }} aria-hidden="true">
       <img src={src} alt="" draggable="false" width={size} height={size} decoding="async" />
+      {busy && size >= 24 && <i className="portrait-dot" />}
     </span>
   );
 }

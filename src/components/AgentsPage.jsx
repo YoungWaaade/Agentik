@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuDices } from 'react-icons/lu';
-import BotAvatar, { parseAvatar, avatarSpec, randomAvatar, ACCENTS, PART_OPTIONS, BOT_LABELS, hasStudio, usesStudio } from './BotAvatar.jsx';
+import BotAvatar, { parseAvatar, avatarSpec, randomAvatar, ACCENTS, PART_OPTIONS, BOT_LABELS, hasPhoto, usesPhoto } from './BotAvatar.jsx';
 import { api } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
@@ -111,8 +111,8 @@ function BotBuilder({ spec, seed, onChange }) {
     <div className="bot-builder" style={{ '--acc': ACCENTS[a.accent] }}>
       <div className="bot-preview">
         <span className="chat-empty-stage"><BotAvatar spec={spec} seed={seed} size={132} /></span>
-        {usesStudio(spec, seed) && <p className="bot-studio-note">Personnage 3D de l’équipe. Choisir une option ci-contre le remplace par un portrait personnalisé.</p>}
-        {hasStudio(seed) && !usesStudio(spec, seed) && <button type="button" className="btn-ghost" onClick={() => onChange('studio')}>Revenir au personnage 3D</button>}
+        {usesPhoto(spec, seed) && <p className="bot-studio-note">Photo de profil de l’agent. Choisir une option ci-contre la remplace par un portrait personnalisé.</p>}
+        {hasPhoto(seed) && !usesPhoto(spec, seed) && <button type="button" className="btn-ghost" onClick={() => onChange('photo')}>Revenir à la photo</button>}
         <button type="button" className="btn-ghost" onClick={() => onChange(avatarSpec(randomAvatar()))}><LuDices size={14} /> Aléatoire</button>
       </div>
       <div className="bot-parts">
@@ -122,7 +122,7 @@ function BotBuilder({ spec, seed, onChange }) {
             <div className="bot-options">
               {PART_OPTIONS[part].map((o) => (
                 <button key={o} type="button" className={`bot-option ${a[part] === o ? 'on' : ''}`} title={BOT_LABELS[o] || o} onClick={() => setPart(part, o)}>
-                  {part === 'accent' ? <span className="bot-swatch" style={{ background: ACCENTS[o], boxShadow: `0 0 8px ${ACCENTS[o]}` }} /> : <BotAvatar spec={{ ...a, [part]: o }} size={30} />}
+                  {part === 'accent' ? <span className="bot-swatch" style={{ background: ACCENTS[o] }} /> : <BotAvatar spec={{ ...a, [part]: o }} size={30} />}
                 </button>
               ))}
             </div>
