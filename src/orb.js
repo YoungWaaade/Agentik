@@ -26,7 +26,8 @@ export const PALETTES = {
 // Palette recalling each agent's role.
 export const AGENT_ORBS = {
   hammer: 'electrique', // builds apps: electric blue
-  robin: 'menthe', // everyday life, papers, budget: calm greens
+  robin: 'menthe', // everyday life, lists, budget: calm greens
+  zero: 'or', // folders, files and paperwork: archive gold
   anastasia: 'magenta', // Instagram: magenta → orange
   katerina: 'iris', // portfolio, design: iridescent violet
   claude: 'corail', // the default assistant: Claude's coral

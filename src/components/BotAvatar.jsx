@@ -51,6 +51,7 @@ export const PRESETS = {
   katerina: { accent: 'acide', skin: 'sable', hair: 'boucles', eyes: 'ronds', marks: 'point', accessory: 'lunettes-front', mouth: 'sourire' },
   hammer: { accent: 'cyan', skin: 'sable', hair: 'banane', eyes: 'visiere', marks: 'barres', accessory: 'aucun', mouth: 'neutre' },
   robin: { accent: 'violet', skin: 'porcelaine', hair: 'longs', eyes: 'calmes', marks: 'barres', accessory: 'boucle', mouth: 'neutre' },
+  zero: { accent: 'or', skin: 'graphite', hair: 'crane', eyes: 'lunettes', marks: 'lignes', accessory: 'aucun', mouth: 'neutre' },
   claude: { accent: 'corail', skin: 'chrome', hair: 'crane', eyes: 'ouverts', marks: 'etincelle', accessory: 'antenne', mouth: 'sourire' },
 };
 
