@@ -215,7 +215,12 @@ Rien n'est ouvert sur internet. Seuls tes appareils connectés à ton compte Tai
    ```bash
    cd ~/supersept && npm run pair
    ```
-   Un QR code s'affiche pour `https://supersept.<tailnet>.ts.net/pair?token=…`.
+   Un QR code noir sur blanc s'affiche pour `https://supersept.<tailnet>.ts.net/pair?token=…`.
+   Si l'iPhone ne le lit pas (espacement des lignes du Terminal), essaie `npm run pair -- --compact`, ou affiche-le en image sur le Mac :
+   ```bash
+   ssh emre@supersept 'cd ~/supersept && node scripts/pair-phone.mjs --png -' > ~/Desktop/pair.png && open ~/Desktop/pair.png
+   ```
+   Autre option : copie le lien sur le Mac et colle-le dans Safari sur l'iPhone (presse-papiers universel).
 3. Scanne-le avec l'appareil photo, ouvre le lien dans Safari, puis **Partager → Sur l'écran d'accueil**.
 4. Pour **révoquer** tous les appareils (téléphone perdu…) : `npm run pair -- --rotate`.
 

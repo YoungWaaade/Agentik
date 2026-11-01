@@ -76,7 +76,9 @@ function addresses() {
 }
 
 export async function status(port) {
-  const all = [...(PUBLIC_URL ? [{ label: 'Adresse du serveur', address: PUBLIC_URL, tailscale: true, public: true }] : []), ...addresses()];
+  // Bound to loopback (behind Tailscale Serve / Caddy): the http://<ip>:<port> links can't work, only the public URL can.
+  const loopbackOnly = isLoopback(listenHost()) || listenHost() === 'localhost';
+  const all = [...(PUBLIC_URL ? [{ label: 'Adresse du serveur', address: PUBLIC_URL, tailscale: true, public: true }] : []), ...(loopbackOnly ? [] : addresses())];
   if (!enabled()) return { enabled: false, addresses: all };
   const list = await Promise.all(all.map(async (a) => {
     const url = a.public ? `${PUBLIC_URL}${pairPath()}` : `http://${a.address}:${port}${pairPath()}`;
