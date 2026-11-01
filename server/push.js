@@ -125,8 +125,9 @@ export async function notify(kind, payload, { target = null, only = null } = {})
   return out;
 }
 
-// The Topic header replaces a pending, undelivered notification with the same topic (max 32 url-safe chars).
-const topicOf = (tag) => (tag ? String(tag).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 32) : undefined);
+// The Topic header replaces a pending, undelivered notification with the same topic (max 32 chars).
+// Letters and digits only: Apple rejects a topic with '-' or '_' (400 BadWebPushTopic), so the push is lost.
+const topicOf = (tag) => (tag ? String(tag).replace(/[^A-Za-z0-9]/g, '').slice(0, 32) : undefined);
 
 // ---- agent avatars as notification icons ----------------------------------------------------------
 // Resolved on every push from the agent's config, never from a fixed list: the avatar field of
