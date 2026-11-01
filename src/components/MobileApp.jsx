@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch } from 'react-icons/lu';
+import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuTerminal, LuBot } from 'react-icons/lu';
 import { api, ago, STATUS } from '../api.js';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
 import { StatusIndicator, ProjectThumbnail, AsciiSpinner, DiffStats } from './ui.jsx';
+import { AgentListScreen, AgentScreen } from './MobileAgents.jsx';
+import { onNewMessage, useChatBadges, loadConvs } from '../chatStore.js';
+import { systemLabel, lastKey } from './AgentChat.jsx';
 
 // Keys Claude Code needs that the iOS keyboard doesn't have.
 const KEYS = [
@@ -29,14 +32,79 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   // A relayed session (context full) opens the one that took over.
   let current = route.kind === 'ws' ? data.workspaces.find((w) => w.id === route.id) : null;
   for (let i = 0; current?.successor && i < 50; i++) current = data.workspaces.find((w) => w.id === current.successor) || null;
+  const agents = data.agents || [];
+  const agent = route.kind === 'agent' ? agents.find((a) => a.slug === route.id) : null;
+  const banner = useAgentBanner(agents, route);
   let screen;
   if (current) screen = <WorkspaceScreen key={current.id} ws={current} project={projectsById[current.project_id]} go={go} />;
   else if (route.kind === 'new') screen = <NewScreen projects={data.projects} go={go} load={load} />;
-  else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} />;
-  return <div className="m-app" style={{ height: vv.height, transform: `translateY(${vv.top}px)` }}>{screen}</div>;
+  else if (agent) screen = <AgentScreen key={agent.slug} agent={agent} go={go} />;
+  else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
+  else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} tabs={<Tabs tab="sessions" go={go} agents={agents} />} />;
+  return (
+    <div className="m-app" style={{ height: vv.height, transform: `translateY(${vv.top}px)` }}>
+      {screen}
+      {banner.item && (
+        <button className="m-banner" onClick={banner.open}>
+          <strong>{banner.item.title}</strong>
+          <span>{banner.item.text}</span>
+        </button>
+      )}
+    </div>
+  );
 }
 
-function ListScreen({ data, projectsById, go, connected }) {
+// Bottom tabs of the two home screens: terminal sessions, and agents to chat with.
+function Tabs({ tab, go, agents }) {
+  const badges = useChatBadges();
+  const unread = agents.reduce((n, a) => n + badges.unread(a.slug), 0);
+  return (
+    <nav className="m-tabs">
+      <button className={`m-tab ${tab === 'sessions' ? 'on' : ''}`} onClick={() => go({ kind: 'board' })}><LuTerminal size={20} /><span>Sessions</span></button>
+      <button className={`m-tab ${tab === 'agents' ? 'on' : ''}`} onClick={() => go({ kind: 'agents' })}>
+        <span className="m-tab-icon"><LuBot size={20} />{unread > 0 && <span className="m-badge m-tab-badge">{unread}</span>}</span><span>Agents</span>
+      </button>
+    </nav>
+  );
+}
+
+// An agent answered, or a [Supersept] notice (session finished…) landed, in a conversation not on screen:
+// show a banner at the top for a few seconds; tapping it opens that conversation.
+function useAgentBanner(agents, route) {
+  const [item, setItem] = useState(null);
+  const ref = useRef({ agents, route });
+  ref.current = { agents, route };
+  useEffect(() => {
+    let timer;
+    const off = onNewMessage(({ agent, conversation, message, viewed }) => {
+      if (viewed || !['assistant', 'system'].includes(message.role)) return;
+      const a = ref.current.agents.find((x) => x.slug === agent);
+      if (!a) return;
+      const text = message.role === 'system' ? systemLabel(message.text) : (message.text || '').replace(/\s+/g, ' ').slice(0, 140);
+      if (!text) return;
+      setItem({ agent, conversation, title: message.role === 'system' ? `${a.label} · Supersept` : a.label, text });
+      clearTimeout(timer);
+      timer = setTimeout(() => setItem(null), 6000);
+    });
+    return () => { off(); clearTimeout(timer); };
+  }, []);
+  const open = async () => {
+    setItem(null);
+    // Make sure the conversation is open (it could be one closed on the Mac), else the screen would pick another.
+    try {
+      const list = await api.get(`/api/agents/${item.agent}/conversations`);
+      if (!list.find((c) => c.conversation === item.conversation)?.open) await api.patch(`/api/agents/${item.agent}/conversations/${item.conversation}`, { open: true });
+      await loadConvs(item.agent);
+    } catch {}
+    localStorage.setItem(lastKey(item.agent), String(item.conversation));
+    const r = ref.current.route;
+    if (r.kind === 'agent' && r.id === item.agent) dispatchEvent(new CustomEvent('m-open-conv', { detail: item })); // same agent, other conversation
+    else location.hash = `#/agent/${item.agent}`;
+  };
+  return { item, open };
+}
+
+function ListScreen({ data, projectsById, go, connected, tabs }) {
   const live = data.workspaces.filter((w) => !w.archived);
   const groups = [
     ['À traiter', live.filter((w) => ['waiting', 'review', 'error'].includes(w.status))],
@@ -60,6 +128,7 @@ function ListScreen({ data, projectsById, go, connected }) {
         ))}
         {!live.length && <p className="m-note">Aucun espace de travail. Touche + pour en lancer un.</p>}
       </div>
+      {tabs}
     </>
   );
 }

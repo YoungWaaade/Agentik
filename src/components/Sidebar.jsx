@@ -6,6 +6,7 @@ import { WorkspaceIcon, ProjectThumbnail, DiffStats } from './ui.jsx';
 import { api } from '../api.js';
 import { useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
+import { splitAgents } from '../agentTeam.js';
 
 const DND_TYPE = 'application/x-supersept-workspace';
 const DND_PROJECT = 'application/x-supersept-project';
@@ -49,6 +50,7 @@ export default function Sidebar({ data, route, go, connected, me, onNew, onNewSe
   useEffect(() => localStorage.setItem('sb-sort', JSON.stringify(sort)), [sort]);
 
   const badges = useChatBadges();
+  const team = splitAgents(data.agents || []);
   const visible = data.workspaces.filter((w) => !w.archived);
   const q = filter.trim().toLowerCase();
   const matches = (w) => !q || w.name.toLowerCase().includes(q) || (w.branch || '').toLowerCase().includes(q);
@@ -212,10 +214,10 @@ export default function Sidebar({ data, route, go, connected, me, onNew, onNewSe
             </SectionHeader>
             {!closedSections.agents && (
               <div className="sb-agents">
-                {(data.agents || []).filter((a) => a.manager).map((a) => (
-                  <AgentTile key={a.slug} lead agent={a} active={route.kind === 'agent' && route.id === a.slug} busy={badges.busy(a.slug)} unread={badges.unread(a.slug)} onClick={() => go({ kind: 'agent', id: a.slug })} />
-                ))}
-                {(data.agents || []).filter((a) => !a.manager).map((a) => (
+                {team.lead && (
+                  <AgentTile lead agent={team.lead} active={route.kind === 'agent' && route.id === team.lead.slug} busy={badges.busy(team.lead.slug)} unread={badges.unread(team.lead.slug)} onClick={() => go({ kind: 'agent', id: team.lead.slug })} />
+                )}
+                {team.others.map((a) => (
                   <AgentTile key={a.slug} agent={a} active={route.kind === 'agent' && route.id === a.slug} busy={badges.busy(a.slug)} unread={badges.unread(a.slug)} onClick={() => go({ kind: 'agent', id: a.slug })} />
                 ))}
               </div>
@@ -410,7 +412,7 @@ function AgentTile({ agent, active, busy, unread, onClick, lead }) {
   return (
     <button className={`sb-agent-tile ${active ? 'active' : ''} ${lead ? 'lead' : ''}`} onClick={onClick} title={agent.description}>
       <span className="sb-agent-bot">
-        <BotAvatar spec={agent.avatar} seed={agent.slug} size={40} />
+        <BotAvatar spec={agent.avatar} seed={agent.slug} size={lead ? 48 : 40} />
         {busy ? <span className="sb-agent-badge busy"><span /><span /><span /></span> : unread > 0 ? <span className="sb-agent-badge">{unread}</span> : null}
       </span>
       {lead ? (

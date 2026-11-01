@@ -46,6 +46,14 @@ export function listAgents() {
 
 export const getAgent = (slug) => (isSlug(slug) ? listAgents().find((a) => a.slug === slug) || null : null);
 
+// The team coordinator: the agent flagged `manager` in its file, otherwise the one whose id is "nami"
+// (same rule as src/agentTeam.js).
+export const LEAD_SLUG = 'nami';
+export function leadAgent() {
+  const all = listAgents();
+  return all.find((a) => a.manager && a.manager !== 'false') || all.find((a) => a.slug === LEAD_SLUG) || null;
+}
+
 export function saveAgent(slug, data) {
   if (!isSlug(slug)) throw new Error("identifiant d'agent invalide (minuscules, chiffres et tirets)");
   const meta = { ...data, name: slug };

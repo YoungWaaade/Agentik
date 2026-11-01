@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR, HOOKS_DIR, WORKTREES_DIR, MEMORY_DIR, memoryFile, resolveWorkspaceId } from './db.js';
 import * as git from './git.js';
 import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } from './history.js';
-import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
+import { listAgents, getAgent, leadAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
 import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation } from './chat.js';
 import * as remote from './remote.js';
@@ -876,6 +876,8 @@ app.post('/api/workspaces/:id/send', wrap(async (req, res) => {
   if (!ws) throw new Error('session introuvable');
   const text = String(req.body.text || '').trim();
   if (!text) throw new Error('message vide');
+  const from = req.get('X-Supersept-Agent');
+  if (from && from !== ws.owner_agent) watchWorkspace(ws.id, from, convNum(req.get('X-Supersept-Conv')));
   const r = relaying.get(ws.id);
   if (r) {
     // Mid-relay: the old session is writing its handoff, the message goes to the new one.
@@ -899,6 +901,7 @@ app.put('/api/agents/:slug', wrap(async (req, res) => {
     db.prepare('UPDATE agent_tabs SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
     // Keep its chat and the sessions it launched attached to the renamed agent.
     db.prepare('UPDATE workspaces SET owner_agent = ? WHERE owner_agent = ?').run(slug, req.params.slug);
+    db.prepare('UPDATE OR IGNORE workspace_watchers SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
     db.prepare('UPDATE agent_chats SET manager = ? WHERE manager = ?').run(slug, req.params.slug);
     db.prepare('UPDATE agent_convs SET manager = ? WHERE manager = ?').run(slug, req.params.slug);
     if (!db.prepare('SELECT 1 FROM agent_convs WHERE agent = ?').get(slug)) db.prepare('UPDATE agent_convs SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
@@ -1013,11 +1016,34 @@ app.post('/api/workspaces/:id/open', wrap(async (req, res) => {
 }));
 
 // Tell the chat agent that launched a session what happened, so it can follow up on its own.
+// Who gets told: the agent that launched it, the agents that sent it a message (watchers), and the team
+// coordinator for sessions launched by another agent. Each agent once, in its own conversation.
+function reportTargets(ws) {
+  const out = new Map(); // agent slug → conversation
+  const add = (agent, conv) => { if (agent && !out.has(agent) && getAgent(agent)) out.set(agent, conv ?? null); };
+  add(ws.owner_agent, ws.owner_conv);
+  for (const w of db.prepare('SELECT agent, conv FROM workspace_watchers WHERE workspace_id = ? ORDER BY at').all(ws.id)) add(w.agent, w.conv);
+  const lead = leadAgent();
+  if (lead && ws.owner_agent && getAgent(ws.owner_agent)) add(lead.slug, null);
+  return out;
+}
+
+// An agent that sends a message to a session follows it from then on.
+function watchWorkspace(wsId, agent, conv) {
+  if (!agent || !getAgent(agent)) return;
+  db.prepare(`INSERT INTO workspace_watchers (workspace_id, agent, conv, at) VALUES (?, ?, ?, ?)
+              ON CONFLICT (workspace_id, agent) DO UPDATE SET conv = excluded.conv, at = excluded.at`).run(wsId, agent, conv, now());
+}
+
 function reportToOwner(wsId, what, text, { label = 'Son dernier message' } = {}) {
   const ws = getWorkspace(wsId);
-  if (!ws?.owner_agent || !getAgent(ws.owner_agent) || ws.successor || relaying.has(wsId)) return;
-  const msg = `[Supersept] La session « ${ws.name} » (id ${ws.id}) ${what}.${text ? ` ${label} : ${String(text).slice(0, 1500)}` : ''}`;
-  try { sendToAgent(ws.owner_agent, msg, { internal: true, conversation: ws.owner_conv ?? null }); } catch {}
+  if (!ws || ws.successor || relaying.has(wsId)) return;
+  const owner = ws.owner_agent && getAgent(ws.owner_agent);
+  for (const [agent, conv] of reportTargets(ws)) {
+    const by = owner && agent !== owner.slug ? ` (lancée par ${owner.label})` : '';
+    const msg = `[Supersept] La session « ${ws.name} » (id ${ws.id})${by} ${what}.${text ? ` ${label} : ${String(text).slice(0, 1500)}` : ''}`;
+    try { sendToAgent(agent, msg, { internal: true, conversation: conv }); } catch {}
+  }
 }
 
 // ---------- automatic relay (context full) ----------
@@ -1139,6 +1165,8 @@ function finishRelay(id, summary, source) {
         ws.model, ws.effort, ws.permission_mode, ws.agent, ws.owner_agent, ws.owner_conv, ws.id);
     db.prepare('UPDATE workspaces SET successor = ?, archived = 1, autostart = 0, updated_at = ? WHERE id = ?').run(newId, now(), ws.id);
     db.prepare('UPDATE agent_tabs SET workspace_id = ? WHERE workspace_id = ?').run(newId, ws.id);
+    // Agents following the old session keep being told about the new one.
+    db.prepare('INSERT OR IGNORE INTO workspace_watchers (workspace_id, agent, conv, at) SELECT ?, agent, conv, at FROM workspace_watchers WHERE workspace_id = ?').run(newId, ws.id);
     db.prepare('INSERT INTO relays (kind, from_ref, to_ref, old_session, new_session, tokens, window, summary_source, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run('workspace', ws.id, newId, ws.session_id, sessionId, r.tokens, r.window, source, now());
     db.exec('COMMIT');

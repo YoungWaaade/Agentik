@@ -200,6 +200,16 @@ db.exec(`CREATE TABLE IF NOT EXISTS relays (
   at INTEGER NOT NULL
 )`);
 
+// Agents that follow a session without having launched it (they sent it a message with `supersept send`):
+// they get its "finished / waiting" reports too. Carried over to the new session on a relay.
+db.exec(`CREATE TABLE IF NOT EXISTS workspace_watchers (
+  workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  agent TEXT NOT NULL,
+  conv INTEGER,
+  at INTEGER NOT NULL,
+  PRIMARY KEY (workspace_id, agent)
+)`);
+
 // Follow workspace relays to the session doing the work now.
 export function resolveWorkspaceId(id) {
   const seen = new Set();

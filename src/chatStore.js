@@ -7,6 +7,7 @@ const chats = new Map(); // "agent:conversation" → { messages, busy, loaded }
 const convs = new Map(); // agent → { list, loaded }
 const unread = new Map(); // "agent:conversation" → count of agent messages not seen yet
 const subs = new Set();
+const msgSubs = new Set(); // called on each new message (mobile banners)
 let viewing = null; // "agent:conversation" on screen
 
 const k = (agent, conv) => `${agent}:${conv}`;
@@ -39,6 +40,7 @@ export function onChatEvent(m) {
     const i = c.messages.findIndex((x) => x.id === m.message.id);
     c.messages = i >= 0 ? c.messages.map((x, j) => (j === i ? m.message : x)) : [...c.messages, m.message];
     if (i < 0 && m.message.role === 'assistant' && viewing !== k(m.agent, conv)) unread.set(k(m.agent, conv), (unread.get(k(m.agent, conv)) || 0) + 1);
+    if (i < 0) msgSubs.forEach((f) => f({ agent: m.agent, conversation: conv, message: m.message, viewed: viewing === k(m.agent, conv) }));
     // A message in a conversation we don't list yet (new mission, reopened): refresh the tabs.
     const list = convs.get(m.agent)?.list;
     if (list && !list.some((x) => x.conversation === conv && x.open)) loadConvs(m.agent).catch(() => {});
@@ -85,4 +87,10 @@ export function useChatBadges() {
     busyConv: (a, c) => !!chats.get(k(a, c))?.busy,
     unreadConv: (a, c) => unread.get(k(a, c)) || 0,
   };
+}
+
+// New chat messages as they arrive: { agent, conversation, message, viewed }. Returns the unsubscribe.
+export function onNewMessage(f) {
+  msgSubs.add(f);
+  return () => msgSubs.delete(f);
 }

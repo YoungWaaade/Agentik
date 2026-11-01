@@ -40,7 +40,7 @@ function Markdown({ text }) {
 }
 
 // "[Supersept] La session « X » (id …) vient de terminer. …" → "Session « X » terminée"
-function systemLabel(text) {
+export function systemLabel(text) {
   const reply = /^\[Supersept\] (.+?) a répondu/.exec(text || '');
   if (reply) return `${reply[1]} a répondu`;
   const m = /La session « (.+?) » \(id [^)]+\) (vient de terminer|attend une réponse)/.exec(text || '');
@@ -48,8 +48,8 @@ function systemLabel(text) {
   return m[2] === 'vient de terminer' ? `Session « ${m[1]} » terminée` : `Session « ${m[1]} » attend une réponse`;
 }
 
-const convTitle = (c) => c.title || (c.first ? c.first.replace(/\s+/g, ' ').slice(0, 60) : 'Nouvelle conversation');
-const lastKey = (slug) => `supersept.conv.${slug}`;
+export const convTitle = (c) => c.title || (c.first ? c.first.replace(/\s+/g, ' ').slice(0, 60) : 'Nouvelle conversation');
+export const lastKey = (slug) => `supersept.conv.${slug}`;
 // Where the user left a conversation they had scrolled up in (absent = stuck to the bottom).
 const scrollPos = new Map();
 
@@ -306,7 +306,7 @@ export default function AgentChat({ agent, go }) {
   );
 }
 
-function Message({ m, agent, go }) {
+export function Message({ m, agent, go }) {
   if (m.role === 'user') {
     return (
       <div className={`msg user ${m.meta?.from ? 'delegated' : ''}`}>
