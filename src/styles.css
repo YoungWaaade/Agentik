@@ -855,11 +855,13 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-agent-busy, .m-busy { color: var(--primary); font-size: 12px; }
 /* Phone: agents as a team — lead card on top, others in a 3-column grid */
 .m-team { padding: 16px 12px; }
-.m-lead { display: flex; align-items: center; gap: 16px; width: 100%; padding: 14px 18px; border-radius: 16px; background: rgba(234, 232, 230, 0.042); text-align: left; }
-.m-lead:active { background: var(--fill-selected); }
-.m-lead-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.m-lead-name { font-size: 19px; font-weight: 500; line-height: 24px; color: var(--foreground); }
-.m-lead-role { font-size: 15px; line-height: 20px; color: var(--muted-foreground); }
+/* Team lead pinned at the top, like a pinned conversation in iPhone Messages: big round photo, name below, no card. */
+.m-pin { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 4px auto 0; padding: 4px 8px; background: none; -webkit-tap-highlight-color: transparent; }
+.m-pin:active .m-pin-photo { opacity: 0.7; }
+.m-pin-photo { position: relative; display: flex; }
+.m-pin-photo .portrait-dot { right: 4%; bottom: 4%; width: 16px; height: 16px; max-width: none; max-height: none; box-shadow: 0 0 0 3px var(--background); }
+.m-pin-unread { position: absolute; top: 0; left: -2px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--primary); color: #fff; font-size: 13px; font-weight: 600; line-height: 22px; text-align: center; box-shadow: 0 0 0 3px var(--background); }
+.m-pin-name { font-size: 15px; line-height: 20px; color: var(--foreground); text-align: center; }
 .m-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 16px; }
 .m-grid-tile { flex-direction: column; gap: 8px; min-width: 0; padding: 12px 4px 10px; border-radius: 14px; }
 .m-grid-tile:active { background: var(--fill-hover); }
@@ -1140,7 +1142,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .portrait-dot { position: absolute; right: 3%; bottom: 3%; width: max(7px, 16%); height: max(7px, 16%); max-width: 14px; max-height: 14px; border-radius: 50%; background: #3fb950; box-shadow: 0 0 0 2px var(--sidebar-bg, #141312); }
 
 .status-dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: #5c5856; flex: none; }
-.status-dot.on, .sb-agent-role .status-dot, .m-lead-role .status-dot { background: var(--acc, var(--primary)); animation: status-blink 1.6s ease-in-out infinite; }
+.status-dot.on, .sb-agent-role .status-dot { background: var(--acc, var(--primary)); animation: status-blink 1.6s ease-in-out infinite; }
 @keyframes status-blink { 50% { opacity: 0.35; } }
 
 /* sidebar tiles */
@@ -1156,7 +1158,6 @@ body.resizing { user-select: none; cursor: col-resize; }
 /* mobile */
 .m-head { min-height: 58px; }
 .m-head-sub { display: inline-flex; align-items: center; }
-.m-lead-role { display: inline-flex; align-items: center; }
 
 /* builder */
 .bot-option.on { border-color: var(--foreground); background: var(--fill-selected); }

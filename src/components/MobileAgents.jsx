@@ -31,12 +31,12 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
         {agents.length > 0 && (
           <div className="m-team">
             {lead && (
-              <button className={`m-lead ${badges.busy(lead.slug) ? 'busy' : ''}`} onClick={() => open(lead)} title={lead.description} style={{ '--acc': accentOf(lead.avatar, lead.slug) }}>
-                <Bot agent={lead} size={72} badges={badges} />
-                <span className="m-lead-text">
-                  <span className="m-lead-name">{lead.label}</span>
-                  <span className="m-lead-role">{badges.busy(lead.slug) ? <><i className="status-dot" /> En mission</> : 'Cheffe d’équipe'}</span>
+              <button className={`m-pin ${badges.busy(lead.slug) ? 'busy' : ''}`} onClick={() => open(lead)} title={lead.description} aria-label={`${lead.label}${badges.unread(lead.slug) > 0 ? `, ${badges.unread(lead.slug)} non lus` : ''}`}>
+                <span className="m-pin-photo">
+                  <BotAvatar spec={lead.avatar} seed={lead.slug} size={96} busy={badges.busy(lead.slug)} />
+                  {badges.unread(lead.slug) > 0 && <span className="m-pin-unread">{badges.unread(lead.slug)}</span>}
                 </span>
+                <span className="m-pin-name">{lead.label}</span>
               </button>
             )}
             {others.length > 0 && (
