@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { LuPlus, LuTrash2, LuDices } from 'react-icons/lu';
-import BotAvatar, { parseAvatar, avatarSpec, randomAvatar, ACCENTS, PART_OPTIONS, BOT_LABELS, hasPhoto, usesPhoto } from './BotAvatar.jsx';
-import { api } from '../api.js';
+import { LuPlus, LuTrash2, LuDices, LuImagePlus } from 'react-icons/lu';
+import BotAvatar, { hasPhoto, avatarKind } from './BotAvatar.jsx';
+import { PALETTES, orbPath, defaultOrb } from '../orb.js';
+import { api, uploadFile, attachmentUrl } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
 const MODELS = [['', 'Modèle par défaut'], ['fable', 'Fable'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];
@@ -9,7 +10,7 @@ const EFFORTS = [['', 'Effort par défaut'], ['low', 'Low'], ['medium', 'Medium'
 const MODES = [['', 'Permissions par défaut'], ['manual', 'Demander à chaque action'], ['acceptEdits', 'Accepter les modifications de fichiers'], ['auto', 'Auto'], ['plan', 'Plan (lecture seule, propose un plan)']];
 const EMPTY = { label: '', avatar: '', description: '', prompt: '', model: '', effort: '', permissionMode: '', tools: '', initialPrompt: '' };
 
-// Every agent has a portrait; agents without one get a stable portrait derived from their name.
+// Every agent has an avatar; agents without one get an orb whose palette is derived from their name.
 export function AgentIcon({ agent, size = 16 }) {
   return <BotAvatar spec={agent?.avatar} seed={agent?.slug || agent?.label} size={size} />;
 }
@@ -51,7 +52,9 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
     e.preventDefault();
     setError(null);
     try {
-      const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, slug: form.label || agent?.slug });
+      // A new agent keeps the orb shown in the preview (an explicit path, so its notifications show it too).
+      const avatar = form.avatar || (agent ? '' : orbPath(defaultOrb(form.label || 'nouveau')));
+      const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, avatar, slug: form.label || agent?.slug });
       setSaved(true);
       onSaved(a);
     } catch (err) { setError(err.message); }
@@ -102,32 +105,47 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
   );
 }
 
-const ROWS = [['accent', 'Néon'], ['skin', 'Matière'], ['hair', 'Coiffure'], ['eyes', 'Regard'], ['marks', 'Marques'], ['accessory', 'Accessoire'], ['mouth', 'Bouche']];
-
+// Avatar editor: an animated orb by default (one palette per agent), or a photo of one's own.
 function BotBuilder({ spec, seed, onChange }) {
-  const a = parseAvatar(spec, seed);
-  const setPart = (k, v) => onChange(avatarSpec({ ...a, [k]: v }));
+  const [error, setError] = useState(null);
+  const k = avatarKind(spec, seed);
+  const names = Object.keys(PALETTES);
+  const upload = async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    setError(null);
+    try { onChange(attachmentUrl((await uploadFile(f)).path)); } catch (err) { setError(err.message); }
+  };
   return (
-    <div className="bot-builder" style={{ '--acc': ACCENTS[a.accent] }}>
+    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? PALETTES[k.palette].c[2] : undefined }}>
       <div className="bot-preview">
         <span className="chat-empty-stage"><BotAvatar spec={spec} seed={seed} size={132} /></span>
-        {usesPhoto(spec, seed) && <p className="bot-studio-note">Photo de profil de l’agent. Choisir une option ci-contre la remplace par un portrait personnalisé.</p>}
-        {hasPhoto(seed) && !usesPhoto(spec, seed) && <button type="button" className="btn-ghost" onClick={() => onChange('photo')}>Revenir à la photo</button>}
-        <button type="button" className="btn-ghost" onClick={() => onChange(avatarSpec(randomAvatar()))}><LuDices size={14} /> Aléatoire</button>
+        <button type="button" className="btn-ghost" onClick={() => onChange(orbPath(names[Math.floor(Math.random() * names.length)]))}><LuDices size={14} /> Aléatoire</button>
       </div>
       <div className="bot-parts">
-        {ROWS.map(([part, label]) => (
-          <div className="bot-row" key={part}>
-            <span className="bot-row-label">{label}</span>
-            <div className="bot-options">
-              {PART_OPTIONS[part].map((o) => (
-                <button key={o} type="button" className={`bot-option ${a[part] === o ? 'on' : ''}`} title={BOT_LABELS[o] || o} onClick={() => setPart(part, o)}>
-                  {part === 'accent' ? <span className="bot-swatch" style={{ background: ACCENTS[o] }} /> : <BotAvatar spec={{ ...a, [part]: o }} size={30} />}
-                </button>
-              ))}
-            </div>
+        <div className="bot-row">
+          <span className="bot-row-label">Orbe</span>
+          <div className="bot-options">
+            {names.map((n) => (
+              <button key={n} type="button" className={`bot-option ${k.kind === 'orb' && k.palette === n ? 'on' : ''}`} title={PALETTES[n].label} onClick={() => onChange(orbPath(n))}>
+                <BotAvatar spec={orbPath(n)} seed={seed} size={28} />
+              </button>
+            ))}
           </div>
-        ))}
+        </div>
+        <div className="bot-row">
+          <span className="bot-row-label">Photo</span>
+          <div className="bot-options">
+            <label className={`btn-ghost bot-upload ${k.kind === 'photo' && !hasPhoto(seed) ? 'on' : ''}`}>
+              <LuImagePlus size={14} /> Importer une photo
+              <input type="file" accept="image/*" hidden onChange={upload} />
+            </label>
+            {hasPhoto(seed) && <button type="button" className={`btn-ghost ${k.kind === 'photo' && !String(spec || '').startsWith('/') ? 'on' : ''}`} onClick={() => onChange('photo')}>Photo de profil</button>}
+          </div>
+        </div>
+        {k.kind === 'photo' && <p className="bot-studio-note">Photo recadrée en rond. Choisir un orbe la remplace.</p>}
+        {error && <div className="error-bar">{error}</div>}
       </div>
     </div>
   );

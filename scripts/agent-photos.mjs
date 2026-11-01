@@ -12,13 +12,9 @@ import { mkdirSync } from 'node:fs';
 const DIR = new URL('../public/agents/', import.meta.url).pathname;
 const SRC = (name) => `${DIR}originals/${name}.jpeg`;
 export const PHOTOS = {
-  nami: { src: 'nami', crop: [177, 67, 808] }, // Pinterest capture: stays clear of the « < » and « ••• » buttons
-  hammer: { src: 'hammer', crop: [108, 200, 648] },
-  robin: { src: 'robin', crop: [130, 7, 698] }, // head + hat
-  claude: { src: 'claude', crop: [43, 7, 671] },
-  // Stand-ins until the user sends their own images: other crops of the same pictures.
-  anastasia: { src: 'hammer', crop: [201, 386, 339] }, // close-up on the eye
-  katerina: { src: 'robin', crop: [287, 219, 301] }, // close-up on the face under the hat
+  // Square on the face, with some hair and the blue background. The other agents are animated orbs
+  // (src/orb.js, still images by scripts/agent-orbs.mjs).
+  nami: { src: 'nami', crop: [330, 250, 780] },
 };
 
 mkdirSync(DIR, { recursive: true });

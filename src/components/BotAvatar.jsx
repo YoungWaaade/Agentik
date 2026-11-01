@@ -1,13 +1,15 @@
-// Agent avatars. The team's agents have a profile photo (an illustration chosen by the user, only
-// cropped and resized by scripts/agent-photos.mjs): public/agents/<slug>.webp (large sizes) and
-// <slug>-sm.webp (small sizes). Agents without a photo — or whose avatar was customised in the
-// editor — get an illustrated portrait generated as an SVG data URL from their spec.
-// Always shown as a plain circle: no shadow, glow, border or hover effect.
-//
-// Spec: "" / legacy pixel spec / "studio" / "photo" → the photo when there is one;
-// "v2:accent,skin,hair,eyes,marks,accessory,mouth" → the customised illustrated portrait.
+// Agent avatars, always a plain circle (no shadow, glow, border or hover effect; only a small green
+// dot while the agent works). Four kinds, from the avatar field of the agent's .md:
+//  - "/agents/orbs/<palette>.png" → animated orb (src/orb.js) — the default of every agent;
+//  - an image path or URL (an uploaded photo: /api/attachments/…) → that picture;
+//  - "" / legacy spec / "photo" for an agent with a profile photo (PHOTOS, scripts/agent-photos.mjs:
+//    public/agents/<slug>.webp large, <slug>-sm.webp small) → the photo;
+//  - "v2:accent,skin,…" → the older illustrated portrait, still drawn for agents that have one.
+// Anything else → the agent's default orb.
 
-import { memo } from 'react';
+import { memo, useEffect, useRef } from 'react';
+import { PALETTES, LAYERS, layerCss, baseCss, glassCss, orbOf, defaultOrb, orbPhase } from '../orb.js';
+import '../orb.css';
 
 export const ACCENTS = {
   mandarine: '#ff8a3d',
@@ -83,11 +85,27 @@ export function randomAvatar() {
   const r = (l) => l[Math.floor(Math.random() * l.length)];
   return Object.fromEntries(PARTS.map((p) => [p, r(PART_OPTIONS[p])]));
 }
-export const accentOf = (spec, seed) => ACCENTS[parseAvatar(spec, seed).accent];
-// Agents with a profile photo (scripts/agent-photos.mjs).
-export const PHOTOS = ['nami', 'anastasia', 'katerina', 'hammer', 'robin', 'claude'];
+// Agents with a profile photo (scripts/agent-photos.mjs); the others are orbs.
+export const PHOTOS = ['nami'];
 export const hasPhoto = (slug) => PHOTOS.includes(slug);
-export const usesPhoto = (spec, slug) => hasPhoto(slug) && !(typeof spec === 'object' && spec) && !String(spec || '').startsWith('v2:');
+const isImage = (s) => /^data:image\//.test(s) || (/^(\/|https?:\/\/)/.test(s) && !orbOf(s));
+// { kind: 'orb', palette } | { kind: 'photo', src(size) } | { kind: 'portrait', a }
+export function avatarKind(spec, slug) {
+  if (spec && typeof spec === 'object') return { kind: 'portrait' };
+  const s = String(spec || '');
+  if (s.startsWith('v2:')) return { kind: 'portrait' };
+  const orb = orbOf(s);
+  if (orb) return { kind: 'orb', palette: orb };
+  if (isImage(s)) return { kind: 'photo', src: () => s };
+  if (hasPhoto(slug)) return { kind: 'photo', src: (size) => `/agents/${slug}${size >= 72 ? '' : '-sm'}.webp` };
+  return { kind: 'orb', palette: defaultOrb(slug) };
+}
+export const usesPhoto = (spec, slug) => avatarKind(spec, slug).kind === 'photo';
+export function accentOf(spec, seed) {
+  const k = avatarKind(spec, seed);
+  if (k.kind === 'orb') return PALETTES[k.palette].c[2];
+  return ACCENTS[parseAvatar(spec, seed).accent];
+}
 
 // ---- drawing ---------------------------------------------------------------------------------
 
@@ -315,14 +333,46 @@ export function portraitUrl(a, tier = 'xl') {
   return cache.get(key);
 }
 
+// Busy agents' orbs turn faster: the playback rate of the running CSS animations is changed in place
+// (no jump, unlike swapping the animation-duration).
+const BUSY_RATE = 2.6;
+function Orb({ palette, seed, size, busy, className }) {
+  const ref = useRef(null);
+  const c = PALETTES[palette].c;
+  // Small orbs (message avatars, lists: often many at once) stay still unless the agent is working.
+  const tier = size <= 28 && !busy ? 'o-sm' : '';
+  useEffect(() => {
+    const el = ref.current;
+    if (!el?.getAnimations) return;
+    for (const a of el.getAnimations({ subtree: true })) {
+      if (a.updatePlaybackRate) a.updatePlaybackRate(busy ? BUSY_RATE : 1);
+      else a.playbackRate = busy ? BUSY_RATE : 1;
+    }
+  }, [busy, palette, tier]);
+  return (
+    <span ref={ref} className={`bot-avatar orb ${tier} ${busy ? 'busy' : ''} ${className}`}
+      style={{ width: size, height: size, '--acc': c[2], '--phase': `${orbPhase(seed)}s` }} aria-hidden="true">
+      <span className="orb-core" style={{ background: baseCss(c) }}>
+        {LAYERS.map((l, i) => (
+          <i key={i} className={`orb-layer ${l.morph ? 'morph' : ''}`}
+            style={{ background: layerCss(l, c), '--turn': `${Math.abs(l.turn)}s`, animationDirection: l.morph ? 'alternate' : l.turn < 0 ? 'reverse' : 'normal' }} />
+        ))}
+        <i className="orb-glass" style={{ background: glassCss }} />
+      </span>
+      {busy && size >= 24 && <i className="portrait-dot" />}
+    </span>
+  );
+}
+
 function BotAvatar({ spec, seed, size = 16, className = '', busy = false }) {
+  const k = avatarKind(spec, seed);
+  if (k.kind === 'orb') return <Orb palette={k.palette} seed={seed || ''} size={size} busy={busy} className={className} />;
   const a = parseAvatar(spec, seed);
-  const acc = ACCENTS[a.accent];
   const tier = size >= 72 ? 'xl' : size >= 36 ? 'md' : 'sm';
-  const src = usesPhoto(spec, seed) ? `/agents/${seed}${size >= 72 ? '' : '-sm'}.webp` : portraitUrl(a, tier);
+  const src = k.kind === 'photo' ? k.src(size) : portraitUrl(a, tier);
   return (
     <span className={`bot-avatar portrait p-${tier} ${busy ? 'busy' : ''} ${className}`}
-      style={{ width: size, height: size, '--acc': acc }} aria-hidden="true">
+      style={{ width: size, height: size, '--acc': ACCENTS[a.accent] }} aria-hidden="true">
       <img src={src} alt="" draggable="false" width={size} height={size} decoding="async" />
       {busy && size >= 24 && <i className="portrait-dot" />}
     </span>

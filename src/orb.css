@@ -1,0 +1,32 @@
+/* Animated orb avatars (src/orb.js). A plain circle like the photos: no shadow, glow or border, nothing
+   drawn outside the round. Layers only animate `transform` (compositor-only, no repaint per frame). */
+.orb { position: relative; display: inline-flex; flex: none; border-radius: 50%; }
+.orb-core {
+  position: absolute; inset: 0; overflow: hidden; border-radius: 50%; isolation: isolate;
+  /* Safari: keeps turning children clipped to the round. */
+  -webkit-mask-image: -webkit-radial-gradient(white, black); transform: translateZ(0);
+}
+.orb-layer { position: absolute; inset: -25%; animation: orb-turn var(--turn) linear infinite; animation-delay: var(--phase, 0s); }
+.orb-layer.morph { animation-name: orb-morph; animation-timing-function: ease-in-out; animation-direction: alternate; mix-blend-mode: screen; }
+.orb-glass { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; }
+.orb .portrait-dot { z-index: 1; }
+
+@keyframes orb-turn { to { transform: rotate(360deg); } }
+@keyframes orb-morph {
+  0% { transform: rotate(0deg) scale(1, 1); }
+  33% { transform: rotate(120deg) scale(1.14, 0.9); }
+  66% { transform: rotate(230deg) scale(0.92, 1.12); }
+  100% { transform: rotate(360deg) scale(1, 1); }
+}
+
+/* Small sizes (messages, lists, tabs; o-sm, ≤28px and idle): still, fewer layers. */
+.orb.o-sm .orb-layer { animation: none; }
+.orb.o-sm .orb-layer.morph { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .orb .orb-layer { animation: none; }
+}
+
+/* avatar editor (AgentsPage BotBuilder) */
+.bot-builder .bot-upload { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; cursor: pointer; }
+.bot-options .btn-ghost.on { box-shadow: inset 0 0 0 1px var(--foreground); }
