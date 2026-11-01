@@ -73,6 +73,10 @@ Si l'iPhone n'arrive pas à se connecter, le pare-feu de macOS bloque peut-être
 
 Le Mac doit rester allumé et réveillé (Réglages Système → Batterie → Options → empêcher la suspension automatique sur secteur). Le terminal est partagé avec le Mac : il prend la taille de l'écran qui l'a utilisé en dernier.
 
+## Sur un serveur (VPS)
+
+Supersept peut aussi tourner en permanence sur un serveur Linux (Hetzner, Ubuntu 24.04), accessible en HTTPS privé depuis l'iPhone et le Mac via Tailscale : voir **[docs/deploiement-vps.md](docs/deploiement-vps.md)** (installation `scripts/setup-vps.sh`, service systemd, appairage `npm run pair`, sauvegardes, migration des données du Mac avec `scripts/migrate-to-vps.sh`).
+
 ## Où sont les données
 
 Tout est dans `~/.claude-hub/` :

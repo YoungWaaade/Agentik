@@ -1,10 +1,12 @@
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
 import os from 'node:os';
+import fs from 'node:fs';
 
 const pty = createRequire(import.meta.url)('node-pty');
 const SCROLLBACK = 400 * 1024;
-const SHELL = process.env.SHELL || '/bin/zsh';
+// $SHELL, else zsh (macOS), else bash (a fresh Linux server has no zsh).
+export const SHELL = [process.env.SHELL, '/bin/zsh', '/bin/bash', '/bin/sh'].find((s) => s && fs.existsSync(s));
 
 // Resolve the login-shell PATH once, so agents find the same tools as in a normal terminal
 // even when the hub is started from a LaunchAgent with a minimal environment.
