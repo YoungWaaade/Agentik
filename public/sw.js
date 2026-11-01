@@ -5,6 +5,8 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
+const abs = (u) => { try { return u ? new URL(u, self.location.origin).href : null; } catch { return null; } };
+
 self.addEventListener('push', (e) => {
   let d = {};
   try { d = e.data ? e.data.json() : {}; } catch { d = { body: e.data?.text() }; }
@@ -13,8 +15,11 @@ self.addEventListener('push', (e) => {
     body: d.body || '',
     tag: d.tag || undefined, // a newer notification about the same session/chat replaces the previous one
     renotify: !!d.tag,
-    icon: '/icon.png',
-    badge: '/favicon.png',
+    // The agent speaking (its avatar, absolute URL) or the app icon. iOS ignores it and always shows the
+    // app icon; Android, Chrome, Firefox and macOS show it. The badge stays the app's (Android draws it
+    // as a one-colour silhouette in the status bar: a photo would be a blob).
+    icon: abs(d.icon) || abs('/icon.png'),
+    badge: abs('/favicon.png'),
     data: { url: d.url || '/' },
   }));
 });

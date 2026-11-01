@@ -339,7 +339,7 @@ function trusted(req) {
 // Static files with nothing secret, that iOS may fetch outside the page (home screen icon, service worker updates).
 const PUBLIC_FILES = new Set(['/sw.js', '/icon.png', '/apple-touch-icon.png', '/favicon.png']);
 app.use((req, res, next) => {
-  if (req.method === 'GET' && PUBLIC_FILES.has(req.path)) return next();
+  if (req.method === 'GET' && (PUBLIC_FILES.has(req.path) || req.path.startsWith('/api/push/avatar/'))) return next();
   const local = remote.isLocal(req);
   if (!local && remote.enabled() && req.path === '/pair') {
     if (!remote.tokenOk(req.query.token)) return res.status(403).type('html').send(remote.PAIR_PAGE);
@@ -1062,7 +1062,11 @@ function pushSession(wsId, status, text) {
   if (!ws || ws.successor || relaying.has(wsId)) return;
   const head = { waiting: 'Attend ta réponse', error: 'Erreur' }[status];
   const body = [head, push.summary(text)].filter(Boolean).join(' · ') || 'Terminé, à revoir';
-  push.notify('sessions', { title: ws.name, body, url: `/#/ws/${ws.id}`, tag: `ws-${ws.id}` }, { target: { ws: ws.id } }).catch(() => {});
+  // A session launched by an agent speaks as that agent: its avatar as icon, its name first in the title
+  // (iOS ignores the icon and always shows the app's, the name is what tells them apart there).
+  const agent = ws.owner_agent ? getAgent(ws.owner_agent) : null;
+  const title = agent ? `${agent.label} · ${ws.name}` : ws.name;
+  push.notify('sessions', { title, body, url: `/#/ws/${ws.id}`, tag: `ws-${ws.id}`, icon: agent ? push.avatarIcon(agent.slug) : null }, { target: { ws: ws.id } }).catch(() => {});
 }
 
 // ---------- automatic relay (context full) ----------
@@ -1318,6 +1322,14 @@ app.post('/api/hook/:id/:event', (req, res) => {
 
 // ---------- Web Push (phone notifications, see push.js) ----------
 // Each device identifies itself by its subscription endpoint (only the browser and we know it).
+// Notification icon (public: the phone's notification system fetches it without the app's cookie).
+// No picture for this agent → the app icon.
+app.get('/api/push/avatar/:slug', (req, res) => {
+  const f = push.avatarFile(req.params.slug);
+  if (!f) return res.redirect(302, '/icon.png');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.sendFile(f);
+});
 app.get('/api/push', (req, res) => res.json(push.status(req.query.endpoint)));
 app.post('/api/push/subscribe', wrap(async (req, res) => res.json(push.subscribe(req.body?.subscription, { ua: String(req.headers['user-agent'] || '').slice(0, 300), prefs: req.body?.prefs }))));
 app.put('/api/push/prefs', wrap(async (req, res) => res.json(push.setPrefs(req.body?.endpoint, req.body?.prefs))));
@@ -1427,7 +1439,7 @@ for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').
 
 // An agent answered in a conversation with the user (not a mission delegated by another agent): tell the phones.
 function pushReply(a, conv, reply) {
-  push.notify('agents', { title: a.label, body: reply.text, url: `/#/agent/${a.slug}/${conv}`, tag: `chat-${a.slug}-${conv}` }, { target: { chat: `${a.slug}:${conv}` } }).catch(() => {});
+  push.notify('agents', { title: a.label, body: reply.text, url: `/#/agent/${a.slug}/${conv}`, tag: `chat-${a.slug}-${conv}`, icon: push.avatarIcon(a.slug) }, { target: { chat: `${a.slug}:${conv}` } }).catch(() => {});
 }
 initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}), onReply: pushReply });
 

@@ -7,7 +7,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import webpush from 'web-push';
+import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR } from './db.js';
+import { getAgent, isSlug } from './agents.js';
 
 db.exec(`CREATE TABLE IF NOT EXISTS push_subscriptions (
   endpoint TEXT PRIMARY KEY,
@@ -125,3 +127,40 @@ export async function notify(kind, payload, { target = null, only = null } = {})
 
 // The Topic header replaces a pending, undelivered notification with the same topic (max 32 url-safe chars).
 const topicOf = (tag) => (tag ? String(tag).replace(/[^A-Za-z0-9_-]/g, '-').slice(0, 32) : undefined);
+
+// ---- agent avatars as notification icons ----------------------------------------------------------
+// Resolved on every push from the agent's config, never from a fixed list: the avatar field of
+// ~/.claude/agents/<slug>.md can point at an image (/agents/x.webp, agents/x.png); a "v2:…" spec is a
+// portrait drawn in the browser (no file to show, so the app icon); anything else (empty, legacy spec,
+// "studio", "photo") means "the agent's picture in public/agents/ if there is one", smallest version first.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const IMAGE_DIRS = [path.join(ROOT, 'public'), path.join(ROOT, 'dist')];
+const IMG = /\.(webp|png|jpe?g)$/i;
+const SUFFIXES = ['-sm', '-face', '-small', '', '-bust'];
+function existing(rel) {
+  for (const dir of IMAGE_DIRS) {
+    const f = path.resolve(dir, rel);
+    if (f.startsWith(dir + path.sep) && IMG.test(f)) try { if (fs.statSync(f).isFile()) return f; } catch {}
+  }
+  return null;
+}
+export function avatarFile(slug) {
+  if (!isSlug(slug)) return null;
+  const spec = getAgent(slug)?.avatar;
+  if (typeof spec === 'string' && spec.startsWith('v2:')) return null;
+  if (typeof spec === 'string' && IMG.test(spec) && !/^[a-z]+:/i.test(spec)) return existing(spec.replace(/^\/+/, ''));
+  for (const suf of SUFFIXES) for (const ext of ['webp', 'png', 'jpg', 'jpeg']) {
+    const f = existing(`agents/${slug}${suf}.${ext}`);
+    if (f) return f;
+  }
+  return null;
+}
+// Absolute URL for the payload (the service worker also resolves it against its own origin), with the
+// file's mtime so a replaced picture is fetched again instead of a cached one. null → app icon.
+export function avatarIcon(slug) {
+  const f = avatarFile(slug);
+  if (!f) return null;
+  const rel = `/api/push/avatar/${slug}?v=${Math.round(fs.statSync(f).mtimeMs)}`;
+  const base = process.env.SUPERSEPT_PUBLIC_URL?.replace(/\/+$/, '');
+  return base ? base + rel : rel;
+}
