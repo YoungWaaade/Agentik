@@ -13,7 +13,7 @@ const DIR = new URL('../public/agents/', import.meta.url).pathname;
 const SRC = (name) => `${DIR}originals/${name}.jpeg`;
 export const PHOTOS = {
   // Square on the face, with some hair and the blue background. The other agents are animated orbs
-  // (src/orb.js, still images by scripts/agent-orbs.mjs).
+  // (src/orb.js, assets by scripts/agent-orb.mjs).
   nami: { src: 'nami', crop: [330, 250, 780] },
 };
 

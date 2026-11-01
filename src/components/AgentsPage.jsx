@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { LuPlus, LuTrash2, LuDices, LuImagePlus } from 'react-icons/lu';
+import { LuPlus, LuTrash2, LuImagePlus } from 'react-icons/lu';
 import BotAvatar, { hasPhoto, avatarKind } from './BotAvatar.jsx';
-import { PALETTES, orbPath, defaultOrb } from '../orb.js';
+import { ORB_SPEC, ORB_ACCENT } from '../orb.js';
 import { api, uploadFile, attachmentUrl } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
@@ -53,7 +53,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
     setError(null);
     try {
       // A new agent keeps the orb shown in the preview (an explicit path, so its notifications show it too).
-      const avatar = form.avatar || (agent ? '' : orbPath(defaultOrb(form.label || 'nouveau')));
+      const avatar = form.avatar || (agent ? '' : ORB_SPEC);
       const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, avatar, slug: form.label || agent?.slug });
       setSaved(true);
       onSaved(a);
@@ -105,11 +105,10 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
   );
 }
 
-// Avatar editor: an animated orb by default (one palette per agent), or a photo of one's own.
+// Avatar editor: the animated orb by default (the same for every agent), or a photo of one's own.
 function BotBuilder({ spec, seed, onChange }) {
   const [error, setError] = useState(null);
   const k = avatarKind(spec, seed);
-  const names = Object.keys(PALETTES);
   const upload = async (e) => {
     const f = e.target.files?.[0];
     e.target.value = '';
@@ -118,20 +117,17 @@ function BotBuilder({ spec, seed, onChange }) {
     try { onChange(attachmentUrl((await uploadFile(f)).path)); } catch (err) { setError(err.message); }
   };
   return (
-    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? PALETTES[k.palette].edge : undefined }}>
+    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? ORB_ACCENT : undefined }}>
       <div className="bot-preview">
         <span className="chat-empty-stage"><BotAvatar spec={spec} seed={seed} size={132} /></span>
-        <button type="button" className="btn-ghost" onClick={() => onChange(orbPath(names[Math.floor(Math.random() * names.length)]))}><LuDices size={14} /> Aléatoire</button>
       </div>
       <div className="bot-parts">
         <div className="bot-row">
           <span className="bot-row-label">Orbe</span>
           <div className="bot-options">
-            {names.map((n) => (
-              <button key={n} type="button" className={`bot-option ${k.kind === 'orb' && k.palette === n ? 'on' : ''}`} title={PALETTES[n].label} onClick={() => onChange(orbPath(n))}>
-                <BotAvatar spec={orbPath(n)} seed={seed} size={28} />
-              </button>
-            ))}
+            <button type="button" className={`bot-option ${k.kind === 'orb' ? 'on' : ''}`} title="Orbe" onClick={() => onChange(ORB_SPEC)}>
+              <BotAvatar spec={ORB_SPEC} seed={seed} size={28} />
+            </button>
           </div>
         </div>
         <div className="bot-row">

@@ -1,6 +1,7 @@
 // Agent avatars, always a plain circle (no shadow, glow, border or hover effect; only a small green
 // dot while the agent works). Four kinds, from the avatar field of the agent's .md:
-//  - "/agents/orbs/<palette>.png" → animated glass orb (src/orb.js, src/orbGL.js) — the default of every agent;
+//  - "/agents/orb/orb.png" (or a former "/agents/orbs/<palette>.png") → the animated orb (src/orb.js,
+//    src/orbVideo.js) — the default of every agent;
 //  - an image path or URL (an uploaded photo: /api/attachments/…) → that picture;
 //  - "" / legacy spec / "photo" for an agent with a profile photo (PHOTOS, scripts/agent-photos.mjs:
 //    public/agents/<slug>.webp large, <slug>-sm.webp small) → the photo;
@@ -8,8 +9,8 @@
 // Anything else → the agent's default orb.
 
 import { memo, useEffect, useRef } from 'react';
-import { PALETTES, orbOf, defaultOrb, orbPhase, orbPath } from '../orb.js';
-import { attachOrb } from '../orbGL.js';
+import { isOrb, ORB_STILL, ORB_ACCENT, ORB_WEBP, ORB_GIF } from '../orb.js';
+import { attachOrb, useOrbMode } from '../orbVideo.js';
 import '../orb.css';
 
 export const ACCENTS = {
@@ -90,22 +91,21 @@ export function randomAvatar() {
 // Agents with a profile photo (scripts/agent-photos.mjs); the others are orbs.
 export const PHOTOS = ['nami'];
 export const hasPhoto = (slug) => PHOTOS.includes(slug);
-const isImage = (s) => /^data:image\//.test(s) || (/^(\/|https?:\/\/)/.test(s) && !orbOf(s));
-// { kind: 'orb', palette } | { kind: 'photo', src(size) } | { kind: 'portrait', a }
+const isImage = (s) => /^data:image\//.test(s) || (/^(\/|https?:\/\/)/.test(s) && !isOrb(s));
+// { kind: 'orb' } | { kind: 'photo', src(size) } | { kind: 'portrait', a }
 export function avatarKind(spec, slug) {
   if (spec && typeof spec === 'object') return { kind: 'portrait' };
   const s = String(spec || '');
   if (s.startsWith('v2:')) return { kind: 'portrait' };
-  const orb = orbOf(s);
-  if (orb) return { kind: 'orb', palette: orb };
+  if (isOrb(s)) return { kind: 'orb' };
   if (isImage(s)) return { kind: 'photo', src: () => s };
   if (hasPhoto(slug)) return { kind: 'photo', src: (size) => `/agents/${slug}${size >= 72 ? '' : '-sm'}.webp` };
-  return { kind: 'orb', palette: defaultOrb(slug) };
+  return { kind: 'orb' };
 }
 export const usesPhoto = (spec, slug) => avatarKind(spec, slug).kind === 'photo';
 export function accentOf(spec, seed) {
   const k = avatarKind(spec, seed);
-  if (k.kind === 'orb') return PALETTES[k.palette].edge;
+  if (k.kind === 'orb') return ORB_ACCENT;
   return ACCENTS[parseAvatar(spec, seed).accent];
 }
 
@@ -335,25 +335,18 @@ export function portraitUrl(a, tier = 'xl') {
   return cache.get(key);
 }
 
-// Glass orb: the still image (same shader, scripts/agent-orbs.mjs) under a canvas animated by the shared
-// WebGL renderer, which covers it from its first frame. Small idle orbs (message avatars, lists: often
-// many at once) and browsers without WebGL keep the still image. Busy agents' orbs move faster.
-function Orb({ palette, seed, size, busy, className }) {
+// The orb: its still image, covered by a canvas fed with the shared video's frames (src/orbVideo.js), or
+// by the animated WebP/GIF when the video can't play; the still image alone if motion is reduced.
+function Orb({ size, busy, className }) {
   const ref = useRef(null);
-  const handle = useRef(null);
-  const live = size > 28 || busy;
-  useEffect(() => {
-    if (!live || !ref.current) return undefined;
-    const h = attachOrb(ref.current, { palette, size, phase: orbPhase(seed), busy });
-    handle.current = h;
-    return () => { h?.dispose(); handle.current = null; };
-  }, [live, palette, size, seed]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { handle.current?.setBusy(busy); }, [busy]);
+  const mode = useOrbMode();
+  useEffect(() => (mode === 'video' && ref.current ? attachOrb(ref.current, size) : undefined), [mode, size]);
   return (
-    <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`}
-      style={{ width: size, height: size, '--acc': PALETTES[palette].edge }} aria-hidden="true">
-      <img className="orb-still" src={orbPath(palette)} alt="" draggable="false" width={size} height={size} decoding="async" />
-      {live && <canvas ref={ref} />}
+    <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`} style={{ width: size, height: size }} aria-hidden="true">
+      {mode === 'image'
+        ? <picture><source srcSet={ORB_WEBP} type="image/webp" /><img className="orb-still" src={ORB_GIF} alt="" draggable="false" width={size} height={size} /></picture>
+        : <img className="orb-still" src={ORB_STILL} alt="" draggable="false" width={size} height={size} decoding="async" />}
+      {mode === 'video' && <canvas ref={ref} />}
       {busy && size >= 24 && <i className="portrait-dot" />}
     </span>
   );
@@ -361,7 +354,7 @@ function Orb({ palette, seed, size, busy, className }) {
 
 function BotAvatar({ spec, seed, size = 16, className = '', busy = false }) {
   const k = avatarKind(spec, seed);
-  if (k.kind === 'orb') return <Orb palette={k.palette} seed={seed || ''} size={size} busy={busy} className={className} />;
+  if (k.kind === 'orb') return <Orb size={size} busy={busy} className={className} />;
   const a = parseAvatar(spec, seed);
   const tier = size >= 72 ? 'xl' : size >= 36 ? 'md' : 'sm';
   const src = k.kind === 'photo' ? k.src(size) : portraitUrl(a, tier);
