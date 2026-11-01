@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuImagePlus } from 'react-icons/lu';
 import BotAvatar, { hasPhoto, avatarKind } from './BotAvatar.jsx';
-import { ORB_SPEC, ORB_ACCENT } from '../orb.js';
+import { ORB_COLORS, orbSpec, orbAccent, freeOrbColor } from '../orb.js';
 import { api, uploadFile, attachmentUrl } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
@@ -34,15 +34,16 @@ export default function AgentsPage({ agents, initial }) {
           {!agents.length && sel !== 'new' && <p className="empty-note">Aucun agent.</p>}
         </nav>
         <div className="split-body">
-          <AgentEditor key={`${sel}:${current ? 'loaded' : 'empty'}`} agent={current} onSaved={(a) => setSel(a.slug)} onDeleted={() => setSel(agents.find((a) => a.slug !== sel)?.slug || 'new')} />
+          <AgentEditor key={`${sel}:${current ? 'loaded' : 'empty'}`} agent={current} agents={agents} onSaved={(a) => setSel(a.slug)} onDeleted={() => setSel(agents.find((a) => a.slug !== sel)?.slug || 'new')} />
         </div>
       </div>
     </div>
   );
 }
 
-function AgentEditor({ agent, onSaved, onDeleted }) {
-  const [form, setForm] = useState(() => (agent ? { ...EMPTY, ...agent } : EMPTY));
+function AgentEditor({ agent, agents, onSaved, onDeleted }) {
+  // A new agent starts with a colour of orb no other agent has.
+  const [form, setForm] = useState(() => (agent ? { ...EMPTY, ...agent } : { ...EMPTY, avatar: orbSpec(freeOrbColor(agents)) }));
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => setSaved(false), [form]);
@@ -52,9 +53,8 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
     e.preventDefault();
     setError(null);
     try {
-      // A new agent keeps the orb shown in the preview (an explicit path, so its notifications show it too).
-      const avatar = form.avatar || (agent ? '' : ORB_SPEC);
-      const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, avatar, slug: form.label || agent?.slug });
+      // An empty avatar on a new agent gets a free orb colour from the server.
+      const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, slug: form.label || agent?.slug });
       setSaved(true);
       onSaved(a);
     } catch (err) { setError(err.message); }
@@ -67,7 +67,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
 
   return (
     <form className="form agent-form" onSubmit={save}>
-      <BotBuilder spec={form.avatar} seed={agent?.slug || form.label || 'nouveau'} onChange={(v) => set('avatar', v)} />
+      <BotBuilder spec={form.avatar} seed={agent?.slug || form.label || 'nouveau'} agents={agents} onChange={(v) => set('avatar', v)} />
       <label>Nom
         <input autoFocus={!agent} value={form.label} onChange={(e) => set('label', e.target.value)} placeholder="ex. Relecteur Brand DS" />
       </label>
@@ -105,8 +105,9 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
   );
 }
 
-// Avatar editor: the animated orb by default (the same for every agent), or a photo of one's own.
-function BotBuilder({ spec, seed, onChange }) {
+// Avatar editor: the animated orb in the agent's own colour by default, or a photo of one's own. Colours
+// already taken by another agent are marked, so each agent keeps a colour of its own.
+function BotBuilder({ spec, seed, agents = [], onChange }) {
   const [error, setError] = useState(null);
   const k = avatarKind(spec, seed);
   const upload = async (e) => {
@@ -117,7 +118,7 @@ function BotBuilder({ spec, seed, onChange }) {
     try { onChange(attachmentUrl((await uploadFile(f)).path)); } catch (err) { setError(err.message); }
   };
   return (
-    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? ORB_ACCENT : undefined }}>
+    <div className="bot-builder" style={{ '--acc': k.kind === 'orb' ? orbAccent(k.color) : undefined }}>
       <div className="bot-preview">
         <span className="chat-empty-stage"><BotAvatar spec={spec} seed={seed} size={132} /></span>
       </div>
@@ -125,9 +126,15 @@ function BotBuilder({ spec, seed, onChange }) {
         <div className="bot-row">
           <span className="bot-row-label">Orbe</span>
           <div className="bot-options">
-            <button type="button" className={`bot-option ${k.kind === 'orb' ? 'on' : ''}`} title="Orbe" onClick={() => onChange(ORB_SPEC)}>
-              <BotAvatar spec={ORB_SPEC} seed={seed} size={28} />
-            </button>
+            {Object.entries(ORB_COLORS).map(([c, { label }]) => {
+              const owner = agents.find((a) => a.slug !== seed && avatarKind(a.avatar, a.slug).kind !== 'photo' && avatarKind(a.avatar, a.slug).color === c);
+              return (
+                <button key={c} type="button" className={`bot-option ${k.kind === 'orb' && k.color === c ? 'on' : ''} ${owner ? 'taken' : ''}`}
+                  title={owner ? `${label} — déjà pris par ${owner.label}` : label} onClick={() => onChange(orbSpec(c))}>
+                  <BotAvatar spec={orbSpec(c)} seed={seed} size={28} />
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="bot-row">

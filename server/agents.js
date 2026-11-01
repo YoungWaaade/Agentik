@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { freeOrbColor, orbSpec, ORB_SPEC } from '../src/orb.js';
 
 export const AGENTS_DIR = path.join(os.homedir(), '.claude', 'agents');
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
@@ -57,6 +58,10 @@ export function leadAgent() {
 export function saveAgent(slug, data) {
   if (!isSlug(slug)) throw new Error("identifiant d'agent invalide (minuscules, chiffres et tirets)");
   const meta = { ...data, name: slug };
+  // A new agent without its own picture gets an orb colour no other agent has (one colour per agent).
+  const isNew = !fs.existsSync(path.join(AGENTS_DIR, `${slug}.md`));
+  const av = String(meta.avatar || '').trim();
+  if (isNew && (!av || av === ORB_SPEC)) meta.avatar = orbSpec(freeOrbColor(listAgents()));
   if (!String(data.description || '').trim()) throw new Error('ajoute une description : elle dit à Claude quand utiliser cet agent');
   if (!String(data.prompt || '').trim()) throw new Error("ajoute des instructions à l'agent");
   const lines = ['---'];

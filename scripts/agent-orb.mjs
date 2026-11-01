@@ -6,7 +6,7 @@
 //   orb.mp4   H.264 + orb.webm VP9, muted, 2 loops back to back, 2× nearest-neighbour (494 px) so the
 //             4:2:0 chroma keeps every pixel's colour; what the app plays (src/orbVideo.js)
 //   orb.png   first frame, transparent outside the sphere: avatar spec, notification icon, reduced motion
-// and copies orb.png to public/agents/<slug>-sm.png for each agent without a photo (push icon, server/push.js).
+// Then run scripts/agent-orb-colors.mjs: the stills in each agent's colour (push icons, server/push.js).
 //
 //   npm i --no-save ffmpeg-static gifsicle sharp && node scripts/agent-orb.mjs
 // (or FFMPEG=/path/to/ffmpeg GIFSICLE=/path/to/gifsicle, with sharp resolvable)
@@ -26,7 +26,6 @@ const sharp = require('sharp');
 // Sphere of the original: centre (262, 261), radius 123 px (measured on the minimum over all frames:
 // the rim stays lit while the dotted background twinkles).
 const CROP = { x: 139, y: 138, size: 247 };
-const AGENTS_WITHOUT_PHOTO = ['anastasia', 'claude', 'hammer', 'katerina', 'robin', 'zero'];
 
 fs.mkdirSync(OUT, { recursive: true });
 const out = (f) => path.join(OUT, f);
@@ -44,5 +43,4 @@ const s = CROP.size, r = s / 2;
 const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}"><circle cx="${r}" cy="${r}" r="${r}" fill="#fff"/></svg>`);
 await sharp(first).ensureAlpha().composite([{ input: mask, blend: 'dest-in' }]).png({ compressionLevel: 9 }).toFile(out('orb.png'));
 fs.unlinkSync(first);
-for (const slug of AGENTS_WITHOUT_PHOTO) fs.copyFileSync(out('orb.png'), path.join(ROOT, `public/agents/${slug}-sm.png`));
-console.log('ok', fs.readdirSync(OUT).map((f) => `${f} ${fs.statSync(out(f)).size}`).join(', '));
+console.log('ok — lance ensuite scripts/agent-orb-colors.mjs', fs.readdirSync(OUT).map((f) => `${f} ${fs.statSync(out(f)).size}`).join(', '));
