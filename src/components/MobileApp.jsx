@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { HiChevronRight } from 'react-icons/hi2';
 import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuTerminal, LuBot } from 'react-icons/lu';
 import { api, ago, STATUS } from '../api.js';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
@@ -60,10 +61,10 @@ function Tabs({ tab, go, agents }) {
   const unread = agents.reduce((n, a) => n + badges.unread(a.slug), 0);
   return (
     <nav className="m-tabs">
-      <button className={`m-tab ${tab === 'sessions' ? 'on' : ''}`} onClick={() => go({ kind: 'board' })}><LuTerminal size={20} /><span>Sessions</span></button>
       <button className={`m-tab ${tab === 'agents' ? 'on' : ''}`} onClick={() => go({ kind: 'agents' })}>
         <span className="m-tab-icon"><LuBot size={20} />{unread > 0 && <span className="m-badge m-tab-badge">{unread}</span>}</span><span>Agents</span>
       </button>
+      <button className={`m-tab ${tab === 'sessions' ? 'on' : ''}`} onClick={() => go({ kind: 'board' })}><LuTerminal size={20} /><span>Sessions</span></button>
     </nav>
   );
 }
@@ -106,11 +107,15 @@ function useAgentBanner(agents, route) {
 
 function ListScreen({ data, projectsById, go, connected, tabs }) {
   const live = data.workspaces.filter((w) => !w.archived);
-  const groups = [
-    ['À traiter', live.filter((w) => ['waiting', 'review', 'error'].includes(w.status))],
-    ['En cours', live.filter((w) => w.status === 'working')],
-    ['Autres', live.filter((w) => !['waiting', 'review', 'working', 'error'].includes(w.status)).sort((a, b) => b.updated_at - a.updated_at)],
-  ];
+  const free = live.filter((w) => !w.project_id).sort((a, b) => b.updated_at - a.updated_at);
+  // Same open/closed state as the desktop sidebar.
+  const [closed, setClosed] = useState(() => { try { return JSON.parse(localStorage.getItem('sb-closed-projects')) || {}; } catch { return {}; } });
+  const [freeClosed, setFreeClosed] = useState(false);
+  const toggle = (id) => setClosed((c) => {
+    const n = { ...c, [id]: !c[id] };
+    try { localStorage.setItem('sb-closed-projects', JSON.stringify(n)); } catch {}
+    return n;
+  });
   return (
     <>
       <header className="m-head">
@@ -120,12 +125,29 @@ function ListScreen({ data, projectsById, go, connected, tabs }) {
       </header>
       <div className="m-scroll">
         {!connected && <p className="m-note">Connexion au Mac… Vérifie qu'il est allumé et sur le même réseau (ou Tailscale).</p>}
-        {groups.map(([title, list]) => list.length > 0 && (
-          <section key={title}>
-            <h2 className="m-section">{title}</h2>
-            {list.map((w) => <Row key={w.id} ws={w} project={projectsById[w.project_id]} onClick={() => go({ kind: 'ws', id: w.id })} />)}
+        {free.length > 0 && (
+          <section>
+            <button className="m-acc" onClick={() => setFreeClosed(!freeClosed)}>
+              <HiChevronRight className={`m-acc-chev ${freeClosed ? '' : 'open'}`} size={16} />
+              <span className="m-acc-name">Sessions</span><span className="m-acc-count">{free.length}</span>
+            </button>
+            {!freeClosed && free.map((w) => <Row key={w.id} ws={w} project={null} onClick={() => go({ kind: 'ws', id: w.id })} />)}
           </section>
-        ))}
+        )}
+        {data.projects.map((p) => {
+          const list = live.filter((w) => w.project_id === p.id).sort((a, b) => b.updated_at - a.updated_at);
+          const open = !closed[p.id];
+          return (
+            <section key={p.id}>
+              <button className="m-acc" onClick={() => toggle(p.id)}>
+                <HiChevronRight className={`m-acc-chev ${open ? 'open' : ''}`} size={16} />
+                <ProjectThumbnail project={p} size={20} />
+                <span className="m-acc-name">{p.name}</span><span className="m-acc-count">{list.length}</span>
+              </button>
+              {open && list.map((w) => <Row key={w.id} ws={w} project={projectsById[w.project_id]} onClick={() => go({ kind: 'ws', id: w.id })} />)}
+            </section>
+          );
+        })}
         {!live.length && <p className="m-note">Aucun espace de travail. Touche + pour en lancer un.</p>}
       </div>
       {tabs}
