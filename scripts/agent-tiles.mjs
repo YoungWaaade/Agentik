@@ -44,6 +44,15 @@ async function tile(t, size) {
 // ---- eyes: mask measured on the model's sky-blue tile (the 3 tiles have the eyes at the same place) ----------------
 const N = W; // work at the size of the cut (162 px), then upscale
 const EYES0 = [{ cx: 70, cy: 92, rx: 22, ry: 24, side: 'L' }, { cx: 115, cy: 87, rx: 22, ry: 24, side: 'R' }];
+const component = (m, sx, sy) => { // only the blob of white pixels that contains (sx, sy): the eye, not the highlights around it
+  const o = new Uint8Array(N * N), st = [[Math.round(sx), Math.round(sy)]];
+  while (st.length) {
+    const [x, y] = st.pop();
+    if (x < 0 || y < 0 || x >= N || y >= N || !m[y * N + x] || o[y * N + x]) continue;
+    o[y * N + x] = 1; st.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+  return o;
+};
 const MASKS = {};
 {
   const base = 2; // (the pale pink tile has no usable contrast: its eyes are where the violet one's are, before the shift)
@@ -53,9 +62,9 @@ const MASKS = {};
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       if (((x - e.cx - SHIFT[2][0]) / e.rx) ** 2 + ((y - e.cy - SHIFT[2][1]) / e.ry) ** 2 > 1) continue;
       const i = (y * N + x) * 3;
-      if (Math.min(raw0[i], raw0[i + 1], raw0[i + 2]) >= 215) m[y * N + x] = 1;
+      if (Math.min(raw0[i], raw0[i + 1], raw0[i + 2]) >= 225) m[y * N + x] = 1;
     }
-    return m;
+    return component(m, e.cx + SHIFT[2][0], e.cy + SHIFT[2][1]);
   });
   const raw1 = await (await crop(0)).removeAlpha().raw().toBuffer();
   MASKS[0] = EYES0.map((e) => {
@@ -63,9 +72,9 @@ const MASKS = {};
     for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
       if (((x - e.cx - SHIFT[0][0]) / e.rx) ** 2 + ((y - e.cy - SHIFT[0][1]) / e.ry) ** 2 > 1) continue;
       const i = (y * N + x) * 3;
-      if (Math.min(raw1[i], raw1[i + 1], raw1[i + 2]) >= 215) m[y * N + x] = 1;
+      if (Math.min(raw1[i], raw1[i + 1], raw1[i + 2]) >= 225) m[y * N + x] = 1;
     }
-    return m;
+    return component(m, e.cx + SHIFT[0][0], e.cy + SHIFT[0][1]);
   });
   const [dx, dy] = [SHIFT[1][0] - SHIFT[2][0], SHIFT[1][1] - SHIFT[2][1]];
   MASKS[1] = MASKS[2].map((m) => { const o = new Uint8Array(N * N); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (m[y * N + x]) { const X = x + dx, Y2 = y + dy; if (X >= 0 && Y2 >= 0 && X < N && Y2 < N) o[Y2 * N + X] = 1; } return o; });

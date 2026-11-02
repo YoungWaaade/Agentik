@@ -57,7 +57,7 @@ export const orbAccent = (tint) => TINTS[tint]?.accent || TINTS.ciel.accent;
 
 // Blink: each tint is also cut in layers (tiles/<tint>-base.png without eyes, -eyeL.png, -eyeR.png; scripts/agent-tiles.mjs).
 // Centre of each eye, in % of the tile, per tile of the model (transform origin of the squash).
-const EYE_ORIGINS = { 0: [[42.2, 53.3], [70.9, 47.3]], 1: [[42.2, 57.8], [68.8, 53]], 2: [[42.2, 57.8], [68.8, 53]] };
+const EYE_ORIGINS = { 0: [[42, 51.9], [68.3, 49]], 1: [[42, 57], [67.4, 53.7]], 2: [[42.6, 57], [68, 53.7]] };
 export const eyeOrigins = (tint) => EYE_ORIGINS[TINTS[tint]?.base ?? 0];
 // Blink timing of an agent: a cycle of 3 to 6 s and a random phase (from its id) so they never blink together.
 export function blinkTiming(seed) {
