@@ -1,4 +1,5 @@
-// The "eyes" avatar of every sub-agent: only two glossy oval eyes in the agent's colour, transparent background. Each agent has its own COLOUR
+// The "eyes" avatar of every sub-agent: a plain white circle (faint outline so it shows on light backgrounds) with
+// two black oval eyes, the same for all; only the EXPRESSION differs per agent. Each agent has its own COLOUR
 // (src/orb.js ORB_COLORS) and its own EXPRESSION (EYES below: lids, tilt, gaze).
 // One pure function builds the SVG text; the app shows it as a data-URI <img> (the CSS animation inside
 // the SVG — float, blink, halo breathing — runs in an <img> too, and is off with prefers-reduced-motion),
@@ -51,7 +52,7 @@ function eye(p, s, cx, cy, uid, tint, deep) {
     <ellipse rx="${rx + 1.4}" ry="${ry + 1.4}" fill="${deep}" opacity=".5" filter="url(#${uid}g)"/>
     <clipPath id="${id}"><polygon points="${pts}"/></clipPath>
     <g clip-path="url(#${id})"><ellipse rx="${rx}" ry="${ry}" fill="url(#${uid}e)"/>${sp}
-    <ellipse cx="${f(-rx * 0.3)}" cy="${f(-ry * 0.45)}" rx="${f(rx * 0.35)}" ry="${f(ry * 0.22)}" fill="#fff" opacity=".75"/></g></g>`;
+    <ellipse cx="${f(-rx * 0.3)}" cy="${f(-ry * 0.45)}" rx="${f(rx * 0.35)}" ry="${f(ry * 0.22)}" fill="#fff" opacity=".28"/></g></g>`;
 }
 
 // colour = { hue } (from ORB_COLORS), eyes = name in EYES. `anim` false → static (PNG). `phase` 0..1 shifts the
@@ -59,8 +60,8 @@ function eye(p, s, cx, cy, uid, tint, deep) {
 export function blobSvg({ hue = 225, eyes = 'neutre', phase = 0, anim = true, uid = 'b' } = {}) {
   const e = EYES[eyes] || EYES.neutre;
   const L = e.L, R = e.R || e.L;
-  const base = hsl(hue, 92, 58), deep = hsl(hue, 90, 38), light = hsl(hue, 100, 78);
-  const tint = hsl(hue, 90, 40);
+  const base = '#050505', deep = 'none', light = '#2a2a2a'; // same black eyes for every agent (the colour is no longer drawn)
+  const tint = '#555';
   const y = e.y || 0;
   const delay = f(-phase * 6), delay2 = f(-phase * 5.3);
   const css = anim ? `<style>
@@ -76,7 +77,8 @@ export function blobSvg({ hue = 225, eyes = 'neutre', phase = 0, anim = true, ui
 <linearGradient id="${uid}e" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${light}"/><stop offset="1" stop-color="${base}"/></linearGradient>
 <filter id="${uid}g" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.1"/></filter>
 </defs>
-<g transform="translate(50 52) scale(2.2) translate(-50 -52)"><g class="fl"><g class="bk">${eyesSvg}</g></g></g>
+<rect width="100" height="100" fill="none"/><circle cx="50" cy="50" r="49.4" fill="#fff" stroke="#000" stroke-opacity=".14" stroke-width="1.2"/>
+<g transform="translate(50 52) scale(2.05) translate(-50 -52)"><g class="fl"><g class="bk">${eyesSvg}</g></g></g>
 </svg>`;
 }
 
