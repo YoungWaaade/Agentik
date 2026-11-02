@@ -31,8 +31,9 @@ const hsl = (h, s, l, a = 1) => `hsla(${Math.round(((h % 360) + 360) % 360)},${s
 
 // One eye, drawn around (0,0) then placed. s = -1 left, +1 right.
 function eye(p, s, cx, cy, uid, tint, deep) {
-  const { rx = 4.6, ry = 7, rot = 0, dx = 0, dy = 0, lid = 0, lidB = 0, slant = 0, shine, arc } = p;
-  const place = `translate(${f(cx + dx)}, ${f(cy + dy)}) rotate(${f(-s * rot)})`;
+  let { rx = 4.6, ry = 7, rot = 0, dx = 0, dy = 0, lid = 0, lidB = 0, slant = 0, shine, arc } = p;
+  if (!arc) { rx *= 0.82; ry *= 1.3; } // tech look: long vertical pills
+  const place = `translate(${f(cx + dx)}, ${f(cy + dy)}) rotate(${f(-s * rot * 0.7)})`;
   if (arc) {
     // happy crescent: ∩ with a soft glow
     const d = `M${-rx},${f(ry * 0.5)} Q0,${f(-ry * 1.3)} ${rx},${f(ry * 0.5)}`;
@@ -44,15 +45,16 @@ function eye(p, s, cx, cy, uid, tint, deep) {
   const y1 = top + slant * (-s) * (-1), y2 = top + slant * (-s) * 1;
   const pts = `${-rx - 1},${f(y1 - 0)} ${rx + 1},${f(y2)} ${rx + 1},${f(bot)} ${-rx - 1},${f(bot)}`;
   const sp = shine ? `
-    <ellipse cx="0" cy="${f(ry * 0.28)}" rx="${f(rx * 0.7)}" ry="${f(ry * 0.52)}" fill="${tint}" opacity=".45"/>
+    
     <circle cx="${f(-rx * 0.28)}" cy="${f(-ry * 0.05)}" r="${f(rx * 0.3)}" fill="#fff"/>
     <circle cx="${f(rx * 0.32)}" cy="${f(ry * 0.5)}" r="${f(rx * 0.16)}" fill="#fff"/>` : '';
   const id = `${uid}c${s < 0 ? 'l' : 'r'}`;
   return `<g transform="${place}">
     <ellipse rx="${rx + 1.4}" ry="${ry + 1.4}" fill="${deep}" opacity=".5" filter="url(#${uid}g)"/>
     <clipPath id="${id}"><polygon points="${pts}"/></clipPath>
-    <g clip-path="url(#${id})"><ellipse rx="${rx}" ry="${ry}" fill="url(#${uid}e)"/>${sp}
-    <ellipse cx="${f(-rx * 0.3)}" cy="${f(-ry * 0.45)}" rx="${f(rx * 0.35)}" ry="${f(ry * 0.22)}" fill="#fff" opacity=".28"/></g></g>`;
+    <g clip-path="url(#${id})"><rect x="${f(-rx)}" y="${f(-ry)}" width="${f(rx * 2)}" height="${f(ry * 2)}" rx="${f(rx * 0.75)}" fill="url(#${uid}e)"/>${sp}
+    <rect x="${f(-rx)}" y="${f(ry * 0.3)}" width="${f(rx * 2)}" height=".5" fill="#fff" opacity=".16"/>
+    <rect x="${f(-rx * 0.62)}" y="${f(-ry * 0.8)}" width="${f(rx * 0.55)}" height="${f(ry * 0.32)}" rx=".5" fill="#fff" opacity=".4"/></g></g>`;
 }
 
 // colour = { hue } (from ORB_COLORS), eyes = name in EYES. `anim` false → static (PNG). `phase` 0..1 shifts the
