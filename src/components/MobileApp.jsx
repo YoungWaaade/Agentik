@@ -57,11 +57,11 @@ function useDebug() {
 function DebugBox({ vv }) {
   const [, tick] = useState(0);
   useEffect(() => { const i = setInterval(() => tick((n) => n + 1), 500); return () => clearInterval(i); }, []);
-  const v = window.visualViewport, a = document.querySelector('.m-app')?.getBoundingClientRect(), c = document.querySelector('.m-composer')?.getBoundingClientRect();
+  const v = window.visualViewport, a = document.querySelector('.m-app')?.getBoundingClientRect(), c = document.querySelector('.m-composer')?.getBoundingClientRect(), f = document.querySelector('.m-composer textarea')?.getBoundingClientRect(), b = document.body.getBoundingClientRect();
   const r = (n) => (n == null ? '-' : Math.round(n));
   return (
-    <pre style={{ position: 'fixed', left: 6, right: 6, bottom: 'auto', top: 60, zIndex: 9999, margin: 0, padding: 6, font: '11px/1.35 monospace', color: '#0f0', background: 'rgba(0,0,0,.82)', pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
-      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.height || '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}`}
+    <pre style={{ position: 'fixed', left: 6, right: 6, bottom: 'auto', top: vv.kb ? vv.top + 90 : 60, zIndex: 9999, margin: 0, padding: 6, font: '11px/1.35 monospace', color: '#0f0', background: 'rgba(0,0,0,.82)', pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
+      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.height || '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}\nchamp ${r(f?.top)}→${r(f?.bottom)}  body.top ${r(b.top)}  docScroll ${r(document.documentElement.scrollTop)}  active ${document.activeElement?.tagName}`}
     </pre>
   );
 }
@@ -85,7 +85,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   return (
     <div className="m-app" style={vv.kb ? { top: vv.top, bottom: 'auto', height: vv.height, paddingBottom: kbPad() } : undefined}>
       {screen}
-      {debug && <DebugBox vv={vv} />}
+      {(debug || vv.kb) && <DebugBox vv={vv} />}
       {banner.item && (
         <button className="m-banner" onClick={banner.open}>
           <strong>{banner.item.title}</strong>
