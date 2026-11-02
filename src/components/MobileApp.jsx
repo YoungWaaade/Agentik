@@ -46,7 +46,7 @@ function ListScreen({ data, projectsById, go, connected }) {
   return (
     <>
       <header className="m-head">
-        <h1>Supersept</h1>
+        <h1><img className="m-logo" src="/icon-192.png" alt="" />Agentic</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
         <button className="m-iconbtn" onClick={() => go({ kind: 'new' })} aria-label="Nouvel espace"><LuPlus size={20} /></button>
       </header>

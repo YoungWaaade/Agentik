@@ -1171,7 +1171,7 @@ function onApiError(id, error, transcript) {
   const canRelay = tooLong && relay.config().enabled && !(ws.predecessor && stopsOf(id) === 0);
   const weight = l ? ` Son contexte : ${l.tokens} tokens${l.images ? ` et ${l.images} images (${mb(l.imageBytes)} Mo en base64 ; une requête ne peut pas dépasser ~32 Mo)` : ''}.` : '';
   const msg = `Erreur de l'API : ${String(error).slice(0, 300).replace(/[.\s]+$/, '')}.${tooLong ? weight : ''} ${canRelay
-    ? 'Supersept la relaie vers une nouvelle session (même id, même dossier), qui reprend avec la mission et toutes les consignes.'
+    ? 'Agentic la relaie vers une nouvelle session (même id, même dossier), qui reprend avec la mission et toutes les consignes.'
     : tooLong ? "Elle ne peut plus continuer : relance une nouvelle session avec une mission plus courte, moins de captures, et une mémoire de projet allégée."
     : 'Renvoie-lui un message pour réessayer.'}`;
   logEvent(id, 'error', msg);
@@ -1258,9 +1258,13 @@ app.post('/api/hook/:id/:event', (req, res) => {
 });
 
 app.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+json').json({
-  name: 'Supersept', short_name: 'Supersept', display: 'standalone', background_color: '#151110', theme_color: '#151110',
+  name: 'Agentic', short_name: 'Agentic', display: 'standalone', background_color: '#151110', theme_color: '#151110',
   start_url: remote.isLoopback(req.socket.remoteAddress) ? '/' : remote.pairPath(),
-  icons: [{ src: '/icon.png', sizes: '400x400', type: 'image/png' }],
+  icons: [
+    { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+    { src: '/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+  ],
 }));
 
 if (fs.existsSync(dist)) {
@@ -1335,7 +1339,7 @@ for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').
 initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}) });
 
 server.listen(PORT, remote.listenHost(), () => {
-  console.log(`Supersept → http://localhost:${PORT}${remote.enabled() ? ' (accès téléphone activé)' : ''}`);
+  console.log(`Agentic → http://localhost:${PORT}${remote.enabled() ? ' (accès téléphone activé)' : ''}`);
   // Chat agents whose turn was cut by the restart pick up where they were.
   resumeInterrupted();
   // Bring back the agents that were running when the hub stopped.
