@@ -52,17 +52,25 @@ function useVisualViewport() {
     addEventListener('focusin', focus);
     // iOS standalone bug: after the keyboard closes the WebView can stay short (innerHeight 793 on 852). Known workaround:
     // force a reflow by toggling display on the root, scroll to the top, re-measure a few times.
+    const short = () => innerHeight < Math.max(screen.height, screen.width) - 5 && innerHeight > innerWidth;
     const kick = () => {
-      for (const d of [50, 150, 400, 900]) setTimeout(() => {
-        if (isField(document.activeElement)) return;
+      for (const d of [50, 150, 400, 900, 1800, 3000]) setTimeout(() => {
+        if (isField(document.activeElement) || (d > 150 && !short())) return;
         const r = document.getElementById('root');
         if (r) { r.style.display = 'none'; void r.offsetHeight; r.style.display = ''; }
+        // Rewriting the viewport meta makes WebKit recompute the layout viewport.
+        const m = document.querySelector('meta[name=viewport]');
+        if (m) { const c = m.content; m.content = c + ', maximum-scale=1'; void document.body.offsetHeight; m.content = c; }
         scrollTo(0, 0); on();
       }, d);
     };
+    const wake = () => { if (document.visibilityState !== 'hidden' && short()) kick(); };
+    document.addEventListener('visibilitychange', wake);
+    addEventListener('pageshow', wake);
+    wake();
     addEventListener('focusout', kick);
     addEventListener('resize', on);
-    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', focus); removeEventListener('focusout', kick); removeEventListener('resize', on); };
+    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', focus); removeEventListener('focusout', kick); document.removeEventListener('visibilitychange', wake); removeEventListener('pageshow', wake); removeEventListener('resize', on); };
   }, []);
   return vv;
 }
