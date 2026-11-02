@@ -36,9 +36,11 @@ function useVisualViewport() {
       const shrunk = v.height < full - 100;
       document.documentElement.classList.toggle('kb-open', kb);
       const top = Math.round(v.offsetTop || scrollY || 0);
-      const height = kb ? (shrunk ? Math.round(v.height) : Math.round(full * 0.53)) : full;
+      // Keyboard closed: full screen, unless iOS left the WebView short (innerHeight < screen): then fit it, never cut the composer.
+      const avail = innerHeight < full - 5 ? Math.round(innerHeight) : full;
+      const height = kb ? (shrunk ? Math.round(v.height) : Math.round(full * 0.53)) : avail;
       if (scrollY || scrollX) scrollTo(0, 0);
-      for (const el of [document.documentElement, document.body, document.getElementById('root')]) if (el) el.style.height = kb ? '' : `${full}px`;
+      for (const el of [document.documentElement, document.body, document.getElementById('root')]) if (el) el.style.height = kb ? '' : `${avail}px`;
       LOG.unshift(`${new Date().toLocaleTimeString('fr-FR')} ${e?.type || 'init'} inner${Math.round(innerHeight)} vv${Math.round(v.height)}/${Math.round(v.offsetTop)} sy${Math.round(scrollY)} kb${kb ? 1 : 0} h${kb ? height : 0}`); LOG.length = Math.min(LOG.length, 5);
       setVv((o) => { const n = kb ? { kb, height, top } : { kb, height, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
     };
@@ -48,8 +50,19 @@ function useVisualViewport() {
     v.addEventListener('scroll', on);
     addEventListener('scroll', on);
     addEventListener('focusin', focus);
-    addEventListener('focusout', () => setTimeout(on, 50));
-    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', focus); };
+    // iOS standalone bug: after the keyboard closes the WebView can stay short (innerHeight 793 on 852). Known workaround:
+    // force a reflow by toggling display on the root, scroll to the top, re-measure a few times.
+    const kick = () => {
+      for (const d of [50, 150, 400, 900]) setTimeout(() => {
+        if (isField(document.activeElement)) return;
+        const r = document.getElementById('root');
+        if (r) { r.style.display = 'none'; void r.offsetHeight; r.style.display = ''; }
+        scrollTo(0, 0); on();
+      }, d);
+    };
+    addEventListener('focusout', kick);
+    addEventListener('resize', on);
+    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', focus); removeEventListener('focusout', kick); removeEventListener('resize', on); };
   }, []);
   return vv;
 }
