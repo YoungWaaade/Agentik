@@ -1,16 +1,16 @@
 // Agent avatars, always a plain circle (no shadow, glow, border or hover effect; only a small green
 // dot while the agent works). Four kinds, from the avatar field of the agent's .md:
-//  - "/agents/orbs/<colour>.png" (or the generic "/agents/orb/orb.png") → the animated orb in the agent's own
-//    colour (src/orb.js ORB_COLORS / AGENT_ORBS, src/orbVideo.js) — the default of every agent;
+//  - "/agents/orbs/<colour>-<expression>.png" (or the generic "/agents/orb/orb.png") → the animated blob with
+//    eyes in the agent's own colour and expression (src/orb.js, src/orbBlob.js) — the default of every agent;
 //  - an image path or URL (an uploaded photo: /api/attachments/…) → that picture;
 //  - "" / legacy spec / "photo" for an agent with a profile photo (PHOTOS, scripts/agent-photos.mjs:
 //    public/agents/<slug>.webp large, <slug>-sm.webp small) → the photo;
 //  - "v2:accent,skin,…" → the older illustrated portrait, still drawn for agents that have one.
 // Anything else → the agent's default orb.
 
-import { memo, useEffect, useRef } from 'react';
-import { isOrb, ORB_STILL, ORB_WEBP, ORB_GIF, ORB_COLORS, orbColor, orbAccent } from '../orb.js';
-import { attachOrb, useOrbMode } from '../orbVideo.js';
+import { memo } from 'react';
+import { isOrb, ORB_COLORS, orbColor, orbEyes, orbAccent } from '../orb.js';
+import { blobUrl } from '../orbBlob.js';
 import '../orb.css';
 
 export const ACCENTS = {
@@ -97,10 +97,10 @@ export function avatarKind(spec, slug) {
   if (spec && typeof spec === 'object') return { kind: 'portrait' };
   const s = String(spec || '');
   if (s.startsWith('v2:')) return { kind: 'portrait' };
-  if (isOrb(s)) return { kind: 'orb', color: orbColor(s, slug) };
+  if (isOrb(s)) return { kind: 'orb', color: orbColor(s, slug), eyes: orbEyes(s, slug) };
   if (isImage(s)) return { kind: 'photo', src: () => s };
   if (hasPhoto(slug)) return { kind: 'photo', src: (size) => `/agents/${slug}${size >= 72 ? '' : '-sm'}.webp` };
-  return { kind: 'orb', color: orbColor(s, slug) };
+  return { kind: 'orb', color: orbColor(s, slug), eyes: orbEyes(s, slug) };
 }
 export const usesPhoto = (spec, slug) => avatarKind(spec, slug).kind === 'photo';
 export function accentOf(spec, seed) {
@@ -335,18 +335,13 @@ export function portraitUrl(a, tier = 'xl') {
   return cache.get(key);
 }
 
-// The orb: its still image, covered by a canvas fed with the shared video's frames (src/orbVideo.js), or
-// by the animated WebP/GIF when the video can't play; the still image alone if motion is reduced.
-function Orb({ color, size, busy, className }) {
-  const ref = useRef(null);
-  const mode = useOrbMode();
-  useEffect(() => (mode === 'video' && ref.current ? attachOrb(ref.current, size) : undefined), [mode, size]);
+// The blob with eyes: an SVG image (src/orbBlob.js) that animates itself (float, blink); the blink phase comes
+// from the agent's id so several avatars on screen don't blink together.
+const phaseOf = (s) => ([...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 11) % 8) / 8;
+function Orb({ color, eyes, seed, size, busy, className }) {
   return (
-    <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`} style={{ width: size, height: size, '--orb-hue': `${ORB_COLORS[color]?.rotate || 0}deg` }} aria-hidden="true">
-      {mode === 'image'
-        ? <picture><source srcSet={ORB_WEBP} type="image/webp" /><img className="orb-still" src={ORB_GIF} alt="" draggable="false" width={size} height={size} /></picture>
-        : <img className="orb-still" src={ORB_STILL} alt="" draggable="false" width={size} height={size} decoding="async" />}
-      {mode === 'video' && <canvas ref={ref} />}
+    <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`} style={{ width: size, height: size }} aria-hidden="true">
+      <img className="orb-still" src={blobUrl(ORB_COLORS[color]?.hue ?? 225, eyes, phaseOf(seed))} alt="" draggable="false" width={size} height={size} decoding="async" />
       {busy && size >= 24 && <i className="portrait-dot" />}
     </span>
   );
@@ -354,7 +349,7 @@ function Orb({ color, size, busy, className }) {
 
 function BotAvatar({ spec, seed, size = 16, className = '', busy = false }) {
   const k = avatarKind(spec, seed);
-  if (k.kind === 'orb') return <Orb color={k.color} size={size} busy={busy} className={className} />;
+  if (k.kind === 'orb') return <Orb color={k.color} eyes={k.eyes} seed={seed} size={size} busy={busy} className={className} />;
   const a = parseAvatar(spec, seed);
   const tier = size >= 72 ? 'xl' : size >= 36 ? 'md' : 'sm';
   const src = k.kind === 'photo' ? k.src(size) : portraitUrl(a, tier);

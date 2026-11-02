@@ -1,19 +1,16 @@
-// The orb: default avatar of every agent without a profile photo. One animation for all of them, the
-// original GIF (public/agents/originals/orb.gif) cropped on its pink glass sphere and played as a muted
-// looping video (public/agents/orb/, made by scripts/agent-orb.mjs; playback in src/orbVideo.js).
+// The "orb" avatar: default avatar of every agent without a profile photo. Now a soft blob with two glossy
+// oval eyes (src/orbBlob.js, drawn in SVG): each agent has its own COLOUR (ORB_COLORS) and its own EXPRESSION
+// (EYES in orbBlob.js: AGENT_EYES / freeEyes below).
 //
-// Avatar spec of the orb: "/agents/orb/orb.png", its still image, so the server (push.js) finds the
-// notification icon without knowing about orbs. Specs of the former WebGL orbs ("/agents/orbs/<palette>.png")
-// still mean the orb.
+// Avatar spec: "/agents/orbs/<colour>-<expression>.png" (PNG = the still, also the push notification icon, made
+// by scripts/agent-orb-colors.mjs). "/agents/orbs/<colour>.png" (no expression) = the agent's default one;
+// the former specs ("/agents/orb/orb.png", WebGL palettes) still mean an orb.
 export const ORB_SPEC = '/agents/orb/orb.png';
-export const ORB_STILL = ORB_SPEC;
-export const ORB_ACCENT = '#ff3d9a';
-export const ORB_SOURCES = [['/agents/orb/orb.mp4', 'video/mp4'], ['/agents/orb/orb.webm', 'video/webm']];
-// Animated image fallbacks (video can't autoplay, e.g. iOS Low Power Mode): lossless WebP, else the GIF.
-export const ORB_WEBP = '/agents/orb/orb.webp';
-export const ORB_GIF = '/agents/orb/orb.gif';
-const ORB_RE = /^\/?agents\/orbs?\/[a-z0-9-]+\.png$/;
+const ORB_RE = /^\/?agents\/orbs?\/[a-z0-9]+(-[a-z0-9]+)?\.png$/;
 export const isOrb = (spec) => typeof spec === 'string' && ORB_RE.test(spec);
+export const ORB_ACCENT = '#ff3d9a';
+
+import { EYE_NAMES } from './orbBlob.js';
 
 // ---- one colour per agent --------------------------------------------------------------------------
 // Every agent has its own colour of the same animation: a hue rotation of the pink original (CSS
@@ -47,19 +44,43 @@ export const AGENT_ORBS = {
   hammer: 'bleu', // builds apps: electric blue
   katerina: 'violet', // portfolio, design
 };
+// Expression of each agent (one each, never two the same; EYES in orbBlob.js).
+export const AGENT_EYES = {
+  anastasia: 'petillant', // sparkling big eyes
+  claude: 'neutre', // neutral, curious
+  zero: 'serieux', // serious, meticulous
+  robin: 'souriant', // soft, smiling
+  nami: 'malicieux', // team lead (photo; expression kept so no one else takes it)
+  hammer: 'concentre', // focused, determined
+  katerina: 'reveur', // dreamy, creative
+};
 // Names of the former WebGL palettes, still found in old specs.
 const OLD_PALETTES = { electrique: 'bleu', menthe: 'vert', iris: 'violet', azur: 'cyan', aurore: 'emeraude', braise: 'rouge', lagune: 'cyan' };
 
-export const orbSpec = (color) => `/agents/orbs/${color}.png`;
+export const orbSpec = (color, eyes) => `/agents/orbs/${color}${eyes ? `-${eyes}` : ''}.png`;
 const hashOf = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 // Colour of an agent's orb: the one in its spec, else its default, else one derived from its id.
 export function orbColor(spec, slug) {
-  const m = typeof spec === 'string' && /^\/?agents\/orbs\/([a-z0-9-]+)\.png$/.exec(spec);
+  const m = typeof spec === 'string' && /^\/?agents\/orbs\/([a-z0-9]+)(?:-[a-z0-9]+)?\.png$/.exec(spec);
   const named = m && (ORB_COLORS[m[1]] ? m[1] : OLD_PALETTES[m[1]]);
   if (named) return named;
   if (AGENT_ORBS[slug]) return AGENT_ORBS[slug];
   const names = Object.keys(ORB_COLORS);
   return names[hashOf(slug || 'agent') % names.length];
+}
+// Expression of an agent's blob: the one in its spec, else its default, else one derived from its id.
+export function orbEyes(spec, slug) {
+  const m = typeof spec === 'string' && /^\/?agents\/orbs\/[a-z0-9]+-([a-z0-9]+)\.png$/.exec(spec);
+  if (m && EYE_NAMES.includes(m[1])) return m[1];
+  if (AGENT_EYES[slug]) return AGENT_EYES[slug];
+  return EYE_NAMES[hashOf(slug || 'agent') % EYE_NAMES.length];
+}
+// An expression no other agent has (the first free one); when all are taken, the least used.
+export function freeEyes(agents) {
+  const used = [...new Set([...Object.keys(AGENT_EYES), ...agents.map((a) => a.slug)])]
+    .map((slug) => orbEyes(agents.find((a) => a.slug === slug)?.avatar, slug));
+  const n = (e) => used.filter((u) => u === e).length;
+  return EYE_NAMES.reduce((best, e) => (n(e) < n(best) ? e : best));
 }
 // The free colour farthest (in hue) from those already taken by `agents` ([{ slug, avatar }]) or reserved in
 // AGENT_ORBS (Claude, the built-in agent, has no .md); when all are taken, the least used one.
