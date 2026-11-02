@@ -124,3 +124,7 @@ export function onNewMessage(f) {
   msgSubs.add(f);
   return () => msgSubs.delete(f);
 }
+
+// Non-hook readers (callers re-render through useChatBadges): conversations of an agent, one chat.
+export const peekConvs = (agent) => convs.get(agent)?.list || [];
+export const peekChat = (agent, conv) => chats.get(k(agent, conv)) || null;

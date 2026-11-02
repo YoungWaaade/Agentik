@@ -1,9 +1,9 @@
 // Phone view of the agents (Nami, Franky…): pick one, then chat with it like on the Mac.
 // Reuses the desktop chat pieces (chatStore + Message from AgentChat) with a touch-sized layout.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck } from 'react-icons/lu';
+import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck, LuPin, LuChevronRight } from 'react-icons/lu';
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
-import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
+import { useChat, useConvs, loadConvs, loadChat, peekConvs, peekChat, setViewing, useChatBadges } from '../chatStore.js';
 import { checkLive } from '../live.js';
 import BotAvatar, { accentOf } from './BotAvatar.jsx';
 import { splitAgents } from '../agentTeam.js';
@@ -12,12 +12,58 @@ import { PushBell, PushCallout } from './PushPanel.jsx';
 
 const SUGGESTIONS = ['Qu\'est-ce que tu peux faire pour moi ?', 'Fais le point sur mes sessions en cours'];
 
+// iOS Messages date: time today, "Hier", weekday this week, else short date.
+function listDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts), now = new Date();
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(now) - day(d)) / 864e5);
+  if (diff <= 0) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  if (diff === 1) return 'Hier';
+  if (diff < 7) return d.toLocaleDateString('fr-FR', { weekday: 'long' }).replace(/^./, (c) => c.toUpperCase());
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+// Plain one-line preview: no markdown, no image/attachment lines.
+function plain(text) {
+  return String(text || '')
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+    .split('\n').filter((l) => !/^\s*\[?(pièces? jointes?|attachments?)\b/i.test(l) && !/attachments?[:/]/i.test(l))
+    .join(' ')
+    .replace(/```[\s\S]*?```/g, ' ').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[`*_~>#]+/g, '').replace(/^\s*([-•]|\d+\.)\s+/gm, '').replace(/\s+/g, ' ').trim();
+}
+function previewOf(msgs) {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i];
+    if (m.role === 'activity') continue;
+    if (m.role === 'system') return { text: systemLabel(m.text), at: m.at };
+    const t = plain(m.text) || (m.meta?.images?.length ? 'Photo' : '');
+    if (t) return { text: (m.role === 'user' ? 'Toi : ' : '') + t, at: m.at };
+  }
+  return { text: '', at: 0 };
+}
+
 export function AgentListScreen({ agents, go, connected, tabs }) {
   const badges = useChatBadges();
   // Busy state comes with the conversation list: fetch it for every agent.
-  useEffect(() => { agents.forEach((a) => loadConvs(a.slug).catch(() => {})); }, [agents.map((a) => a.slug).join()]);
+  const slugs = agents.map((a) => a.slug).join();
+  useEffect(() => { agents.forEach((a) => loadConvs(a.slug).catch(() => {})); }, [slugs]);
+  // Latest conversation of each agent → its messages feed the preview.
+  const latest = (slug) => peekConvs(slug)[0];
+  const need = agents.map((a) => latest(a.slug)).map((c, i) => (c ? `${agents[i].slug}:${c.conversation}` : '')).join();
+  useEffect(() => {
+    agents.forEach((a) => { const c = latest(a.slug); if (c && !peekChat(a.slug, c.conversation)?.loaded) loadChat(a.slug, c.conversation).catch(() => {}); });
+  }, [need]);
   const { lead, others } = splitAgents(agents);
   const open = (a) => go({ kind: 'agent', id: a.slug });
+  const info = (a) => {
+    const c = latest(a.slug);
+    const p = previewOf(c ? peekChat(a.slug, c.conversation)?.messages || [] : []);
+    return { ...p, at: p.at || c?.last || 0 };
+  };
+  const rows = [...others].map((a) => ({ a, ...info(a) })).sort((x, y) => y.at - x.at);
+  if (lead) rows.unshift({ a: lead, ...info(lead) });
   return (
     <>
       <header className="m-head">
@@ -28,27 +74,28 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
       <div className="m-scroll">
         <PushCallout go={go} />
         {!connected && <p className="m-note">Connexion au Mac… Vérifie qu'il est allumé et sur le même réseau (ou Tailscale).</p>}
-        {agents.length > 0 && (
-          <div className="m-team">
-            {lead && (
-              <button className={`m-pin ${badges.busy(lead.slug) ? 'busy' : ''}`} onClick={() => open(lead)} title={lead.description} aria-label={`${lead.label}${badges.unread(lead.slug) > 0 ? `, ${badges.unread(lead.slug)} non lus` : ''}`}>
-                <span className="m-pin-photo">
-                  <BotAvatar spec={lead.avatar} seed={lead.slug} size={96} busy={badges.busy(lead.slug)} />
-                  {badges.unread(lead.slug) > 0 && <span className="m-pin-unread">{badges.unread(lead.slug)}</span>}
-                </span>
-                <span className="m-pin-name">{lead.label}</span>
-              </button>
-            )}
-            {others.length > 0 && (
-              <div className="m-grid">
-                {others.map((a) => (
-                  <button key={a.slug} className="m-grid-tile" onClick={() => open(a)} title={a.description} style={{ '--acc': accentOf(a.avatar, a.slug) }}>
-                    <Bot agent={a} size={76} badges={badges} />
-                    <span className="m-grid-name">{a.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+        {rows.length > 0 && (
+          <div className="m-msgs">
+            {rows.map(({ a, text, at }) => {
+              const busy = badges.busy(a.slug), unread = badges.unread(a.slug);
+              return (
+                <button key={a.slug} className={`m-msg ${unread > 0 ? 'unread' : ''}`} onClick={() => open(a)} title={a.description} aria-label={`${a.label}${unread > 0 ? `, ${unread} non lus` : ''}`}>
+                  <span className="m-msg-dot">{unread > 0 && <i />}</span>
+                  <span className="m-msg-av"><BotAvatar spec={a.avatar} seed={a.slug} size={54} busy={busy} /></span>
+                  <span className="m-msg-body">
+                    <span className="m-msg-top">
+                      <span className="m-msg-name">{a.label}</span>
+                      {a === lead || a.slug === lead?.slug ? <LuPin size={11} className="m-msg-pin" /> : null}
+                      <span className="m-msg-date">{listDate(at)}</span>
+                      <LuChevronRight size={14} className="m-msg-chev" />
+                    </span>
+                    {busy
+                      ? <span className="m-msg-text typing"><i className="status-dot on" /> écrit<span className="m-dots"><span /><span /><span /></span></span>
+                      : <span className="m-msg-text">{text || a.description || 'Aucun message'}</span>}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         )}
         {!agents.length && <p className="m-note">Aucun agent. Crée-en un depuis YoungHub sur ton Mac (onglet Agents).</p>}

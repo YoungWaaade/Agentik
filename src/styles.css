@@ -1189,3 +1189,26 @@ video.msg-media { cursor: default; }
   .m-chat-list { overflow-x: hidden; }
   .m-chat-list .msg-media { max-width: 100%; max-height: 320px; }
 }
+/* Phone: agents as an iMessage-style conversation list */
+.m-msgs { padding: 0 0 8px; }
+.m-msg { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0 16px 0 6px; text-align: left; background: none; -webkit-tap-highlight-color: transparent; }
+.m-msg:active { background: var(--fill-hover); }
+.m-msg-dot { flex: none; width: 14px; display: flex; justify-content: center; }
+.m-msg-dot i { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); }
+.m-msg-av { flex: none; display: flex; padding: 8px 0; }
+.m-msg-body { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 10px 0; margin-left: 4px; border-bottom: 0.5px solid var(--border); }
+.m-msg:last-child .m-msg-body { border-bottom: 0; }
+.m-msg-top { display: flex; align-items: center; gap: 6px; }
+.m-msg-name { min-width: 0; font-size: 16px; font-weight: 600; line-height: 20px; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-msg-pin { flex: none; color: var(--muted-foreground); transform: rotate(35deg); }
+.m-msg-date { margin-left: auto; flex: none; font-size: 14px; color: var(--muted-foreground); }
+.m-msg.unread .m-msg-date { color: var(--primary); }
+.m-msg-chev { flex: none; color: var(--muted-foreground); opacity: 0.6; margin-left: -2px; }
+.m-msg-text { font-size: 14px; line-height: 18px; color: var(--muted-foreground); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; min-height: 36px; }
+.m-msg.unread .m-msg-text { color: var(--fg-80); }
+.m-msg-text.typing { display: flex; align-items: flex-start; gap: 6px; color: var(--primary); }
+.m-msg-text.typing .status-dot { margin-top: 5px; }
+.m-dots { display: inline-flex; gap: 2px; align-self: flex-end; padding-bottom: 6px; }
+.m-dots span { width: 3px; height: 3px; border-radius: 50%; background: currentColor; animation: typing 1.2s infinite ease-in-out; }
+.m-dots span:nth-child(2) { animation-delay: 0.15s; }
+.m-dots span:nth-child(3) { animation-delay: 0.3s; }
