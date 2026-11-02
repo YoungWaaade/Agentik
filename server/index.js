@@ -11,6 +11,7 @@ import { db, HUB_DIR, HOOKS_DIR, WORKTREES_DIR, MEMORY_DIR, memoryFile, resolveW
 import * as git from './git.js';
 import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } from './history.js';
 import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
+import * as onboarding from './onboarding.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
 import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation } from './chat.js';
 import * as remote from './remote.js';
@@ -904,6 +905,13 @@ app.put('/api/agents/:slug', wrap(async (req, res) => {
   res.json(a);
 }));
 
+app.get('/api/onboarding', (req, res) => res.json(onboarding.status()));
+app.post('/api/onboarding', wrap(async (req, res) => {
+  const a = onboarding.complete(req.body || {});
+  broadcast({ type: 'reload' });
+  res.json(a);
+}));
+
 app.delete('/api/agents/:slug', wrap(async (req, res) => {
   deleteAgent(req.params.slug);
   broadcast({ type: 'reload' });
@@ -1332,7 +1340,8 @@ setInterval(() => {
 db.prepare("UPDATE workspaces SET status = 'idle' WHERE status IN ('working', 'waiting')").run();
 for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').all()) refreshStats(id);
 
-initChat({ claude: CLAUDE, port: PORT, userName: fullName || os.userInfo().username, broadcast, env: () => childEnv({}) });
+// The first name given at onboarding, once there is one, is how agents address the user.
+initChat({ claude: CLAUDE, port: PORT, get userName() { return onboarding.firstName() || fullName || os.userInfo().username; }, broadcast, env: () => childEnv({}) });
 
 server.listen(PORT, remote.listenHost(), () => {
   console.log(`Supersept → http://localhost:${PORT}${remote.enabled() ? ' (accès téléphone activé)' : ''}`);

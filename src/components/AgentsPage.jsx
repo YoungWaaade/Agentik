@@ -105,7 +105,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
 }
 
 // Shape and colour are picked separately; the preview is the live, animated avatar.
-function BotBuilder({ spec, seed, onChange }) {
+export function BotBuilder({ spec, seed, onChange }) {
   const a = parseAvatar(spec, seed);
   const set = (part) => onChange(avatarSpec({ ...a, ...part }));
   return (

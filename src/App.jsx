@@ -14,6 +14,7 @@ import CommandPalette from './components/CommandPalette.jsx';
 import WorkspaceMenu from './components/WorkspaceMenu.jsx';
 import Empty from './components/Empty.jsx';
 import MobileApp from './components/MobileApp.jsx';
+import Onboarding from './components/Onboarding.jsx';
 import { isPhone } from './components/Terminal.jsx';
 
 // After a hub update the socket reconnects but the page keeps the old bundle: reload if stale.
@@ -35,6 +36,7 @@ export default function App() {
   const [data, setData] = useState({ projects: [], workspaces: [] });
   const [loaded, setLoaded] = useState(false);
   const [me, setMe] = useState(null);
+  const [onboarding, setOnboarding] = useState(null); // { done } once known
   const [route, setRoute] = useState(parseHash);
   const [modal, setModal] = useState(null);
   const [menu, setMenu] = useState(null); // { ws, x, y }
@@ -54,6 +56,7 @@ export default function App() {
   useEffect(() => localStorage.setItem('rp-open', rightOpen ? '1' : '0'), [rightOpen]);
   const load = useCallback(() => api.get('/api/state').then((d) => { setData(d); setLoaded(true); }), []);
   useEffect(() => { api.get('/api/me').then(setMe).catch(() => {}); }, []);
+  useEffect(() => { api.get('/api/onboarding').then(setOnboarding).catch(() => setOnboarding({ done: true })); }, []);
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
@@ -140,6 +143,13 @@ export default function App() {
   const projectsById = useMemo(() => Object.fromEntries(data.projects.map((p) => [p.id, p])), [data.projects]);
 
   if (isPhone) return <MobileApp data={data} projectsById={projectsById} route={route} go={go} connected={connected} load={load} />;
+
+  // Shown by itself on a fresh install, or when re-run from the settings.
+  const redo = route.kind === 'onboarding';
+  if (redo || (onboarding && !onboarding.done)) {
+    const done = (a) => { setOnboarding({ done: true }); load().then(() => go({ kind: 'agent', id: a.slug })); };
+    return <Onboarding me={me} redo={redo} onDone={done} onCancel={redo ? () => go({ kind: 'settings' }) : null} />;
+  }
 
   let main;
   if (route.kind === 'ws' && current) {
