@@ -18,7 +18,7 @@ export const PHOTOS = {
   // nami: black chrome head on white. `cutout`: the white background is made transparent by a flood fill from the
   // image edges (the chrome's white reflections inside the head are kept), anti-aliased edge; the crop is the
   // head's bounding box as a square plus a margin (fraction of its larger side).
-  nami: { src: 'nami', cutout: { margin: 0.08, bg: '#FCFFF2' } }, // bg: solid colour behind the head = Claw White, the palette's white (src/orb.js PALETTE)
+  nami: { src: 'nami', cutout: { crop: [130, 0, 1060], bg: '#FCFFF2' } }, // bg: solid colour behind the head = Claw White, the palette's white (src/orb.js PALETTE)
 };
 
 // Flood fill of the near-white background from the borders → RGBA buffer (+ bounding box of what remains).
@@ -70,8 +70,10 @@ for (const [slug, { src, crop, cutout: cut }] of Object.entries(PHOTOS)) {
   let base, side;
   if (cut) {
     const { out, w, h, box: [x0, y0, x1, y1] } = await cutout(SRC(src));
-    side = Math.round(Math.max(x1 - x0, y1 - y0) * (1 + 2 * cut.margin));
-    const left = Math.round((x0 + x1) / 2 - side / 2), top = Math.round((y0 + y1) / 2 - side / 2);
+    // `crop` [left, top, side] fixes the square (photo with neck/shoulder: centred on the head by hand); else the
+    // bounding box of what remains plus `margin`.
+    side = cut.crop ? cut.crop[2] : Math.round(Math.max(x1 - x0, y1 - y0) * (1 + 2 * cut.margin));
+    const left = cut.crop ? cut.crop[0] : Math.round((x0 + x1) / 2 - side / 2), top = cut.crop ? cut.crop[1] : Math.round((y0 + y1) / 2 - side / 2);
     // pad the canvas so the square never leaves the image
     const png = await sharp(out, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer();
     const pad = Math.max(0, -left, -top, left + side - w, top + side - h);
