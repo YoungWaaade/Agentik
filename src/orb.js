@@ -54,3 +54,15 @@ export function freeOrbColor(agents) {
     || names.reduce((best, c) => (used.filter((u) => u === c).length < used.filter((u) => u === best).length ? c : best));
 }
 export const orbAccent = (tint) => TINTS[tint]?.accent || TINTS.ciel.accent;
+
+// Blink: each tint is also cut in layers (tiles/<tint>-base.png without eyes, -eyeL.png, -eyeR.png; scripts/agent-tiles.mjs).
+// Centre of each eye, in % of the tile, per tile of the model (transform origin of the squash).
+const EYE_ORIGINS = { 0: [[42.2, 53.3], [70.9, 47.3]], 1: [[42.2, 57.8], [68.8, 53]], 2: [[42.2, 57.8], [68.8, 53]] };
+export const eyeOrigins = (tint) => EYE_ORIGINS[TINTS[tint]?.base ?? 0];
+// Blink timing of an agent: a cycle of 3 to 6 s and a random phase (from its id) so they never blink together.
+export function blinkTiming(seed) {
+  const h = hashOf(seed || 'agent');
+  const dur = 3 + ((h % 1000) / 1000) * 3;
+  const phase = (((h >>> 10) % 1000) / 1000) * dur;
+  return { dur: +dur.toFixed(2), delay: -+phase.toFixed(2) };
+}

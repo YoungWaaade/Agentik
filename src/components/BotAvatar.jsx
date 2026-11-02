@@ -7,7 +7,7 @@
 // Anything else → the agent's default orb.
 
 import { memo } from 'react';
-import { isOrb, orbColor, orbAccent } from '../orb.js';
+import { isOrb, orbColor, orbAccent, eyeOrigins, blinkTiming } from '../orb.js';
 import '../orb.css';
 
 export const ACCENTS = {
@@ -334,11 +334,25 @@ export function portraitUrl(a, tier = 'xl') {
   return cache.get(key);
 }
 
-// The tile (public/agents/tiles/<tint>.png, cut from the model): rounded square, no animation.
-function Orb({ color, size, busy, className }) {
+// The tile (public/agents/tiles/<tint>.png, cut from the model): rounded square. From 28 px up it is drawn in layers
+// (same image without eyes + the two eyes cut from it) so the eyes can blink: a quick vertical squash every 3-6 s,
+// phase from the agent's id (src/orb.css; off with prefers-reduced-motion).
+function Orb({ color, seed, size, busy, className }) {
+  const blink = size >= 28;
+  const t = blinkTiming(seed);
+  const [l, r] = eyeOrigins(color);
+  const dir = `/agents/tiles/${color}`;
   return (
     <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`} style={{ width: size, height: size }} aria-hidden="true">
-      <img className="orb-still" src={`/agents/tiles/${color}.png`} alt="" draggable="false" width={size} height={size} decoding="async" />
+      {blink ? (
+        <>
+          <img className="orb-still" src={`${dir}-base.png`} alt="" draggable="false" width={size} height={size} decoding="async" />
+          {[['L', l], ['R', r]].map(([k, o]) => (
+            <img key={k} className="orb-still orb-eye" src={`${dir}-eye${k}.png`} alt="" draggable="false" width={size} height={size} decoding="async"
+              style={{ transformOrigin: `${o[0]}% ${o[1]}%`, animationDuration: `${t.dur}s`, animationDelay: `${t.delay}s` }} />
+          ))}
+        </>
+      ) : <img className="orb-still" src={`${dir}.png`} alt="" draggable="false" width={size} height={size} decoding="async" />}
       {busy && size >= 24 && <i className="portrait-dot" />}
     </span>
   );
@@ -346,7 +360,7 @@ function Orb({ color, size, busy, className }) {
 
 function BotAvatar({ spec, seed, size = 16, className = '', busy = false }) {
   const k = avatarKind(spec, seed);
-  if (k.kind === 'orb') return <Orb color={k.color} size={size} busy={busy} className={className} />;
+  if (k.kind === 'orb') return <Orb color={k.color} seed={seed} size={size} busy={busy} className={className} />;
   const a = parseAvatar(spec, seed);
   const tier = size >= 72 ? 'xl' : size >= 36 ? 'md' : 'sm';
   const src = k.kind === 'photo' ? k.src(size) : portraitUrl(a, tier);
