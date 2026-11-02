@@ -20,24 +20,33 @@ const KEYS = [
 // Closed: plain full-screen CSS (100lvh), no JS height (it can be shorter than the screen in the home-screen app).
 const STANDALONE = (() => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch { return false; } })();
 function kbPad() { try { const n = new URLSearchParams(location.search + '&' + location.hash.split('?')[1]).get('kbpad') ?? localStorage.getItem('supersept.kbpad'); return n == null ? 0 : Math.max(0, Math.min(200, Number(n) || 0)); } catch { return 0; } }
+const isField = (el) => !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|file)$/.test(el.type)));
+const LOG = []; // last measures (debug box)
 function useVisualViewport() {
   const [vv, setVv] = useState({ kb: false, height: 0, top: 0 });
   useEffect(() => {
     const v = window.visualViewport;
     if (!v) return;
-    const on = () => {
-      const kb = innerHeight - v.height > 100;
+    const on = (e) => {
+      // iOS home-screen app: the keyboard does not always shrink visualViewport, it may only pan the page.
+      // So: field focused = keyboard open; height = visible height if it shrank, else an estimate (keyboard + accessory bar ≈ 47 %).
+      const shrunk = innerHeight - v.height > 100;
+      const kb = shrunk || isField(document.activeElement);
       document.documentElement.classList.toggle('kb-open', kb);
+      const top = Math.round(v.offsetTop || scrollY || 0);
+      const height = shrunk ? Math.round(v.height) : Math.round(innerHeight * 0.53);
       if (kb && (scrollY || scrollX)) scrollTo(0, 0);
-      setVv((o) => { const n = kb ? { kb, height: Math.round(v.height), top: Math.round(v.offsetTop) } : { kb, height: 0, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
+      LOG.unshift(`${new Date().toLocaleTimeString('fr-FR')} ${e?.type || 'init'} inner${Math.round(innerHeight)} vv${Math.round(v.height)}/${Math.round(v.offsetTop)} sy${Math.round(scrollY)} kb${kb ? 1 : 0} h${kb ? height : 0}`); LOG.length = Math.min(LOG.length, 5);
+      setVv((o) => { const n = kb ? { kb, height, top } : { kb, height: 0, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
     };
+    const focus = (e) => { on(e); requestAnimationFrame(() => { scrollTo(0, 0); on(); }); setTimeout(() => { scrollTo(0, 0); on(); }, 300); };
     on();
     v.addEventListener('resize', on);
     v.addEventListener('scroll', on);
     addEventListener('scroll', on);
-    addEventListener('focusin', on);
-    addEventListener('focusout', on);
-    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', on); removeEventListener('focusout', on); };
+    addEventListener('focusin', focus);
+    addEventListener('focusout', () => setTimeout(on, 50));
+    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', focus); };
   }, []);
   return vv;
 }
@@ -60,8 +69,8 @@ function DebugBox({ vv }) {
   const v = window.visualViewport, a = document.querySelector('.m-app')?.getBoundingClientRect(), c = document.querySelector('.m-composer')?.getBoundingClientRect(), f = document.querySelector('.m-composer textarea')?.getBoundingClientRect(), b = document.body.getBoundingClientRect();
   const r = (n) => (n == null ? '-' : Math.round(n));
   return (
-    <pre style={{ position: 'fixed', left: 6, right: 6, bottom: 'auto', top: vv.kb ? vv.top + 90 : 60, zIndex: 9999, margin: 0, padding: 6, font: '11px/1.35 monospace', color: '#0f0', background: 'rgba(0,0,0,.82)', pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
-      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.height || '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}\nchamp ${r(f?.top)}→${r(f?.bottom)}  body.top ${r(b.top)}  docScroll ${r(document.documentElement.scrollTop)}  active ${document.activeElement?.tagName}`}
+    <pre style={{ position: 'fixed', left: 6, right: 6, bottom: 'auto', top: vv.kb ? 90 : 60, zIndex: 9999, margin: 0, padding: 6, font: '11px/1.35 monospace', color: '#0f0', background: 'rgba(0,0,0,.82)', pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
+      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.height || '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}\nchamp ${r(f?.top)}→${r(f?.bottom)}  body.top ${r(b.top)}  docScroll ${r(document.documentElement.scrollTop)}  active ${document.activeElement?.tagName}\n${LOG.join('\\n')}`}
     </pre>
   );
 }
@@ -83,7 +92,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
   else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} tabs={<Tabs tab="sessions" go={go} agents={agents} />} />;
   return (
-    <div className="m-app" style={vv.kb ? { top: vv.top, bottom: 'auto', height: vv.height, paddingBottom: kbPad() } : undefined}>
+    <div className="m-app" style={vv.kb ? { top: 0, bottom: 'auto', height: vv.height, transform: `translateY(${vv.top}px)`, paddingBottom: kbPad() } : undefined}>
       {screen}
       {(debug || vv.kb) && <DebugBox vv={vv} />}
       {banner.item && (

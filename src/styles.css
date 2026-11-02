@@ -796,6 +796,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 /* ---------- phone UI ---------- */
 /* Écran d'accueil iOS : html/body/#root couvrent tout l'écran (100lvh, zone de l'indicateur comprise) et leur fond est celui de la barre du bas. */
 @media (pointer: coarse) and (max-width: 760px) {
+  html, body { position: fixed; inset: 0; overflow: hidden; width: 100%; }
   html, body, #root { height: 100lvh; min-height: 100lvh; background: var(--tabbar-bg); }
 }
 .m-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100lvh; display: flex; flex-direction: column; overflow: hidden; font-size: 15px; background: var(--background);
