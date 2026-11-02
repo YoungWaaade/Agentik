@@ -5,7 +5,7 @@ import { GoIssueOpened, GoGitBranch, GoGlobe } from 'react-icons/go';
 import { VscFolderOpened } from 'react-icons/vsc';
 import { api, ago } from '../api.js';
 import { ProjectThumbnail } from './ui.jsx';
-import claudeLogo from '../assets/claude.svg';
+import BotAvatar from './BotAvatar.jsx';
 import { AgentIcon } from './AgentsPage.jsx';
 
 const PLACEHOLDERS = [
@@ -222,10 +222,10 @@ export default function NewWorkspacePage({ projects, agents = [], initialProject
             <div className="nws-tools">
               <span className="menu-anchor">
                 <button type="button" className="nws-pill" onClick={() => toggle('agent')} title={agent?.description}>
-                  {agent ? <AgentIcon agent={agent} size={12} /> : <img src={claudeLogo} alt="" className="nws-pill-logo" />} {agent ? agent.label : 'Claude'} <LuChevronDown size={16} className="nws-chev" />
+                  {agent ? <AgentIcon agent={agent} size={16} /> : <BotAvatar seed="claude" size={16} />} {agent ? agent.label : 'Claude'} <LuChevronDown size={16} className="nws-chev" />
                 </button>
                 <Menu open={open === 'agent'} onClose={close} className="nws-agent-menu">
-                  <button type="button" className={`popover-item ${!agent ? 'checked' : ''}`} onClick={() => { setAgentSlug(''); close(); }}><img src={claudeLogo} alt="" className="preset-icon" /> Claude</button>
+                  <button type="button" className={`popover-item ${!agent ? 'checked' : ''}`} onClick={() => { setAgentSlug(''); close(); }}><BotAvatar seed="claude" size={16} /> Claude</button>
                   {agents.map((a) => (
                     <button key={a.slug} type="button" className={`popover-item ${agent?.slug === a.slug ? 'checked' : ''}`} onClick={() => { setAgentSlug(a.slug); close(); }} title={a.description}>
                       <AgentIcon agent={a} /> <span className="flex-1 fade-r">{a.label}</span>

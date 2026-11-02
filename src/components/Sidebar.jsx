@@ -410,7 +410,7 @@ function AgentTile({ agent, active, busy, unread, onClick, lead }) {
   return (
     <button className={`sb-agent-tile ${active ? 'active' : ''} ${lead ? 'lead' : ''}`} onClick={onClick} title={agent.description}>
       <span className="sb-agent-bot">
-        <BotAvatar spec={agent.avatar} seed={agent.slug} size={40} />
+        <BotAvatar spec={agent.avatar} seed={agent.slug} size={40} running={busy} />
         {busy ? <span className="sb-agent-badge busy"><span /><span /><span /></span> : unread > 0 ? <span className="sb-agent-badge">{unread}</span> : null}
       </span>
       {lead ? (
