@@ -794,7 +794,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .remote-hint a { color: var(--foreground); text-decoration: underline; }
 
 /* ---------- phone UI ---------- */
-.m-app { position: fixed; top: 0; left: 0; right: 0; display: flex; flex-direction: column; overflow: hidden; font-size: 15px; background: var(--background);
+.m-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; overflow: hidden; font-size: 15px; background: var(--background);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 .m-head { display: flex; align-items: center; gap: 8px; min-height: 52px; flex: none; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); background: var(--tabbar-bg); }
 .m-head h1 { flex: 1; margin: 0; font-size: 17px; font-weight: 600; }
@@ -806,7 +806,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-head-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
 .m-head-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-head-sub { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted-foreground); overflow: hidden; white-space: nowrap; }
-.m-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
+.m-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.m-scroll:last-child { padding-bottom: env(safe-area-inset-bottom); } /* sinon la barre d'onglets compte déjà la zone de l'indicateur */
 .m-section { margin: 18px 16px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.075em; text-transform: uppercase; color: var(--muted-foreground); }
 .m-acc { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 16px 8px; font-size: 14px; font-weight: 600; color: var(--foreground); text-align: left; }
 .m-acc-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -842,7 +843,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-primary { justify-content: center; height: 46px; margin-top: 24px; border-radius: 12px; font-size: 16px; font-weight: 600; background: var(--foreground); color: var(--background); }
 /* Phone: bottom tabs (Sessions / Agents) */
 .m-tabs { display: flex; flex: none; border-top: 1px solid var(--border); background: var(--tabbar-bg); padding-bottom: env(safe-area-inset-bottom); }
-.m-tab { flex: 1; flex-direction: column; justify-content: center; gap: 3px; height: 56px; font-size: 11.5px; font-weight: 500; color: var(--muted-foreground); }
+.m-tab { flex: 1; flex-direction: column; justify-content: center; gap: 3px; height: 50px; font-size: 11.5px; font-weight: 500; color: var(--muted-foreground); }
 .m-tab.on { color: var(--foreground); }
 .m-tab:active { background: var(--fill-hover); }
 .m-tab-icon { position: relative; display: flex; }

@@ -17,11 +17,17 @@ const KEYS = [
 
 // iOS lays the keyboard over the page: size the app to what is actually visible.
 function useVisualViewport() {
-  const [vv, setVv] = useState(() => ({ height: innerHeight, top: 0 }));
+  const [vv, setVv] = useState({ height: 0, top: 0 });
   useEffect(() => {
     const v = window.visualViewport;
     if (!v) return;
-    const on = () => setVv({ height: v.height, top: v.offsetTop });
+    // Only follow the visual viewport while the keyboard covers the page: in the home-screen app its height can be
+    // smaller than the screen (home indicator area) and would leave an empty band under the tab bar.
+    const on = () => {
+      const kb = innerHeight - v.height > 120;
+      setVv((o) => { const n = kb ? { height: v.height, top: v.offsetTop } : { height: 0, top: 0 }; return o.height === n.height && o.top === n.top ? o : n; });
+    };
+    on();
     v.addEventListener('resize', on);
     v.addEventListener('scroll', on);
     return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); };
@@ -45,7 +51,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
   else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} tabs={<Tabs tab="sessions" go={go} agents={agents} />} />;
   return (
-    <div className="m-app" style={{ height: vv.height, transform: `translateY(${vv.top}px)` }}>
+    <div className="m-app" style={vv.height ? { height: vv.height, bottom: 'auto', transform: `translateY(${vv.top}px)` } : undefined}>
       {screen}
       {banner.item && (
         <button className="m-banner" onClick={banner.open}>
