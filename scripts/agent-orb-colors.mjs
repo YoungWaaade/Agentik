@@ -18,7 +18,7 @@ const DIR = path.join(ROOT, 'public/agents');
 const PHOTOS = ['nami']; // keep in sync with BotAvatar.jsx
 const SIZE = 192;
 
-const render = (color, eyes) => sharp(Buffer.from(blobSvg({ hue: ORB_COLORS[color].hue, eyes, anim: false, uid: 'p' })), { density: 72 * SIZE / 100 })
+const render = (color, eyes) => sharp(Buffer.from(blobSvg({ bg: ORB_COLORS[color].bg, ink: ORB_COLORS[color].ink, eyes, anim: false, uid: 'p' })), { density: 72 * SIZE / 100 })
   .resize(SIZE, SIZE).png({ compressionLevel: 9 }).toBuffer();
 fs.mkdirSync(path.join(DIR, 'orbs'), { recursive: true });
 for (const f of fs.readdirSync(path.join(DIR, 'orbs'))) fs.unlinkSync(path.join(DIR, 'orbs', f));

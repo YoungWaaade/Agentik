@@ -1,65 +1,76 @@
-// The "orb" avatar: default avatar of every agent without a profile photo. Now a soft blob with two glossy
-// oval eyes (src/orbBlob.js, drawn in SVG): each agent has its own COLOUR (ORB_COLORS) and its own EXPRESSION
-// (EYES in orbBlob.js: AGENT_EYES / freeEyes below).
+// The avatar of every agent without a profile photo: a plain circle with two flat robot eyes (src/orbBlob.js).
+// Each agent has its own COMBINATION (ORB_COLORS: circle colour + eye colour, taken ONLY from the official palette
+// below) and its own EYE SHAPE (EYES in orbBlob.js: AGENT_EYES / freeEyes).
 //
-// Avatar spec: "/agents/orbs/<colour>-<expression>.png" (PNG = the still, also the push notification icon, made
-// by scripts/agent-orb-colors.mjs). "/agents/orbs/<colour>.png" (no expression) = the agent's default one;
-// the former specs ("/agents/orb/orb.png", WebGL palettes) still mean an orb.
+// Avatar spec: "/agents/orbs/<combination>-<shape>.png" (PNG = the still, also the push notification icon, made by
+// scripts/agent-orb-colors.mjs). "/agents/orbs/<combination>.png" (no shape) = the agent's default shape; the former
+// specs ("/agents/orb/orb.png", WebGL palettes) still mean an avatar.
+import { EYE_NAMES } from './orbBlob.js';
+
 export const ORB_SPEC = '/agents/orb/orb.png';
 const ORB_RE = /^\/?agents\/orbs?\/[a-z0-9]+(-[a-z0-9]+)?\.png$/;
 export const isOrb = (spec) => typeof spec === 'string' && ORB_RE.test(spec);
-export const ORB_ACCENT = '#ff3d9a';
 
-import { EYE_NAMES } from './orbBlob.js';
+// ---- official palette (Emre): no other colour on the avatars ----------------------------------------
+export const PALETTE = {
+  tennisYellow: '#EAFF0A',
+  clawWhite: '#FCFFF2',
+  scrubsBlueLight: '#C6D0FF',
+  scrubsBlue: '#8A96EE',
+  snoutBlack: '#1A0009',
+  cocoaRust: '#2B1A16',
+  electricCobalt: '#637BFF',
+  namiBlue: '#0D0FDD', // reserved for Nami's photo background (not used by the other agents)
+};
+const P = PALETTE;
 
-// ---- one colour per agent --------------------------------------------------------------------------
-// Every agent has its own colour of the same animation: a hue rotation of the pink original (CSS
-// `filter: hue-rotate()` in the app, the same matrix applied to the stills by scripts/agent-orb-colors.mjs).
-// Spec of a coloured orb: "/agents/orbs/<colour>.png" (its still, also the push icon). Rotations picked on
-// renders so the colours stay clearly apart; `hue` = perceived hue, used to keep new agents' colours far from
-// the ones already taken.
+// ---- one combination per agent ----------------------------------------------------------------------
+// bg = colour of the circle, ink = colour of the eyes (well contrasted). Keys = letters/digits only (they are
+// part of the spec). The first ones belong to the team, the others are spare for new agents.
 export const ORB_COLORS = {
-  rose: { label: 'Rose', rotate: 0, hue: 330 },
-  corail: { label: 'Corail', rotate: 40, hue: 10 },
-  or: { label: 'Or', rotate: 85, hue: 45 },
-  vert: { label: 'Vert', rotate: 140, hue: 120 },
-  cyan: { label: 'Cyan', rotate: 210, hue: 190 },
-  bleu: { label: 'Bleu', rotate: 235, hue: 225 },
-  violet: { label: 'Violet', rotate: 295, hue: 280 },
-  // Spare colours, for the next agents (between the ones above: the most distant free one is picked).
-  lime: { label: 'Lime', rotate: 112, hue: 80 },
-  emeraude: { label: 'Émeraude', rotate: 168, hue: 155 },
-  indigo: { label: 'Indigo', rotate: 262, hue: 250 },
-  magenta: { label: 'Magenta', rotate: 318, hue: 305 },
-  rouge: { label: 'Rouge', rotate: 22, hue: 355 },
+  cobalt: { label: 'Cobalt, yeux noirs', bg: P.electricCobalt, ink: P.snoutBlack },
+  noir: { label: 'Noir, yeux jaunes', bg: P.snoutBlack, ink: P.tennisYellow },
+  jaune: { label: 'Jaune, yeux noirs', bg: P.tennisYellow, ink: P.snoutBlack },
+  bleu: { label: 'Bleu, yeux blancs', bg: P.scrubsBlue, ink: P.clawWhite },
+  bleuclair: { label: 'Bleu clair, yeux cacao', bg: P.scrubsBlueLight, ink: P.cocoaRust },
+  cacao: { label: 'Cacao, yeux bleu clair', bg: P.cocoaRust, ink: P.scrubsBlueLight },
+  blanc: { label: 'Blanc, yeux noirs', bg: P.clawWhite, ink: P.snoutBlack },
+  // Spare combinations (new agents).
+  cobaltjaune: { label: 'Cobalt, yeux jaunes', bg: P.electricCobalt, ink: P.tennisYellow },
+  noirblanc: { label: 'Noir, yeux blancs', bg: P.snoutBlack, ink: P.clawWhite },
+  bleunoir: { label: 'Bleu, yeux noirs', bg: P.scrubsBlue, ink: P.snoutBlack },
+  jaunecacao: { label: 'Jaune, yeux cacao', bg: P.tennisYellow, ink: P.cocoaRust },
+  cacaojaune: { label: 'Cacao, yeux jaunes', bg: P.cocoaRust, ink: P.tennisYellow },
+  blancbleu: { label: 'Blanc, yeux cobalt', bg: P.clawWhite, ink: P.electricCobalt },
+  bleuclairnoir: { label: 'Bleu clair, yeux noirs', bg: P.scrubsBlueLight, ink: P.snoutBlack },
 };
-// Colour of the agents whose .md has no orb spec. Every agent its own colour: keep this list free of
-// duplicates, and give a new agent a free colour (server/agents.js does it on creation via freeOrbColor).
+// Combination of the agents whose .md has no avatar spec. Every agent its own: keep this list free of duplicates
+// (server/agents.js gives a new agent a free one via freeOrbColor).
 export const AGENT_ORBS = {
-  anastasia: 'rose', // Instagram pink, the original
-  claude: 'corail', // Claude's coral
-  zero: 'or', // folders, files and paperwork: archive gold
-  robin: 'vert', // everyday life, lists, budget
-  nami: 'cyan', // team lead (photo; colour kept so no one else takes it)
-  hammer: 'bleu', // builds apps: electric blue
-  katerina: 'violet', // portfolio, design
+  hammer: 'cobalt',
+  zero: 'noir',
+  robin: 'jaune',
+  katerina: 'bleu',
+  anastasia: 'bleuclair',
+  claude: 'cacao',
+  nami: 'blanc', // team lead (photo; combination kept so no one else takes it)
 };
-// Expression of each agent (one each, never two the same; EYES in orbBlob.js).
+// Shape of the eyes of each agent (one each, never two the same; EYES in orbBlob.js).
 export const AGENT_EYES = {
-  anastasia: 'petillant', // sparkling big eyes
-  claude: 'neutre', // neutral, curious
-  zero: 'serieux', // serious, meticulous
-  robin: 'souriant', // soft, smiling
-  nami: 'malicieux', // team lead (photo; expression kept so no one else takes it)
-  hammer: 'concentre', // focused, determined
-  katerina: 'reveur', // dreamy, creative
+  anastasia: 'petillant', // filled circles
+  claude: 'neutre', // slightly tilted, offset bars: curious
+  zero: 'serieux', // flat dashes
+  robin: 'souriant', // ^ ^
+  nami: 'malicieux', // team lead (photo; shape kept so no one else takes it)
+  hammer: 'concentre', // straight vertical bars
+  katerina: 'reveur', // half-closed arcs ∪ ∪
 };
-// Names of the former WebGL palettes, still found in old specs.
-const OLD_PALETTES = { electrique: 'bleu', menthe: 'vert', iris: 'violet', azur: 'cyan', aurore: 'emeraude', braise: 'rouge', lagune: 'cyan' };
+// Former names (WebGL palettes, hue-rotated orbs) still found in old specs.
+const OLD_PALETTES = { rose: 'bleuclair', corail: 'cacao', or: 'noir', vert: 'jaune', cyan: 'blanc', violet: 'bleu', electrique: 'cobalt', menthe: 'jaune', iris: 'bleu', azur: 'blanc', aurore: 'jaune', braise: 'cacao', lagune: 'blanc', lime: 'jaune', emeraude: 'jaune', indigo: 'bleu', magenta: 'bleu', rouge: 'cacao' };
 
 export const orbSpec = (color, eyes) => `/agents/orbs/${color}${eyes ? `-${eyes}` : ''}.png`;
 const hashOf = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-// Colour of an agent's orb: the one in its spec, else its default, else one derived from its id.
+// Combination of an agent: the one in its spec, else its default, else one derived from its id.
 export function orbColor(spec, slug) {
   const m = typeof spec === 'string' && /^\/?agents\/orbs\/([a-z0-9]+)(?:-[a-z0-9]+)?\.png$/.exec(spec);
   const named = m && (ORB_COLORS[m[1]] ? m[1] : OLD_PALETTES[m[1]]);
@@ -68,44 +79,35 @@ export function orbColor(spec, slug) {
   const names = Object.keys(ORB_COLORS);
   return names[hashOf(slug || 'agent') % names.length];
 }
-// Expression of an agent's blob: the one in its spec, else its default, else one derived from its id.
+// Shape of an agent's eyes: the one in its spec, else its default, else one derived from its id.
 export function orbEyes(spec, slug) {
   const m = typeof spec === 'string' && /^\/?agents\/orbs\/[a-z0-9]+-([a-z0-9]+)\.png$/.exec(spec);
   if (m && EYE_NAMES.includes(m[1])) return m[1];
   if (AGENT_EYES[slug]) return AGENT_EYES[slug];
   return EYE_NAMES[hashOf(slug || 'agent') % EYE_NAMES.length];
 }
-// An expression no other agent has (the first free one); when all are taken, the least used.
+const takenBy = (agents, pick) => [...new Set([...Object.keys(AGENT_ORBS), ...agents.map((a) => a.slug)])]
+  .map((slug) => pick(agents.find((a) => a.slug === slug)?.avatar, slug));
+// A shape no other agent has (the first free one); when all are taken, the least used.
 export function freeEyes(agents) {
-  const used = [...new Set([...Object.keys(AGENT_EYES), ...agents.map((a) => a.slug)])]
-    .map((slug) => orbEyes(agents.find((a) => a.slug === slug)?.avatar, slug));
+  const used = takenBy(agents, orbEyes);
   const n = (e) => used.filter((u) => u === e).length;
   return EYE_NAMES.reduce((best, e) => (n(e) < n(best) ? e : best));
 }
-// The free colour farthest (in hue) from those already taken by `agents` ([{ slug, avatar }]) or reserved in
-// AGENT_ORBS (Claude, the built-in agent, has no .md); when all are taken, the least used one.
+// A combination no other agent has: first one whose circle colour is not used yet, else the first unused combination;
+// when all are taken, the least used.
 export function freeOrbColor(agents) {
-  const used = [...new Set([...Object.keys(AGENT_ORBS), ...agents.map((a) => a.slug)])]
-    .map((slug) => orbColor(agents.find((a) => a.slug === slug)?.avatar, slug));
-  const dist = (a, b) => { const d = Math.abs(ORB_COLORS[a].hue - ORB_COLORS[b].hue) % 360; return Math.min(d, 360 - d); };
-  const score = (c) => [-used.filter((u) => u === c).length, used.length ? Math.min(...used.map((u) => dist(c, u))) : 0];
-  return Object.keys(ORB_COLORS).reduce((best, c) => {
-    const [n, d] = score(c), [bn, bd] = score(best);
-    return n > bn || (n === bn && d > bd) ? c : best;
-  });
+  const used = takenBy(agents, orbColor);
+  const names = Object.keys(ORB_COLORS);
+  const free = names.filter((c) => !used.includes(c));
+  return free.find((c) => !used.some((u) => ORB_COLORS[u].bg === ORB_COLORS[c].bg))
+    || free[0]
+    || names.reduce((best, c) => (used.filter((u) => u === c).length < used.filter((u) => u === best).length ? c : best));
 }
-// CSS hue-rotate() as a 3×3 sRGB matrix (Filter Effects spec), for the stills and the accent colours.
-export function hueMatrix(deg) {
-  const r = (deg * Math.PI) / 180, c = Math.cos(r), s = Math.sin(r);
-  return [
-    [0.213 + c * 0.787 - s * 0.213, 0.715 - c * 0.715 - s * 0.715, 0.072 - c * 0.072 + s * 0.928],
-    [0.213 - c * 0.213 + s * 0.143, 0.715 + c * 0.285 + s * 0.14, 0.072 - c * 0.072 - s * 0.283],
-    [0.213 - c * 0.213 - s * 0.787, 0.715 - c * 0.715 + s * 0.715, 0.072 + c * 0.928 + s * 0.072],
-  ];
-}
-// Accent of a colour (rings, headers): the pink accent turned like the orb.
+// Accent of an agent (rings, headers, dots): the lighter of its two colours (the dark ones vanish on the dark UI).
+const lum = (hex) => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11; };
 export function orbAccent(color) {
-  const rgb = [1, 3, 5].map((i) => parseInt(ORB_ACCENT.slice(i, i + 2), 16));
-  const m = hueMatrix(ORB_COLORS[color]?.rotate || 0);
-  return `#${m.map((row) => Math.round(Math.max(0, Math.min(255, row.reduce((t, k, i) => t + k * rgb[i], 0)))).toString(16).padStart(2, '0')).join('')}`;
+  const c = ORB_COLORS[color];
+  if (!c) return PALETTE.electricCobalt;
+  return lum(c.bg) >= lum(c.ink) ? c.bg : c.ink;
 }

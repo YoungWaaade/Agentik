@@ -341,7 +341,7 @@ const phaseOf = (s) => ([...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0
 function Orb({ color, eyes, seed, size, busy, className }) {
   return (
     <span className={`bot-avatar orb ${busy ? 'busy' : ''} ${className}`} style={{ width: size, height: size }} aria-hidden="true">
-      <img className="orb-still" src={blobUrl(ORB_COLORS[color]?.hue ?? 225, eyes, phaseOf(seed))} alt="" draggable="false" width={size} height={size} decoding="async" />
+      <img className="orb-still" src={blobUrl(ORB_COLORS[color]?.bg, ORB_COLORS[color]?.ink, eyes, phaseOf(seed))} alt="" draggable="false" width={size} height={size} decoding="async" />
       {busy && size >= 24 && <i className="portrait-dot" />}
     </span>
   );
