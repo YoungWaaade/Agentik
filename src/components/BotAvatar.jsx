@@ -89,6 +89,8 @@ export function randomAvatar() {
   return Object.fromEntries(PARTS.map((p) => [p, r(PART_OPTIONS[p])]));
 }
 // Agents with a profile photo (scripts/agent-photos.mjs); the others are orbs.
+// Bump when a profile photo changes: iPhones keep the old file otherwise (the URL carries it).
+const PHOTO_V = 'transparent2';
 export const PHOTOS = ['nami'];
 export const hasPhoto = (slug) => PHOTOS.includes(slug);
 const isImage = (s) => /^data:image\//.test(s) || (/^(\/|https?:\/\/)/.test(s) && !isOrb(s));
@@ -99,7 +101,7 @@ export function avatarKind(spec, slug) {
   if (s.startsWith('v2:')) return { kind: 'portrait' };
   if (isOrb(s)) return { kind: 'orb', color: orbColor(s, slug), eyes: orbEyes(s, slug) };
   if (isImage(s)) return { kind: 'photo', src: () => s };
-  if (hasPhoto(slug)) return { kind: 'photo', src: (size) => `/agents/${slug}${size >= 72 ? '' : '-sm'}.webp` };
+  if (hasPhoto(slug)) return { kind: 'photo', src: (size) => `/agents/${slug}${size >= 72 ? "" : "-sm"}.webp?v=${PHOTO_V}` };
   return { kind: 'orb', color: orbColor(s, slug), eyes: orbEyes(s, slug) };
 }
 export const usesPhoto = (spec, slug) => avatarKind(spec, slug).kind === 'photo';
