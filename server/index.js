@@ -949,8 +949,12 @@ app.get('/api/attachments/:id/:name', (req, res) => {
   const dir = path.join(HUB_DIR, 'attachments');
   const file = path.resolve(dir, path.basename(req.params.id), path.basename(req.params.name));
   if (!file.startsWith(dir + path.sep) || !fs.existsSync(file)) return res.status(404).end();
-  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
-  res.sendFile(file);
+  // Shown through <img> only; opened on its own, an SVG still cannot run scripts or load anything.
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  if (/\.svg$/i.test(file)) res.type('image/svg+xml');
+  // HUB_DIR sits in ~/.claude-hub: send refuses any path with a dot segment unless told otherwise.
+  res.sendFile(file, { dotfiles: 'allow' });
 });
 
 app.get('/api/workspaces/:id/events', (req, res) => {
