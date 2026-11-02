@@ -52,7 +52,7 @@ def load_session():
 # ---------- connexion ----------
 async def login_request(email: str):
     write_private(DIR / "pending-email", email)
-    await RoborockApiClient(email).request_code()
+    await RoborockApiClient(email).request_code_v4()
     print(f"Un code de connexion vient d'être envoyé à {email}. Envoie-moi ce code pour terminer.")
 
 
@@ -62,7 +62,7 @@ async def login_code(code: str, email: str | None):
         if not p.exists():
             die("aucune demande de code en cours. Lance d'abord : supersept robot login --email ADRESSE")
         email = p.read_text().strip()
-    user_data = await RoborockApiClient(email).code_login(code)
+    user_data = await RoborockApiClient(email).code_login_v4(code)
     write_private(SESSION, json.dumps({"email": email, "user_data": user_data.as_dict()}, default=vars))
     (DIR / "pending-email").unlink(missing_ok=True)
     print(f"Connexion réussie : le compte {email} est relié.")
