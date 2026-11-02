@@ -811,8 +811,6 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-head-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-head-sub { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted-foreground); overflow: hidden; white-space: nowrap; }
 .m-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-.kb-open .m-app { padding-bottom: var(--kb-accessory, 0px); }
-@media (display-mode: standalone) { :root { --kb-accessory: 64px; } }
 .m-scroll:last-child { padding-bottom: env(safe-area-inset-bottom); } /* sinon la barre d'onglets compte déjà la zone de l'indicateur */
 .m-section { margin: 18px 16px 6px; font-size: 11px; font-weight: 600; letter-spacing: 0.075em; text-transform: uppercase; color: var(--muted-foreground); }
 .m-acc { display: flex; align-items: center; gap: 8px; width: 100%; padding: 12px 16px 8px; font-size: 14px; font-weight: 600; color: var(--foreground); text-align: left; }
@@ -1141,10 +1139,6 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-primary svg { margin-right: 6px; }
 .m-secondary { justify-content: center; gap: 6px; height: 44px; margin-top: 12px; border-radius: 12px; border: 1px solid var(--ring); font-size: 15px; color: var(--muted-foreground); }
 .m-push-ok { margin-top: 14px; font-size: 14px; color: var(--emerald-400); }
-.msg-media { display: block; max-width: min(100%, 520px); max-height: 420px; border-radius: 10px; margin: 6px 0; cursor: zoom-in; background: var(--fill-hover); }
-video.msg-media { cursor: default; }
-.lightbox { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,.85); display: flex; align-items: center; justify-content: center; padding: 16px; cursor: zoom-out; }
-.lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 /* ---- Agent avatars: profile photos (public/agents, scripts/agent-photos.mjs) or illustrated portraits.
    A plain circle: no shadow, glow, border or hover effect. Only a small dot says the agent is working. ---- */

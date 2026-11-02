@@ -15,30 +15,60 @@ const KEYS = [
   ['1', '1'], ['2', '2'], ['3', '3'], ['^C', '\x03'],
 ];
 
-// iOS lays the keyboard over the page: size the app to what is actually visible.
+// iOS lays the keyboard over the page: size the app to what is actually visible. While the keyboard is open the app
+// is pinned to the visual viewport (top = offsetTop, height = its height) and the document is kept from scrolling.
+// Closed: plain full-screen CSS (100lvh), no JS height (it can be shorter than the screen in the home-screen app).
+const STANDALONE = (() => { try { return navigator.standalone === true || matchMedia('(display-mode: standalone)').matches; } catch { return false; } })();
+function kbPad() { try { const n = new URLSearchParams(location.search + '&' + location.hash.split('?')[1]).get('kbpad') ?? localStorage.getItem('supersept.kbpad'); return n == null ? 0 : Math.max(0, Math.min(200, Number(n) || 0)); } catch { return 0; } }
 function useVisualViewport() {
-  const [vv, setVv] = useState({ height: 0, top: 0 });
-  // Home-screen app: iOS draws its field-accessory bar over the bottom of the visible area without counting it (--kb-accessory).
+  const [vv, setVv] = useState({ kb: false, height: 0, top: 0 });
   useEffect(() => {
     const v = window.visualViewport;
     if (!v) return;
-    // Only follow the visual viewport while the keyboard covers the page: in the home-screen app its height can be
-    // smaller than the screen (home indicator area) and would leave an empty band under the tab bar.
     const on = () => {
-      const kb = innerHeight - v.height > 120;
+      const kb = innerHeight - v.height > 100;
       document.documentElement.classList.toggle('kb-open', kb);
-      setVv((o) => { const n = kb ? { height: v.height, top: v.offsetTop } : { height: 0, top: 0 }; return o.height === n.height && o.top === n.top ? o : n; });
+      if (kb && (scrollY || scrollX)) scrollTo(0, 0);
+      setVv((o) => { const n = kb ? { kb, height: Math.round(v.height), top: Math.round(v.offsetTop) } : { kb, height: 0, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
     };
     on();
     v.addEventListener('resize', on);
     v.addEventListener('scroll', on);
-    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); };
+    addEventListener('scroll', on);
+    addEventListener('focusin', on);
+    addEventListener('focusout', on);
+    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', on); removeEventListener('focusout', on); };
   }, []);
   return vv;
 }
 
+// Debug overlay (?debug=kb, or long press on a screen title): shows what iOS reports, to send as a screenshot.
+function useDebug() {
+  const [on, setOn] = useState(() => { try { return /debug=kb/.test(location.search + location.hash) || localStorage.getItem('supersept.debugkb') === '1'; } catch { return false; } });
+  useEffect(() => {
+    let t;
+    const down = (e) => { if (e.target.closest?.('.m-head h1, .m-head-name')) t = setTimeout(() => setOn((o) => { const n = !o; try { localStorage.setItem('supersept.debugkb', n ? '1' : '0'); } catch {} return n; }), 700); };
+    const up = () => clearTimeout(t);
+    addEventListener('pointerdown', down); addEventListener('pointerup', up); addEventListener('pointercancel', up); addEventListener('pointermove', up);
+    return () => { removeEventListener('pointerdown', down); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); removeEventListener('pointermove', up); clearTimeout(t); };
+  }, []);
+  return on;
+}
+function DebugBox({ vv }) {
+  const [, tick] = useState(0);
+  useEffect(() => { const i = setInterval(() => tick((n) => n + 1), 500); return () => clearInterval(i); }, []);
+  const v = window.visualViewport, a = document.querySelector('.m-app')?.getBoundingClientRect(), c = document.querySelector('.m-composer')?.getBoundingClientRect();
+  const r = (n) => (n == null ? '-' : Math.round(n));
+  return (
+    <pre style={{ position: 'fixed', left: 6, right: 6, bottom: 'auto', top: 60, zIndex: 9999, margin: 0, padding: 6, font: '11px/1.35 monospace', color: '#0f0', background: 'rgba(0,0,0,.82)', pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
+      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.height || '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}`}
+    </pre>
+  );
+}
+
 export default function MobileApp({ data, projectsById, route, go, connected, load }) {
   const vv = useVisualViewport();
+  const debug = useDebug();
   // A relayed session (context full) opens the one that took over.
   let current = route.kind === 'ws' ? data.workspaces.find((w) => w.id === route.id) : null;
   for (let i = 0; current?.successor && i < 50; i++) current = data.workspaces.find((w) => w.id === current.successor) || null;
@@ -53,8 +83,9 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
   else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} tabs={<Tabs tab="sessions" go={go} agents={agents} />} />;
   return (
-    <div className="m-app" style={vv.height ? { height: vv.height, bottom: 'auto', transform: `translateY(${vv.top}px)` } : undefined}>
+    <div className="m-app" style={vv.kb ? { top: vv.top, bottom: 'auto', height: vv.height, paddingBottom: kbPad() } : undefined}>
       {screen}
+      {debug && <DebugBox vv={vv} />}
       {banner.item && (
         <button className="m-banner" onClick={banner.open}>
           <strong>{banner.item.title}</strong>
