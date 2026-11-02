@@ -1,79 +1,60 @@
-// The "eyes" avatar of every sub-agent: a plain white circle (faint outline so it shows on light backgrounds) with
-// two flat black pill eyes (no gradient, shine or glow), the same for all; only the EXPRESSION differs per agent. Each agent has its own COLOUR
-// (src/orb.js ORB_COLORS) and its own EXPRESSION (EYES below: lids, tilt, gaze).
-// One pure function builds the SVG text; the app shows it as a data-URI <img> (the CSS animation inside
-// the SVG — float, blink, halo breathing — runs in an <img> too, and is off with prefers-reduced-motion),
-// scripts/agent-orb-colors.mjs renders the same drawing to PNG (static) for the push notification icons.
+// The avatar of every sub-agent: a plain white circle (faint outline so it shows on light backgrounds) with two
+// FLAT black robot eyes (no gradient, shine or glow), simple geometric shapes inspired by robot-face sheets:
+// vertical bars, dashes, arcs, chevrons, dots, stars. Each agent has its own shape (EYES; src/orb.js AGENT_EYES /
+// freeEyes) and its own colour entry (ORB_COLORS, kept as the agent's identity colour but no longer drawn).
+// One pure function builds the SVG text; the app shows it as a data-URI <img> (the CSS blink — eyes squash to a
+// dash — and float run inside the SVG, and are off with prefers-reduced-motion); scripts/agent-orb-colors.mjs
+// renders the same drawing to PNG (static) for the push notification icons.
 
-// Expression = how each eye is drawn. Per eye (mirrored for the right one):
-//  rx, ry   half width / height of the oval       rot   tilt in degrees (+ = top towards the inside)
-//  dx, dy   gaze offset                            lid   top lid height cut off (0 = open)
-//  slant    lid slope, + = inner side lower (frown), − = outer side lower (soft)
-//  lidB     bottom lid height cut off (squint / smile of the cheeks)
-//  arc      closed smiling crescent ("^")
-// Optional `R` overrides the right eye, `y` moves both vertically.
+const f = (n) => +n.toFixed(2);
+const INK = '#000';
+const rect = (cx, cy, w, h, r, rot = 0) => `<rect x="${f(cx - w / 2)}" y="${f(cy - h / 2)}" width="${w}" height="${h}" rx="${r}" fill="${INK}"${rot ? ` transform="rotate(${rot} ${cx} ${cy})"` : ''}/>`;
+const line = (d) => `<path d="${d}" fill="none" stroke="${INK}" stroke-width="5.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+const dot = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${INK}"/>`;
+const star = (cx, cy, R) => {
+  const k = R * 0.2;
+  return `<path d="M${cx},${cy - R} Q${cx + k},${cy - k} ${cx + R},${cy} Q${cx + k},${cy + k} ${cx},${cy + R} Q${cx - k},${cy + k} ${cx - R},${cy} Q${cx - k},${cy - k} ${cx},${cy - R} Z" fill="${INK}"/>`;
+};
+const up = (cx, cy) => line(`M${cx - 9},${cy + 5} L${cx},${cy - 5} L${cx + 9},${cy + 5}`); // ^
+const cup = (cx, cy) => line(`M${cx - 9},${cy - 3} Q${cx},${cy + 9} ${cx + 9},${cy - 3}`); // ∪ (sleepy)
+const gt = (cx, cy) => line(`M${cx - 5},${cy - 9} L${cx + 5},${cy} L${cx - 5},${cy + 9}`); // >
+const lt = (cx, cy) => line(`M${cx + 5},${cy - 9} L${cx - 5},${cy} L${cx + 5},${cy + 9}`); // <
+const X1 = 33, X2 = 67, Y = 50;
+
+// Expression = the shape of the two eyes (centres at 33 and 67, y = 50 in a 100 box).
 export const EYES = {
-  neutre: { label: 'Neutre, curieux', L: { rx: 4.6, ry: 7, rot: -9, dx: 0.8 }, R: { rx: 4.9, ry: 7.6, rot: -7, dx: 0.8, dy: -1 } },
-  concentre: { label: 'Concentré, déterminé', L: { rx: 5, ry: 6.4, rot: 9, lid: 1.2, slant: 5.2, dy: 1 } },
-  serieux: { label: 'Sérieux, méticuleux', L: { rx: 5.4, ry: 6.4, rot: 0, lid: 2.6, lidB: 1.4, slant: 0.8 } },
-  souriant: { label: 'Doux, souriant', L: { arc: true, rx: 5.2, ry: 4.6, dy: 1 } },
-  reveur: { label: 'Rêveur, créatif', L: { rx: 4.5, ry: 7, rot: 10, dx: 2.2, dy: -4.2, lidB: 1.2 } },
-  petillant: { label: 'Pétillant', L: { rx: 7, ry: 7.4, rot: -6, dy: -0.5 } },
-  malicieux: { label: 'Malicieux', L: { rx: 4.8, ry: 7, rot: -10, dx: 1.2 }, R: { rx: 5, ry: 5, rot: 8, lid: 1.4, slant: 3.2, dx: 1.2, dy: 1.4 } },
-  surpris: { label: 'Surpris', L: { rx: 4, ry: 8.8, rot: 0, dy: -1 } },
-  calme: { label: 'Calme, posé', L: { rx: 5.2, ry: 6.8, rot: -4, lid: 3.4, slant: -1.2, dy: 1.4 } },
-  timide: { label: 'Timide', L: { rx: 4.3, ry: 5.8, rot: -8, dx: -2.6, dy: 3.2, lid: 0.6, slant: -1.4 } },
+  concentre: { label: 'Rectangles droits (concentré)', draw: () => [rect(X1, Y, 10, 30, 3.5), rect(X2, Y, 10, 30, 3.5)] },
+  serieux: { label: 'Tirets plats (sérieux)', draw: () => [rect(X1, Y + 2, 19, 6.5, 2), rect(X2, Y + 2, 19, 6.5, 2)] },
+  souriant: { label: 'Arcs ^ ^ (souriant)', draw: () => [up(X1, Y + 1), up(X2, Y + 1)] },
+  reveur: { label: 'Étoiles (créatif)', draw: () => [star(X1, Y, 15), star(X2, Y, 15)] },
+  petillant: { label: 'Cercles pleins (pétillant)', draw: () => [dot(X1, Y, 10.5), dot(X2, Y, 10.5)] },
+  neutre: { label: 'Rectangles inclinés (curieux)', draw: () => [rect(X1, Y + 1, 9.5, 28, 3.5, -9), rect(X2, Y - 2, 9.5, 31, 3.5, 7)] },
+  malicieux: { label: 'Barre et chevron | <', draw: () => [rect(X1 - 2, Y, 8, 28, 3), lt(X2 - 1, Y)] },
+  timide: { label: 'Chevrons > <', draw: () => [gt(X1, Y), lt(X2, Y)] },
+  surpris: { label: 'Barres fines (surpris)', draw: () => [rect(X1, Y, 6, 36, 3), rect(X2, Y, 6, 36, 3)] },
+  calme: { label: 'Arcs ∪ (calme, endormi)', draw: () => [cup(X1, Y - 1), cup(X2, Y - 1)] },
 };
 export const EYE_NAMES = Object.keys(EYES);
 
-const f = (n) => +n.toFixed(2);
-const hsl = (h, s, l, a = 1) => `hsla(${Math.round(((h % 360) + 360) % 360)},${s}%,${l}%,${a})`;
-
-// One eye, drawn around (0,0) then placed. s = -1 left, +1 right.
-function eye(p, s, cx, cy, uid) {
-  let { rx = 4.6, ry = 7, rot = 0, dx = 0, dy = 0, lid = 0, lidB = 0, slant = 0, arc } = p;
-  if (!arc) { rx *= 0.82; ry *= 1.3; } // tech look: long vertical pills
-  const place = `translate(${f(cx + dx)}, ${f(cy + dy)}) rotate(${f(-s * rot * 0.7)})`;
-  if (arc) {
-    // happy crescent: ∩
-    const d = `M${-rx},${f(ry * 0.5)} Q0,${f(-ry * 1.3)} ${rx},${f(ry * 0.5)}`;
-    return `<g transform="${place}"><path d="${d}" fill="none" stroke="#000" stroke-width="3.4" stroke-linecap="round"/></g>`;
-  }
-  // clip: the oval minus its lids (polygon in the eye's own frame)
-  const top = -ry + lid, bot = ry - lidB;
-  // line y at x: top + slant * (-s * x / rx)  → inner side (x = -s*rx … sign handled by rot mirroring) lower when slant > 0
-  const y1 = top + slant * (-s) * (-1), y2 = top + slant * (-s) * 1;
-  const pts = `${-rx - 1},${f(y1 - 0)} ${rx + 1},${f(y2)} ${rx + 1},${f(bot)} ${-rx - 1},${f(bot)}`;
-  const id = `${uid}c${s < 0 ? 'l' : 'r'}`;
-  return `<g transform="${place}">
-    <clipPath id="${id}"><polygon points="${pts}"/></clipPath>
-    <g clip-path="url(#${id})"><rect x="${f(-rx)}" y="${f(-ry)}" width="${f(rx * 2)}" height="${f(ry * 2)}" rx="${f(rx * 0.75)}" fill="#000"/></g></g>`;
-}
-
-// colour = { hue } (from ORB_COLORS), eyes = name in EYES. `anim` false → static (PNG). `phase` 0..1 shifts the
-// animation so the avatars on a screen don't blink together.
-export function blobSvg({ hue = 225, eyes = 'neutre', phase = 0, anim = true, uid = 'b' } = {}) {
+// `anim` false → static (PNG). `phase` 0..1 shifts the animation so avatars on a screen don't blink together.
+export function blobSvg({ eyes = 'neutre', phase = 0, anim = true } = {}) {
   const e = EYES[eyes] || EYES.neutre;
-  const L = e.L, R = e.R || e.L;
-    const y = e.y || 0;
   const delay = f(-phase * 6), delay2 = f(-phase * 5.3);
   const css = anim ? `<style>
 .fl{animation:fl 5.6s ease-in-out ${delay}s infinite}
 .bk{transform-box:fill-box;transform-origin:center;animation:bk 5.3s ease-in-out ${delay2}s infinite}
 @keyframes fl{0%,100%{transform:translateY(.8px)}50%{transform:translateY(-.8px)}}
-@keyframes bk{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.08)}}
+@keyframes bk{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.12)}}
 @media (prefers-reduced-motion:reduce){.fl,.bk{animation:none}}
 </style>` : '';
-  const eyesSvg = `${eye(L, -1, 39.5, 52 + y, uid)}${eye(R, 1, 60.5, 52 + y, uid)}`;
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${css}
-<rect width="100" height="100" fill="none"/><circle cx="50" cy="50" r="49.4" fill="#fff" stroke="#000" stroke-opacity=".14" stroke-width="1.2"/>
-<g transform="translate(50 52) scale(2.05) translate(-50 -52)"><g class="fl"><g class="bk">${eyesSvg}</g></g></g>
-</svg>`;
+<circle cx="50" cy="50" r="49.4" fill="#fff" stroke="#000" stroke-opacity=".14" stroke-width="1.2"/>
+<g class="fl"><g class="bk">${e.draw().join('')}</g></g></svg>`;
 }
 
 const cache = new Map();
 export function blobUrl(hue, eyes, phase = 0) {
-  const key = `${hue}|${eyes}|${Math.round(phase * 8)}`;
-  if (!cache.has(key)) cache.set(key, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(blobSvg({ hue, eyes, phase: Math.round(phase * 8) / 8 }))}`);
+  const key = `${eyes}|${Math.round(phase * 8)}`;
+  if (!cache.has(key)) cache.set(key, `data:image/svg+xml;charset=utf-8,${encodeURIComponent(blobSvg({ eyes, phase: Math.round(phase * 8) / 8 }))}`);
   return cache.get(key);
 }
