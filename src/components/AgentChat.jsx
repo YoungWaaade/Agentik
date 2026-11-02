@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage } from 'react-icons/lu';
-import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
+import { api, ago, uploadFile, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
+import { AttachmentChip, Lightbox } from './Attachments.jsx';
 import { safeHref, trimUrl, isPath } from '../links.js';
 
 const ICONS = { folder: LuFolder, 'folder-plus': LuFolderPlus, play: LuPlay, layers: LuLayers, eye: LuEye, send: LuSend, archive: LuArchive, brain: LuBrain, search: LuSearch, globe: LuGlobe, tool: LuWrench, users: LuUsers, bot: LuBot, image: LuImage };
@@ -81,6 +82,7 @@ export default function AgentChat({ agent, go }) {
   const [text, setText] = useState('');
   const [images, setImages] = useState([]); // [{ path, name }]
   const [uploading, setUploading] = useState(false);
+  const [viewing, setViewingFile] = useState(null); // attachment shown full size
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState(null);
   const [histOpen, setHistOpen] = useState(false);
@@ -277,7 +279,7 @@ export default function AgentChat({ agent, go }) {
               </div>
             </div>
           )}
-          {messages.map((m) => <Message key={m.id} m={m} agent={agent} go={go} />)}
+          {messages.map((m) => <Message key={m.id} m={m} agent={agent} go={go} onOpen={setViewingFile} />)}
           {chat?.busy && messages[messages.length - 1]?.role !== 'assistant' && (
             <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} running className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
           )}
@@ -291,12 +293,9 @@ export default function AgentChat({ agent, go }) {
             {(images.length > 0 || uploading) && (
               <div className="chat-thumbs">
                 {images.map((a) => (
-                  <span key={a.path} className="chat-thumb">
-                    <img src={attachmentUrl(a.path)} alt={a.name} />
-                    <button type="button" title="Retirer" onClick={() => setImages((l) => l.filter((x) => x !== a))}><LuX size={10} /></button>
-                  </span>
+                  <AttachmentChip key={a.path} file={a} onOpen={setViewingFile} onRemove={() => setImages((l) => l.filter((x) => x !== a))} />
                 ))}
-                {uploading && <span className="chat-thumb loading"><LuLoaderCircle size={14} className="spin" /></span>}
+                {uploading && <span className="att-chip loading"><span className="att-thumb"><LuLoaderCircle size={14} className="spin" /></span></span>}
               </div>
             )}
             <div className="chat-input-row">
@@ -315,19 +314,20 @@ export default function AgentChat({ agent, go }) {
           <div className="chat-hint">Le travail avance en arrière-plan dans tes projets, et tu es prévenu quand c'est fait.</div>
         </div>
       </div>
+      {viewing && <Lightbox file={viewing} onClose={() => setViewingFile(null)} />}
       {dragging && <div className="chat-drop">Dépose ton image pour l'envoyer à {agent.label}</div>}
     </div>
   );
 }
 
-function Message({ m, agent, go }) {
+function Message({ m, agent, go, onOpen }) {
   if (m.role === 'user') {
     return (
       <div className={`msg user ${m.meta?.from ? 'delegated' : ''}`}>
         {m.meta?.from && <span className="msg-from">de {m.meta.fromLabel}</span>}
         {m.meta?.images?.length > 0 && (
           <div className="msg-images">
-            {m.meta.images.map((i) => <a key={i.path} href={attachmentUrl(i.path)} target="_blank" rel="noreferrer"><img src={attachmentUrl(i.path)} alt={i.name} /></a>)}
+            {m.meta.images.map((i) => <AttachmentChip key={i.path} file={i} onOpen={onOpen} />)}
           </div>
         )}
         {m.text && <div className="msg-bubble">{m.text}</div>}
