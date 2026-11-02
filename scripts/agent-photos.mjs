@@ -18,7 +18,7 @@ export const PHOTOS = {
   // nami: black chrome head on white. `cutout`: the white background is made transparent by a flood fill from the
   // image edges (the chrome's white reflections inside the head are kept), anti-aliased edge; the crop is the
   // head's bounding box as a square plus a margin (fraction of its larger side).
-  nami: { src: 'nami', cutout: { margin: 0.08, bg: '#0D0FDD' } }, // bg: solid colour behind the head (Nami's reserved blue, src/orb.js PALETTE.namiBlue)
+  nami: { src: 'nami', cutout: { margin: 0.08, bg: '#FCFFF2' } }, // bg: solid colour behind the head = Claw White, the palette's white (src/orb.js PALETTE)
 };
 
 // Flood fill of the near-white background from the borders → RGBA buffer (+ bounding box of what remains).
@@ -81,6 +81,7 @@ for (const [slug, { src, crop, cutout: cut }] of Object.entries(PHOTOS)) {
     side = crop[2];
     base = () => sharp(SRC(src)).extract({ left: crop[0], top: crop[1], width: side, height: side });
   }
+  if (process.env.DEBUG_BG) await base().flatten({ background: process.env.DEBUG_BG }).resize(1000, 1000).png().toFile(`${process.env.DEBUG_OUT}`); // check the cut-out on a colour
   const big = Math.min(side, 512);
   const fill = (img) => (cut?.bg ? img.flatten({ background: cut.bg }) : img);
   await fill(base().resize(big, big, { kernel: 'lanczos3' })).webp({ lossless: true }).toFile(`${DIR}${slug}.webp`);

@@ -20,7 +20,6 @@ export const PALETTE = {
   snoutBlack: '#1A0009',
   cocoaRust: '#2B1A16',
   electricCobalt: '#637BFF',
-  namiBlue: '#0D0FDD', // reserved for Nami's photo background (not used by the other agents)
 };
 const P = PALETTE;
 
@@ -31,14 +30,13 @@ export const ORB_COLORS = {
   cobalt: { label: 'Cobalt, yeux noirs', bg: P.electricCobalt, ink: P.snoutBlack },
   noir: { label: 'Noir, yeux jaunes', bg: P.snoutBlack, ink: P.tennisYellow },
   jaune: { label: 'Jaune, yeux noirs', bg: P.tennisYellow, ink: P.snoutBlack },
-  bleu: { label: 'Bleu, yeux blancs', bg: P.scrubsBlue, ink: P.clawWhite },
+  bleu: { label: 'Bleu, yeux noirs', bg: P.scrubsBlue, ink: P.snoutBlack },
   bleuclair: { label: 'Bleu clair, yeux cacao', bg: P.scrubsBlueLight, ink: P.cocoaRust },
   cacao: { label: 'Cacao, yeux bleu clair', bg: P.cocoaRust, ink: P.scrubsBlueLight },
   blanc: { label: 'Blanc, yeux noirs', bg: P.clawWhite, ink: P.snoutBlack },
   // Spare combinations (new agents).
   cobaltjaune: { label: 'Cobalt, yeux jaunes', bg: P.electricCobalt, ink: P.tennisYellow },
   noirblanc: { label: 'Noir, yeux blancs', bg: P.snoutBlack, ink: P.clawWhite },
-  bleunoir: { label: 'Bleu, yeux noirs', bg: P.scrubsBlue, ink: P.snoutBlack },
   jaunecacao: { label: 'Jaune, yeux cacao', bg: P.tennisYellow, ink: P.cocoaRust },
   cacaojaune: { label: 'Cacao, yeux jaunes', bg: P.cocoaRust, ink: P.tennisYellow },
   blancbleu: { label: 'Blanc, yeux cobalt', bg: P.clawWhite, ink: P.electricCobalt },
