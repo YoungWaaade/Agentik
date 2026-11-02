@@ -354,7 +354,7 @@ function BotAvatar({ spec, seed, size = 16, className = '', busy = false }) {
   const tier = size >= 72 ? 'xl' : size >= 36 ? 'md' : 'sm';
   const src = k.kind === 'photo' ? k.src(size) : portraitUrl(a, tier);
   return (
-    <span className={`bot-avatar portrait p-${tier} ${busy ? 'busy' : ''} ${className}`}
+    <span className={`bot-avatar portrait p-${tier} ${k.kind === 'photo' && hasPhoto(seed) ? 'cutout' : ''} ${busy ? 'busy' : ''} ${className}`}
       style={{ width: size, height: size, '--acc': ACCENTS[a.accent] }} aria-hidden="true">
       <img src={src} alt="" draggable="false" width={size} height={size} decoding="async" />
       {busy && size >= 24 && <i className="portrait-dot" />}

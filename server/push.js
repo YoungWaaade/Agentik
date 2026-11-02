@@ -139,7 +139,7 @@ const topicOf = (tag) => (tag ? crypto.createHash('sha256').update(String(tag)).
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const IMAGE_DIRS = [path.join(ROOT, 'public'), path.join(ROOT, 'dist')];
 const IMG = /\.(webp|png|jpe?g)$/i;
-const SUFFIXES = ['-sm', '-face', '-small', '', '-bust'];
+const SUFFIXES = ['-push', '-sm', '-face', '-small', '', '-bust'];
 function existing(rel) {
   for (const dir of IMAGE_DIRS) {
     const f = path.resolve(dir, rel);
