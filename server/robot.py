@@ -81,19 +81,20 @@ async def login_code(code: str, email: str | None):
 
 # ---------- appareil ----------
 class Robot:
+    """Deux familles de robots : v1 (anciens modèles) et Q10 (protocole B01, ex. « R2 »)."""
+
     async def __aenter__(self):
         email, user_data = load_session()
         private_dir()
         self.cache = FileCache(CACHE)
         self.dm = await create_device_manager(UserParams(username=email, user_data=user_data), cache=self.cache)
         devices = await self.dm.get_devices()
-        vacs = [d for d in devices if d.v1_properties is not None] or list(devices)
+        vacs = [d for d in devices if d.v1_properties is not None or d.b01_q10_properties is not None]
         if not vacs:
-            die("aucun robot trouvé sur ce compte Roborock.")
+            die("aucun robot pris en charge sur ce compte Roborock.")
         self.dev = vacs[0]
-        if self.dev.v1_properties is None:
-            die(f"le modèle « {self.dev.name} » n'est pas encore pris en charge.")
         self.p = self.dev.v1_properties
+        self.q = self.dev.b01_q10_properties
         return self
 
     async def __aexit__(self, *exc):
@@ -105,15 +106,50 @@ class Robot:
         await self.dm.close()
 
 
-def etat(st) -> str:
-    return str(st.state_name or "inconnu").replace("_", " ")
+ETATS = {"charging": "en charge", "idle": "au repos", "sleeping": "en veille", "paused": "en pause",
+         "cleaning": "en train de nettoyer", "docking": "retourne à la base", "returning": "retourne à la base",
+         "charge complete": "chargé (à la base)", "error": "en erreur", "mopping": "en train de laver"}
+
+
+def joli(v) -> str:
+    if v is None:
+        return "inconnu"
+    n = str(getattr(v, "name", v)).replace("_", " ").lower()
+    return ETATS.get(n, n)
+
+
+async def q10_refresh(r: Robot):
+    """Le Q10 répond en différé : on demande puis on attend la réponse."""
+    ev = asyncio.Event()
+    unsub = r.q.status.add_update_listener(ev.set)
+    try:
+        await r.q.refresh()
+        try:
+            await asyncio.wait_for(ev.wait(), timeout=10)
+        except TimeoutError:
+            die("le robot ne répond pas (éteint, hors Wi-Fi ou injoignable pour l'instant).")
+        await asyncio.sleep(1)
+    finally:
+        unsub()
 
 
 async def cmd_status():
     async with Robot() as r:
+        if r.q is not None:
+            await q10_refresh(r)
+            st = r.q.status
+            ligne = f"{r.dev.name} : {joli(st.status)}, batterie {st.battery}%"
+            if st.clean_time:
+                ligne += f" — ménage en cours depuis {round(st.clean_time / 60)} min"
+            if st.clean_area:
+                ligne += f", {st.clean_area} m² nettoyés"
+            print(ligne)
+            if st.fault and joli(st.fault) not in ("none", "no fault", "inconnu", "0"):
+                print(f"Attention, défaut signalé : {joli(st.fault)}")
+            return
         await r.p.status.refresh()
         st = r.p.status
-        nom = etat(st)
+        nom = str(st.state_name or "inconnu").replace("_", " ")
         ligne = f"{r.dev.name} : {nom}, batterie {st.battery}%"
         if st.is_battery_charging:
             ligne += " (en charge)"
@@ -130,18 +166,28 @@ async def cmd_status():
 
 
 async def room_list(r: Robot):
+    if r.q is not None:
+        m = r.q.map
+        ev = asyncio.Event()
+        unsub = m.add_update_listener(lambda: ev.set() if m.rooms else None)
+        try:
+            await m.refresh()
+            try:
+                await asyncio.wait_for(ev.wait(), timeout=40)
+            except TimeoutError:
+                pass
+        finally:
+            unsub()
+        return [(x.id, x.name or f"Pièce {x.id}") for x in (m.rooms or [])]
     await r.p.rooms.refresh()
-    out = []
-    for room in r.p.rooms.rooms or []:
-        out.append((room.segment_id, room.name or f"Pièce {room.segment_id}"))
-    return out
+    return [(x.segment_id, x.name or f"Pièce {x.segment_id}") for x in (r.p.rooms.rooms or [])]
 
 
 async def cmd_rooms():
     async with Robot() as r:
         rooms = await room_list(r)
         if not rooms:
-            print("Aucune pièce enregistrée (le robot n'a pas encore de carte découpée en pièces).")
+            print("Aucune pièce reçue : le robot n'envoie pas sa carte pour l'instant (il faut peut-être le réveiller ou qu'une carte avec pièces soit enregistrée dans l'appli Roborock). Un ménage complet reste possible avec « start ».")
             return
         print("Pièces :")
         for _, name in rooms:
@@ -160,7 +206,12 @@ async def cmd_simple(action: str):
     ok = {"start": "Ménage complet lancé.", "pause": "Robot mis en pause.",
           "stop": "Robot arrêté.", "dock": "Le robot retourne à sa base."}[action]
     async with Robot() as r:
-        await r.p.command.send(cmd)
+        if r.q is not None:
+            v = r.q.vacuum
+            await {"start": v.start_clean, "pause": v.pause_clean, "stop": v.stop_clean,
+                   "dock": v.return_to_dock}[action]()
+        else:
+            await r.p.command.send(cmd)
         print(ok)
 
 
@@ -178,7 +229,10 @@ async def cmd_clean(names: list[str]):
             if len(hits) > 1:
                 die(f"« {wanted} » est ambigu : " + ", ".join(n for _, n in hits))
             ids.append(hits[0][0]); noms.append(hits[0][1])
-        await r.p.command.send(RoborockCommand.APP_SEGMENT_CLEAN, [{"segments": ids, "repeat": 1}])
+        if r.q is not None:
+            await r.q.vacuum.clean_segments(ids)
+        else:
+            await r.p.command.send(RoborockCommand.APP_SEGMENT_CLEAN, [{"segments": ids, "repeat": 1}])
         print("Nettoyage lancé : " + ", ".join(noms) + ".")
 
 
