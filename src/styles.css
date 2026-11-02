@@ -794,7 +794,11 @@ body.resizing { user-select: none; cursor: col-resize; }
 .remote-hint a { color: var(--foreground); text-decoration: underline; }
 
 /* ---------- phone UI ---------- */
-.m-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; overflow: hidden; font-size: 15px; background: var(--background);
+/* Écran d'accueil iOS : html/body/#root couvrent tout l'écran (100lvh, zone de l'indicateur comprise) et leur fond est celui de la barre du bas. */
+@media (pointer: coarse) and (max-width: 760px) {
+  html, body, #root { height: 100lvh; min-height: 100lvh; background: var(--tabbar-bg); }
+}
+.m-app { position: fixed; top: 0; left: 0; right: 0; bottom: 0; height: 100lvh; display: flex; flex-direction: column; overflow: hidden; font-size: 15px; background: var(--background);
   padding: env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left); }
 .m-head { display: flex; align-items: center; gap: 8px; min-height: 52px; flex: none; padding: 0 8px 0 14px; border-bottom: 1px solid var(--border); background: var(--tabbar-bg); }
 .m-head h1 { flex: 1; margin: 0; font-size: 17px; font-weight: 600; }
@@ -843,7 +847,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-primary { justify-content: center; height: 46px; margin-top: 24px; border-radius: 12px; font-size: 16px; font-weight: 600; background: var(--foreground); color: var(--background); }
 /* Phone: bottom tabs (Sessions / Agents) */
 .m-tabs { display: flex; flex: none; border-top: 1px solid var(--border); background: var(--tabbar-bg); padding-bottom: env(safe-area-inset-bottom); }
-.m-tab { flex: 1; flex-direction: column; justify-content: center; gap: 3px; height: 50px; font-size: 11.5px; font-weight: 500; color: var(--muted-foreground); }
+.m-tab { flex: 1; flex-direction: column; justify-content: center; gap: 3px; height: 46px; font-size: 11.5px; font-weight: 500; color: var(--muted-foreground); }
 .m-tab.on { color: var(--foreground); }
 .m-tab:active { background: var(--fill-hover); }
 .m-tab-icon { position: relative; display: flex; }
