@@ -3,6 +3,7 @@ import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLay
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
+import { safeHref, trimUrl, isPath } from '../links.js';
 
 const ICONS = { folder: LuFolder, 'folder-plus': LuFolderPlus, play: LuPlay, layers: LuLayers, eye: LuEye, send: LuSend, archive: LuArchive, brain: LuBrain, search: LuSearch, globe: LuGlobe, tool: LuWrench, users: LuUsers, bot: LuBot, image: LuImage };
 const SUGGESTIONS = [
@@ -10,24 +11,37 @@ const SUGGESTIONS = [
   'Fais le point sur mes sessions en cours',
 ];
 
+const ext = (key, href, label) => <a key={key} href={href} target="_blank" rel="noopener noreferrer">{label}</a>;
+
 // Tiny markdown: paragraphs, lists, **bold**, *italic*, `code`, links.
 function inline(text) {
   const parts = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|https?:\/\/[^\s)]+)/g;
+  const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|https?:\/\/[^\s<>]+)/g;
   let last = 0, m, k = 0;
   while ((m = re.exec(text))) {
     if (m.index > last) parts.push(text.slice(last, m.index));
-    const t = m[0];
+    let t = m[0];
     if (t.startsWith('**')) parts.push(<strong key={k++}>{t.slice(2, -2)}</strong>);
     else if (t.startsWith('`')) parts.push(<code key={k++}>{t.slice(1, -1)}</code>);
-    else if (t.startsWith('[')) { const [, label, href] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t); parts.push(<a key={k++} href={href} target="_blank" rel="noreferrer">{label}</a>); }
-    else if (t.startsWith('http')) parts.push(<a key={k++} href={t} target="_blank" rel="noreferrer">{t}</a>);
-    else parts.push(<em key={k++}>{t.slice(1, -1)}</em>);
+    else if (t.startsWith('[')) {
+      const [, label, raw] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t);
+      const href = safeHref(raw);
+      // Local files can't be opened from the page: show the path, not a dead link.
+      if (href) parts.push(ext(k++, href, label));
+      else if (isPath(raw)) parts.push(<Fragment key={k++}>{label !== raw.trim() && <>{label} </>}<code className="msg-path" title="Chemin local">{raw.trim()}</code></Fragment>);
+      else parts.push(label);
+    } else if (t.startsWith('http')) {
+      t = trimUrl(t);
+      const href = safeHref(t);
+      parts.push(href ? ext(k++, href, t) : t);
+      re.lastIndex = m.index + t.length; // the trimmed punctuation goes back to the text
+    } else parts.push(<em key={k++}>{t.slice(1, -1)}</em>);
     last = m.index + t.length;
   }
   if (last < text.length) parts.push(text.slice(last));
   return parts;
 }
+
 function Markdown({ text }) {
   const blocks = text.split(/\n{2,}/);
   return blocks.map((b, i) => {
