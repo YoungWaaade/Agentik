@@ -1,7 +1,7 @@
 // Phone view of the agents (Nami, Franky…): pick one, then chat with it like on the Mac.
 // Reuses the desktop chat pieces (chatStore + Message from AgentChat) with a touch-sized layout.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck, LuPin, LuChevronRight } from 'react-icons/lu';
+import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck, LuChevronRight } from 'react-icons/lu';
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, loadChat, peekConvs, peekChat, setViewing, useChatBadges } from '../chatStore.js';
 import { checkLive } from '../live.js';
@@ -63,7 +63,6 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
     return { ...p, at: p.at || c?.last || 0 };
   };
   const rows = [...others].map((a) => ({ a, ...info(a) })).sort((x, y) => y.at - x.at);
-  if (lead) rows.unshift({ a: lead, ...info(lead) });
   return (
     <>
       <header className="m-head">
@@ -74,8 +73,17 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
       <div className="m-scroll">
         <PushCallout go={go} />
         {!connected && <p className="m-note">Connexion au Mac… Vérifie qu'il est allumé et sur le même réseau (ou Tailscale).</p>}
+        {lead && (
+          <button className={`m-pin ${badges.busy(lead.slug) ? 'busy' : ''}`} onClick={() => open(lead)} title={lead.description} aria-label={`${lead.label}${badges.unread(lead.slug) > 0 ? `, ${badges.unread(lead.slug)} non lus` : ''}`}>
+            <span className="m-pin-photo">
+              <BotAvatar spec={lead.avatar} seed={lead.slug} size={96} busy={badges.busy(lead.slug)} />
+              {badges.unread(lead.slug) > 0 && <span className="m-pin-unread">{badges.unread(lead.slug)}</span>}
+            </span>
+            <span className="m-pin-name">{lead.label}</span>
+          </button>
+        )}
         {rows.length > 0 && (
-          <div className="m-msgs">
+          <div className="m-msgs" style={lead ? { marginTop: 12 } : undefined}>
             {rows.map(({ a, text, at }) => {
               const busy = badges.busy(a.slug), unread = badges.unread(a.slug);
               return (
@@ -85,7 +93,6 @@ export function AgentListScreen({ agents, go, connected, tabs }) {
                   <span className="m-msg-body">
                     <span className="m-msg-top">
                       <span className="m-msg-name">{a.label}</span>
-                      {a === lead || a.slug === lead?.slug ? <LuPin size={11} className="m-msg-pin" /> : null}
                       <span className="m-msg-date">{listDate(at)}</span>
                       <LuChevronRight size={14} className="m-msg-chev" />
                     </span>
