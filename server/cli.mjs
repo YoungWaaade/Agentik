@@ -11,8 +11,10 @@ const HELP = `supersept (alias : younghub) — piloter YoungHub
   supersept projects
   supersept create-project --name "Nom" [--github owner/repo | --folder ~/chemin]
   supersept start-session --task "mission complète" [--project ID] [--name "Nom"] [--mode local|worktree] [--agent slug]
-  supersept sessions [--project ID] [--mine]
-  supersept session ID
+  supersept sessions [--project ID] [--mine] [--archives]   (--archives : y compris les sessions archivées)
+  supersept session ID                      (marche aussi sur une session archivée)
+  supersept journal [--date AAAA-MM-JJ|hier] [--depuis AAAA-MM-JJ] [--jusqu-a AAAA-MM-JJ] [--tout] [--json]
+                                            (ce qui a été fait, jour par jour, sessions archivées comprises ; défaut : aujourd'hui)
   supersept send ID "message"
   supersept archive ID
   supersept attach CHEMIN                   (image ou vidéo locale → renvoie la ligne markdown à coller dans ta réponse)
@@ -57,7 +59,14 @@ const run = {
   projects: () => ops.listProjects(),
   'create-project': () => ops.createProject({ name: flags.name, github: flags.github, folder: flags.folder }),
   'start-session': () => ops.startSession({ project: flags.project, task: flags.task, name: flags.name, mode: flags.mode, agent: flags.agent }),
-  sessions: () => ops.listSessions({ project: flags.project, mine: !!flags.mine }),
+  sessions: () => ops.listSessions({ project: flags.project, mine: !!flags.mine, archives: !!flags.archives }),
+  journal: async () => {
+    // node:sqlite still prints an ExperimentalWarning: keep the agent's output clean.
+    const emit = process.emitWarning;
+    process.emitWarning = (w, ...a) => (/SQLite/.test(String(w)) ? undefined : emit.call(process, w, ...a));
+    const { journal, journalText } = await import('./journal.js');
+    return flags.json ? journal(flags) : journalText(journal(flags));
+  },
   session: () => ops.getSession(pos[0]),
   send: () => ops.sendToSession(pos[0], pos.slice(1).join(' ') || flags.message),
   attach: () => ops.attachMedia(pos[0]),

@@ -24,6 +24,7 @@ const brief = (w, projects = []) => ({
   dernier_message: w.last_message ? w.last_message.slice(0, 600) : null,
   branche: w.branch,
   dossier: w.cwd,
+  ...(w.archived ? { archivee: true } : {}),
   modifications: w.stats ? `+${w.stats.add} −${w.stats.del} (${w.stats.files} fichiers)` : null,
   lancee_par_toi: !!AGENT() && w.owner_agent === AGENT(),
   contexte: w.context_tokens && w.context_window ? `${Math.round((100 * w.context_tokens) / w.context_window)} %` : null,
@@ -51,9 +52,9 @@ export async function startSession({ project, task, name, mode, agent }) {
   return { id: w.id, nom: w.name, dossier: w.cwd, branche: w.branch, statut: 'lancée' };
 }
 
-export async function listSessions({ project, mine }) {
+export async function listSessions({ project, mine, archives }) {
   const s = await call('GET', '/api/state');
-  return s.workspaces.filter((w) => !w.archived && (!project || w.project_id === project) && (!mine || w.owner_agent === AGENT())).map((w) => brief(w, s.projects));
+  return s.workspaces.filter((w) => (archives || !w.archived) && (!project || w.project_id === project) && (!mine || w.owner_agent === AGENT())).map((w) => brief(w, s.projects));
 }
 
 // Ids stay valid after an automatic relay (context full): the server follows to the session that took over.
