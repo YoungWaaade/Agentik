@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // `supersept` command used by chat agents (through Claude Code's Bash tool) to drive YoungHub.
 import * as ops from './ops.js';
+import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 const HELP = `supersept (alias : younghub) — piloter YoungHub
 
@@ -14,12 +18,22 @@ const HELP = `supersept (alias : younghub) — piloter YoungHub
   supersept agents
   supersept ask-agent AGENT_ID "mission"
   supersept create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
+  supersept robot status|start|pause|stop|dock|rooms|clean --room NOM   (aspirateur Roborock ; « supersept robot » seul = aide)
   supersept memory PROJECT_ID
   supersept set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
 
 Résultats en JSON.`;
 
 const [cmd, ...rest] = process.argv.slice(2);
+
+if (cmd === 'robot') {
+  // Pilotage Roborock : script Python (python-roborock) dans son propre venv.
+  const py = process.env.SUPERSEPT_ROBOT_PYTHON || `${homedir()}/.local/share/supersept/robot-venv/bin/python`;
+  if (!existsSync(py)) { console.error('Erreur : le module robot n\'est pas installé sur ce serveur.'); process.exit(1); }
+  const script = fileURLToPath(new URL('./robot.py', import.meta.url));
+  const r = spawnSync(py, ['-I', script, ...rest], { stdio: 'inherit' });
+  process.exit(r.status ?? 1);
+}
 const flags = {};
 const pos = [];
 for (let i = 0; i < rest.length; i++) {
