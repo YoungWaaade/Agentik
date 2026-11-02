@@ -1,5 +1,5 @@
-// Agent avatars: one of seven flat shapes (src/assets/bots, colours and outlines kept as drawn)
-// with two little black eyes that blink, glance around, follow the mouse and squint while the
+// Agent avatars: one of seven flat shapes (src/assets/bots, outlines kept as drawn, filled with
+// currentColor) in a colour from the palette, with two little black eyes that blink, glance around, follow the mouse and squint while the
 // agent works. Every avatar goes through this component.
 import { useEffect, useRef } from 'react';
 import lunes from '../assets/bots/lunes.svg?raw';
@@ -13,31 +13,54 @@ import soleil from '../assets/bots/soleil.svg?raw';
 const V = 280; // every shape is centred in a 280×280 box
 const parse = (raw) => {
   const num = (k) => Number(raw.match(new RegExp(`\\b${k}="([\\d.]+)"`))[1]);
-  return { d: raw.match(/\sd="([^"]+)"/)[1], fill: raw.match(/<path[^>]*fill="([^"]+)"/)[1], ox: (V - num('width')) / 2, oy: (V - num('height')) / 2 };
+  return { d: raw.match(/\sd="([^"]+)"/)[1], ox: (V - num('width')) / 2, oy: (V - num('height')) / 2 };
 };
 // Eyes per shape, in the 280 box: centre (x, y), half-gap between the eyes, radii, and how far
 // they may travel sideways (so they never leave the shape).
 const EYES = { x: 140, y: 140, gap: 40, rx: 15, ry: 27, reach: 22 };
+// `color` is the shape's original colour, used until the agent picks another one.
 export const BOT_SHAPES = {
-  fleur: { label: 'Fleur', ...parse(fleur), eyes: { ...EYES } },
-  sceau: { label: 'Sceau', ...parse(sceau), eyes: { ...EYES } },
-  trio: { label: 'Trio', ...parse(trio), eyes: { ...EYES, gap: 44 } },
-  lunes: { label: 'Lunes', ...parse(lunes), eyes: { ...EYES, y: 196, gap: 38, rx: 14, ry: 24 } },
-  pile: { label: 'Pile', ...parse(pile), eyes: { ...EYES, gap: 44, ry: 25 } },
-  etoile: { label: 'Étoile', ...parse(etoile), eyes: { ...EYES, gap: 36 } },
-  soleil: { label: 'Soleil', ...parse(soleil), eyes: { ...EYES, gap: 24, rx: 12, ry: 22, reach: 10 } },
+  fleur: { label: 'Fleur', color: 'blanc', ...parse(fleur), eyes: { ...EYES } },
+  sceau: { label: 'Sceau', color: 'vert', ...parse(sceau), eyes: { ...EYES } },
+  trio: { label: 'Trio', color: 'emeraude', ...parse(trio), eyes: { ...EYES, gap: 44 } },
+  lunes: { label: 'Lunes', color: 'ecume', ...parse(lunes), eyes: { ...EYES, y: 196, gap: 38, rx: 14, ry: 24 } },
+  pile: { label: 'Pile', color: 'menthe', ...parse(pile), eyes: { ...EYES, gap: 44, ry: 25 } },
+  etoile: { label: 'Étoile', color: 'sapin', ...parse(etoile), eyes: { ...EYES, gap: 36 } },
+  soleil: { label: 'Soleil', color: 'canard', ...parse(soleil), eyes: { ...EYES, gap: 24, rx: 12, ry: 22, reach: 10 } },
+};
+// The shapes' own colours, then brighter ones that stand out on the dark UI and keep the black eyes readable.
+export const BOT_COLORS = {
+  blanc: { label: 'Blanc', hex: '#FFFFFF' },
+  ecume: { label: 'Écume', hex: '#DAFBF2' },
+  menthe: { label: 'Menthe', hex: '#94FFB4' },
+  vert: { label: 'Vert', hex: '#00BD57' },
+  emeraude: { label: 'Émeraude', hex: '#1EA678' },
+  canard: { label: 'Canard', hex: '#006666' },
+  sapin: { label: 'Sapin', hex: '#003D3D' },
+  jaune: { label: 'Jaune', hex: '#FFD84D' },
+  peche: { label: 'Pêche', hex: '#FFB07A' },
+  corail: { label: 'Corail', hex: '#FF7A6B' },
+  rose: { label: 'Rose', hex: '#FFA6D0' },
+  lilas: { label: 'Lilas', hex: '#C3A6FF' },
+  ciel: { label: 'Ciel', hex: '#7CC4FF' },
 };
 const KEYS = Object.keys(BOT_SHAPES);
+const COLOR_KEYS = Object.keys(BOT_COLORS);
 // Stable look for the team; any other agent gets a shape derived from its name.
 const BY_AGENT = { nami: 'fleur', adi: 'sceau', franky: 'trio', katrina: 'lunes', robin: 'pile', git: 'etoile', claude: 'soleil' };
 const hash = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-// `spec` is the agent's saved avatar: a shape name, or an older pixel-bot spec (ignored).
-export function shapeOf(spec, seed = '') {
-  if (BOT_SHAPES[spec]) return spec;
+// `spec` is the agent's saved avatar, "shape,colour" (e.g. "fleur,ciel"). A missing colour means the
+// shape's own; a missing shape (empty, or an older pixel-bot spec) means the agent's stable shape.
+export function parseAvatar(spec, seed = '') {
+  const [s, c] = String(spec || '').split(',').map((x) => x.trim());
+  if (BOT_SHAPES[s]) return { shape: s, color: BOT_COLORS[c] ? c : BOT_SHAPES[s].color };
   const key = String(seed || spec || 'bot').toLowerCase();
-  return BY_AGENT[key] || KEYS[hash(key) % KEYS.length];
+  const shape = BY_AGENT[key] || KEYS[hash(key) % KEYS.length];
+  return { shape, color: BOT_SHAPES[shape].color };
 }
-export const randomShape = () => KEYS[Math.floor(Math.random() * KEYS.length)];
+export const avatarSpec = ({ shape, color }) => `${shape},${color}`;
+const pick = (l) => l[Math.floor(Math.random() * l.length)];
+export const randomAvatar = () => ({ shape: pick(KEYS), color: pick(COLOR_KEYS) });
 
 // One scheduler for all avatars: a single pointer listener + one rAF for mouse follow, and a
 // single timer for blinks and glances. It writes transforms straight to the DOM (no React render).
@@ -129,7 +152,8 @@ function unregister(b) {
 }
 
 export default function BotAvatar({ spec, seed, size = 16, running = false, className = '', title }) {
-  const shape = BOT_SHAPES[shapeOf(spec, seed)];
+  const a = typeof spec === 'object' && spec ? spec : parseAvatar(spec, seed);
+  const shape = BOT_SHAPES[a.shape];
   const e = shape.eyes;
   // Small avatars get bigger eyes so the face still reads at 12–24 px.
   const k = size <= 16 ? 1.35 : size <= 24 ? 1.2 : 1;
@@ -150,9 +174,9 @@ export default function BotAvatar({ spec, seed, size = 16, running = false, clas
     b.nextGlance = performance.now() + rnd(100, 600);
   }, [running]);
   return (
-    <svg ref={svg} className={`bot-avatar ${running ? 'running' : ''} ${className}`} width={size} height={size} viewBox={`0 0 ${V} ${V}`} aria-hidden={title ? undefined : 'true'} role={title ? 'img' : undefined}>
+    <svg ref={svg} className={`bot-avatar ${running ? 'running' : ''} ${className}`} style={{ color: (BOT_COLORS[a.color] || BOT_COLORS[shape.color]).hex }} width={size} height={size} viewBox={`0 0 ${V} ${V}`} aria-hidden={title ? undefined : 'true'} role={title ? 'img' : undefined}>
       {title && <title>{title}</title>}
-      <path d={shape.d} fill={shape.fill} transform={`translate(${shape.ox} ${shape.oy})`} />
+      <path d={shape.d} fill="currentColor" transform={`translate(${shape.ox} ${shape.oy})`} />
       <g transform={`translate(${e.x} ${e.y}) scale(${k})`}>
         <g ref={lookRef} className="bot-look">
           <ellipse className="bot-eye" cx={-e.gap} cy="0" rx={e.rx} ry={e.ry} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuDices } from 'react-icons/lu';
-import BotAvatar, { BOT_SHAPES, shapeOf, randomShape } from './BotAvatar.jsx';
+import BotAvatar, { BOT_SHAPES, BOT_COLORS, parseAvatar, avatarSpec, randomAvatar } from './BotAvatar.jsx';
 import { api } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
@@ -51,7 +51,9 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
     e.preventDefault();
     setError(null);
     try {
-      const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, slug: form.label || agent?.slug });
+      // A new agent keeps the avatar shown in the preview, even if it was never touched.
+      const avatar = agent || form.avatar ? form.avatar : avatarSpec(parseAvatar('', form.label || 'nouveau'));
+      const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, avatar, slug: form.label || agent?.slug });
       setSaved(true);
       onSaved(a);
     } catch (err) { setError(err.message); }
@@ -102,21 +104,33 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
   );
 }
 
+// Shape and colour are picked separately; the preview is the live, animated avatar.
 function BotBuilder({ spec, seed, onChange }) {
-  const current = shapeOf(spec, seed);
+  const a = parseAvatar(spec, seed);
+  const set = (part) => onChange(avatarSpec({ ...a, ...part }));
   return (
     <div className="bot-builder">
       <div className="bot-preview">
-        <BotAvatar spec={current} size={96} />
-        <button type="button" className="btn-ghost" onClick={() => onChange(randomShape())}><LuDices size={14} /> Aléatoire</button>
+        <BotAvatar spec={a} size={96} />
+        <button type="button" className="btn-ghost" onClick={() => onChange(avatarSpec(randomAvatar()))}><LuDices size={14} /> Aléatoire</button>
       </div>
       <div className="bot-parts">
         <div className="bot-row">
           <span className="bot-row-label">Forme</span>
           <div className="bot-options">
             {Object.entries(BOT_SHAPES).map(([key, s]) => (
-              <button key={key} type="button" className={`bot-option ${current === key ? 'on' : ''}`} title={s.label} onClick={() => onChange(key)}>
-                <BotAvatar spec={key} size={28} />
+              <button key={key} type="button" className={`bot-option ${a.shape === key ? 'on' : ''}`} title={s.label} onClick={() => set({ shape: key })}>
+                <BotAvatar spec={{ ...a, shape: key }} size={28} />
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="bot-row">
+          <span className="bot-row-label">Couleur</span>
+          <div className="bot-options">
+            {Object.entries(BOT_COLORS).map(([key, c]) => (
+              <button key={key} type="button" className={`bot-option bot-color ${a.color === key ? 'on' : ''}`} title={c.label} onClick={() => set({ color: key })}>
+                <span className="bot-swatch" style={{ background: c.hex }} />
               </button>
             ))}
           </div>
