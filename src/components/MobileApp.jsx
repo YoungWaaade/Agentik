@@ -30,14 +30,17 @@ function useVisualViewport() {
     const on = (e) => {
       // iOS home-screen app: the keyboard does not always shrink visualViewport, it may only pan the page.
       // So: field focused = keyboard open; height = visible height if it shrank, else an estimate (keyboard + accessory bar ≈ 47 %).
-      const shrunk = innerHeight - v.height > 100;
-      const kb = shrunk || isField(document.activeElement);
+      // innerHeight is unreliable after the keyboard closes (stays short, e.g. 793 on an 852 screen): use screen.height.
+      const full = innerHeight > innerWidth ? Math.max(screen.height, screen.width) : innerHeight;
+      const kb = isField(document.activeElement);
+      const shrunk = v.height < full - 100;
       document.documentElement.classList.toggle('kb-open', kb);
       const top = Math.round(v.offsetTop || scrollY || 0);
-      const height = shrunk ? Math.round(v.height) : Math.round(innerHeight * 0.53);
-      if (kb && (scrollY || scrollX)) scrollTo(0, 0);
+      const height = kb ? (shrunk ? Math.round(v.height) : Math.round(full * 0.53)) : full;
+      if (scrollY || scrollX) scrollTo(0, 0);
+      for (const el of [document.documentElement, document.body, document.getElementById('root')]) if (el) el.style.height = kb ? '' : `${full}px`;
       LOG.unshift(`${new Date().toLocaleTimeString('fr-FR')} ${e?.type || 'init'} inner${Math.round(innerHeight)} vv${Math.round(v.height)}/${Math.round(v.offsetTop)} sy${Math.round(scrollY)} kb${kb ? 1 : 0} h${kb ? height : 0}`); LOG.length = Math.min(LOG.length, 5);
-      setVv((o) => { const n = kb ? { kb, height, top } : { kb, height: 0, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
+      setVv((o) => { const n = kb ? { kb, height, top } : { kb, height, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
     };
     const focus = (e) => { on(e); requestAnimationFrame(() => { scrollTo(0, 0); on(); }); setTimeout(() => { scrollTo(0, 0); on(); }, 300); };
     on();
@@ -92,9 +95,9 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
   else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} tabs={<Tabs tab="sessions" go={go} agents={agents} />} />;
   return (
-    <div className="m-app" style={vv.kb ? { top: 0, bottom: 'auto', height: vv.height, transform: `translateY(${vv.top}px)`, paddingBottom: kbPad() } : undefined}>
+    <div className="m-app" style={vv.height ? { top: 0, bottom: 'auto', height: vv.height, transform: vv.kb ? `translateY(${vv.top}px)` : undefined, paddingBottom: vv.kb ? kbPad() : undefined } : undefined}>
       {screen}
-      {(debug || vv.kb) && <DebugBox vv={vv} />}
+      {debug && <DebugBox vv={vv} />}
       {banner.item && (
         <button className="m-banner" onClick={banner.open}>
           <strong>{banner.item.title}</strong>
