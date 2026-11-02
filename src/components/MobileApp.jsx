@@ -18,6 +18,7 @@ const KEYS = [
 // iOS lays the keyboard over the page: size the app to what is actually visible.
 function useVisualViewport() {
   const [vv, setVv] = useState({ height: 0, top: 0 });
+  // Home-screen app: iOS draws its field-accessory bar over the bottom of the visible area without counting it (--kb-accessory).
   useEffect(() => {
     const v = window.visualViewport;
     if (!v) return;
@@ -25,6 +26,7 @@ function useVisualViewport() {
     // smaller than the screen (home indicator area) and would leave an empty band under the tab bar.
     const on = () => {
       const kb = innerHeight - v.height > 120;
+      document.documentElement.classList.toggle('kb-open', kb);
       setVv((o) => { const n = kb ? { height: v.height, top: v.offsetTop } : { height: 0, top: 0 }; return o.height === n.height && o.top === n.top ? o : n; });
     };
     on();
