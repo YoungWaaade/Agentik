@@ -17,6 +17,7 @@ from roborock.devices.device_manager import UserParams, create_device_manager
 from roborock.devices.file_cache import FileCache
 from roborock.exceptions import RoborockException
 from roborock.web_api import RoborockApiClient
+from roborock.web_api._base import IotLoginInfo
 
 DIR = pathlib.Path(os.environ.get("SUPERSEPT_ROBOT_DIR", "~/.config/supersept/roborock")).expanduser()
 SESSION = DIR / "session.json"
@@ -51,20 +52,30 @@ def load_session():
 
 # ---------- connexion ----------
 async def login_request(email: str):
-    write_private(DIR / "pending-email", email)
-    await RoborockApiClient(email).request_code_v4()
+    # Le code est lié au serveur de région ET à l'identifiant d'appareil du client : on mémorise les deux
+    # pour que l'étape « code » réutilise exactement la même session que l'étape « envoi ».
+    client = RoborockApiClient(email)
+    info = await client._get_iot_login_info()
+    await client.request_code_v4()
+    write_private(DIR / "pending.json", json.dumps({
+        "email": email, "device_identifier": client._device_identifier,
+        "base_url": info.base_url, "country": info.country, "country_code": info.country_code}))
     print(f"Un code de connexion vient d'être envoyé à {email}. Envoie-moi ce code pour terminer.")
 
 
 async def login_code(code: str, email: str | None):
-    if not email:
-        p = DIR / "pending-email"
-        if not p.exists():
-            die("aucune demande de code en cours. Lance d'abord : supersept robot login --email ADRESSE")
-        email = p.read_text().strip()
-    user_data = await RoborockApiClient(email).code_login_v4(code)
+    p = DIR / "pending.json"
+    if not p.exists():
+        die("aucune demande de code en cours. Lance d'abord : supersept robot login --email ADRESSE")
+    pend = json.loads(p.read_text())
+    email = email or pend["email"]
+    client = RoborockApiClient(email, base_url=pend["base_url"])
+    client._device_identifier = pend["device_identifier"]
+    client._iot_login_info = IotLoginInfo(base_url=pend["base_url"], country=pend["country"],
+                                          country_code=pend["country_code"])
+    user_data = await client.code_login_v4(code.strip())
     write_private(SESSION, json.dumps({"email": email, "user_data": user_data.as_dict()}, default=vars))
-    (DIR / "pending-email").unlink(missing_ok=True)
+    p.unlink(missing_ok=True)
     print(f"Connexion réussie : le compte {email} est relié.")
 
 
