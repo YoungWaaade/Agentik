@@ -14,7 +14,7 @@ const DIR = new URL('../public/agents/', import.meta.url).pathname;
 const SRC = (name) => `${DIR}originals/${name}.jpeg`;
 export const PHOTOS = {
   // Square on the face, with some hair and the blue background. The other agents are animated orbs
-  // (src/orb.js, assets by scripts/agent-orb.mjs).
+  // (src/orb.js, scripts/agent-tiles.mjs).
   // nami: black chrome head on white. `cutout`: the white background is made transparent by a flood fill from the
   // image edges (the chrome's white reflections inside the head are kept), anti-aliased edge; the crop is the
   // head's bounding box as a square plus a margin (fraction of its larger side).

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuImagePlus } from 'react-icons/lu';
 import BotAvatar, { hasPhoto, avatarKind } from './BotAvatar.jsx';
-import { ORB_COLORS, orbSpec, orbAccent, orbEyes, freeOrbColor, freeEyes } from '../orb.js';
-import { EYES } from '../orbBlob.js';
+import { TINTS, orbSpec, orbAccent, freeOrbColor } from '../orb.js';
 import { api, uploadFile, attachmentUrl } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
@@ -44,7 +43,7 @@ export default function AgentsPage({ agents, initial }) {
 
 function AgentEditor({ agent, agents, onSaved, onDeleted }) {
   // A new agent starts with a colour of orb no other agent has.
-  const [form, setForm] = useState(() => (agent ? { ...EMPTY, ...agent } : { ...EMPTY, avatar: orbSpec(freeOrbColor(agents), freeEyes(agents)) }));
+  const [form, setForm] = useState(() => (agent ? { ...EMPTY, ...agent } : { ...EMPTY, avatar: orbSpec(freeOrbColor(agents)) }));
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => setSaved(false), [form]);
@@ -108,7 +107,6 @@ function AgentEditor({ agent, agents, onSaved, onDeleted }) {
 
 // Avatar editor: the animated orb in the agent's own colour by default, or a photo of one's own. Colours
 // already taken by another agent are marked, so each agent keeps a colour of its own.
-const ORB_FALLBACK = 'cyan';
 function BotBuilder({ spec, seed, agents = [], onChange }) {
   const [error, setError] = useState(null);
   const k = avatarKind(spec, seed);
@@ -126,28 +124,14 @@ function BotBuilder({ spec, seed, agents = [], onChange }) {
       </div>
       <div className="bot-parts">
         <div className="bot-row">
-          <span className="bot-row-label">Orbe</span>
+          <span className="bot-row-label">Teinte</span>
           <div className="bot-options">
-            {Object.entries(ORB_COLORS).map(([c, { label }]) => {
+            {Object.entries(TINTS).map(([c, { label }]) => {
               const owner = agents.find((a) => a.slug !== seed && avatarKind(a.avatar, a.slug).kind !== 'photo' && avatarKind(a.avatar, a.slug).color === c);
               return (
                 <button key={c} type="button" className={`bot-option ${k.kind === 'orb' && k.color === c ? 'on' : ''} ${owner ? 'taken' : ''}`}
-                  title={owner ? `${label} — déjà pris par ${owner.label}` : label} onClick={() => onChange(orbSpec(c, k.eyes || orbEyes('', seed)))}>
-                  <BotAvatar spec={orbSpec(c, k.eyes)} seed={seed} size={28} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className="bot-row">
-          <span className="bot-row-label">Expression</span>
-          <div className="bot-options">
-            {Object.entries(EYES).map(([e, { label }]) => {
-              const owner = agents.find((a) => a.slug !== seed && avatarKind(a.avatar, a.slug).kind !== 'photo' && avatarKind(a.avatar, a.slug).eyes === e);
-              return (
-                <button key={e} type="button" className={`bot-option ${k.kind === 'orb' && k.eyes === e ? 'on' : ''} ${owner ? 'taken' : ''}`}
-                  title={owner ? `${label} — déjà prise par ${owner.label}` : label} onClick={() => onChange(orbSpec(k.kind === 'orb' ? k.color : ORB_FALLBACK, e))}>
-                  <BotAvatar spec={orbSpec(k.kind === 'orb' ? k.color : ORB_FALLBACK, e)} seed={seed} size={28} />
+                  title={owner ? `${label} — déjà pris par ${owner.label}` : label} onClick={() => onChange(orbSpec(c))}>
+                  <BotAvatar spec={orbSpec(c)} seed={seed} size={28} />
                 </button>
               );
             })}
@@ -163,7 +147,7 @@ function BotBuilder({ spec, seed, agents = [], onChange }) {
             {hasPhoto(seed) && <button type="button" className={`btn-ghost ${k.kind === 'photo' && !String(spec || '').startsWith('/') ? 'on' : ''}`} onClick={() => onChange('photo')}>Photo de profil</button>}
           </div>
         </div>
-        {k.kind === 'photo' && <p className="bot-studio-note">Photo recadrée en rond. Choisir un orbe la remplace.</p>}
+        {k.kind === 'photo' && <p className="bot-studio-note">Photo recadrée en rond. Choisir une teinte la remplace.</p>}
         {error && <div className="error-bar">{error}</div>}
       </div>
     </div>

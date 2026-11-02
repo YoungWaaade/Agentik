@@ -1,8 +1,7 @@
-/* Orb avatars (src/orb.js, src/orbBlob.js). A plain circle like the photos: no shadow, glow or border;
-   the image is cropped edge to edge on the sphere, so the round is the sphere's rim. */
-.orb { position: relative; display: inline-flex; flex: none; border-radius: 50%; }
+/* Tile avatars (src/orb.js): the model's rounded square, as cut (transparent corners), no extra shadow or border. */
+.orb { position: relative; display: inline-flex; flex: none; border-radius: 20%; }
 .orb picture { display: contents; }
-.orb-still { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; display: block; user-select: none; -webkit-user-drag: none; }
+.orb-still { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 20%; display: block; user-select: none; -webkit-user-drag: none; }
 .orb .portrait-dot { z-index: 1; }
 
 /* avatar editor (AgentsPage BotBuilder) */
