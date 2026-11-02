@@ -22,55 +22,33 @@ const STANDALONE = (() => { try { return navigator.standalone === true || matchM
 function kbPad() { try { const n = new URLSearchParams(location.search + '&' + location.hash.split('?')[1]).get('kbpad') ?? localStorage.getItem('supersept.kbpad'); return n == null ? 0 : Math.max(0, Math.min(200, Number(n) || 0)); } catch { return 0; } }
 const isField = (el) => !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|range|file)$/.test(el.type)));
 const LOG = []; // last measures (debug box)
+// Keyboard closed = pure CSS layout (no inline style, nothing set by JS). Only while a text field has focus the app is
+// pinned to the visible area (visualViewport height, or an estimate if iOS did not shrink it, translated by offsetTop).
 function useVisualViewport() {
   const [vv, setVv] = useState({ kb: false, height: 0, top: 0 });
   useEffect(() => {
     const v = window.visualViewport;
     if (!v) return;
     const on = (e) => {
-      // iOS home-screen app: the keyboard does not always shrink visualViewport, it may only pan the page.
-      // So: field focused = keyboard open; height = visible height if it shrank, else an estimate (keyboard + accessory bar ≈ 47 %).
-      // innerHeight is unreliable after the keyboard closes (stays short, e.g. 793 on an 852 screen): use screen.height.
-      const full = innerHeight > innerWidth ? Math.max(screen.height, screen.width) : innerHeight;
       const kb = isField(document.activeElement);
+      if (!kb) { document.documentElement.classList.remove('kb-open'); setVv((o) => (o.kb ? { kb: false, height: 0, top: 0 } : o)); return; }
+      document.documentElement.classList.add('kb-open');
+      const full = Math.max(screen.height, screen.width, innerHeight);
       const shrunk = v.height < full - 100;
-      document.documentElement.classList.toggle('kb-open', kb);
+      const height = shrunk ? Math.round(v.height) : Math.round(full * 0.53);
       const top = Math.round(v.offsetTop || scrollY || 0);
-      // Keyboard closed: full screen, unless iOS left the WebView short (innerHeight < screen): then fit it, never cut the composer.
-      const avail = innerHeight < full - 5 ? Math.round(innerHeight) : full;
-      const height = kb ? (shrunk ? Math.round(v.height) : Math.round(full * 0.53)) : avail;
       if (scrollY || scrollX) scrollTo(0, 0);
-      for (const el of [document.documentElement, document.body, document.getElementById('root')]) if (el) el.style.height = kb ? '' : `${avail}px`;
-      LOG.unshift(`${new Date().toLocaleTimeString('fr-FR')} ${e?.type || 'init'} inner${Math.round(innerHeight)} vv${Math.round(v.height)}/${Math.round(v.offsetTop)} sy${Math.round(scrollY)} kb${kb ? 1 : 0} h${kb ? height : 0}`); LOG.length = Math.min(LOG.length, 5);
-      setVv((o) => { const n = kb ? { kb, height, top } : { kb, height, top: 0 }; return o.kb === n.kb && o.height === n.height && o.top === n.top ? o : n; });
+      LOG.unshift(`${new Date().toLocaleTimeString('fr-FR')} ${e?.type || '-'} inner${Math.round(innerHeight)} vv${Math.round(v.height)}/${Math.round(v.offsetTop)} sy${Math.round(scrollY)} h${height}`); LOG.length = Math.min(LOG.length, 5);
+      setVv((o) => (o.kb && o.height === height && o.top === top ? o : { kb: true, height, top }));
     };
     const focus = (e) => { on(e); requestAnimationFrame(() => { scrollTo(0, 0); on(); }); setTimeout(() => { scrollTo(0, 0); on(); }, 300); };
-    on();
+    // blur: drop every inline style, back to the CSS layout.
+    const blur = () => setTimeout(() => { on(); if (!isField(document.activeElement)) scrollTo(0, 0); }, 50);
     v.addEventListener('resize', on);
     v.addEventListener('scroll', on);
-    addEventListener('scroll', on);
     addEventListener('focusin', focus);
-    // iOS standalone bug: after the keyboard closes the WebView can stay short (innerHeight 793 on 852). Known workaround:
-    // force a reflow by toggling display on the root, scroll to the top, re-measure a few times.
-    const short = () => innerHeight < Math.max(screen.height, screen.width) - 5 && innerHeight > innerWidth;
-    const kick = () => {
-      for (const d of [50, 150, 400, 900, 1800, 3000]) setTimeout(() => {
-        if (isField(document.activeElement) || (d > 150 && !short())) return;
-        const r = document.getElementById('root');
-        if (r) { r.style.display = 'none'; void r.offsetHeight; r.style.display = ''; }
-        // Rewriting the viewport meta makes WebKit recompute the layout viewport.
-        const m = document.querySelector('meta[name=viewport]');
-        if (m) { const c = m.content; m.content = c + ', maximum-scale=1'; void document.body.offsetHeight; m.content = c; }
-        scrollTo(0, 0); on();
-      }, d);
-    };
-    const wake = () => { if (document.visibilityState !== 'hidden' && short()) kick(); };
-    document.addEventListener('visibilitychange', wake);
-    addEventListener('pageshow', wake);
-    wake();
-    addEventListener('focusout', kick);
-    addEventListener('resize', on);
-    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('scroll', on); removeEventListener('focusin', focus); removeEventListener('focusout', kick); document.removeEventListener('visibilitychange', wake); removeEventListener('pageshow', wake); removeEventListener('resize', on); };
+    addEventListener('focusout', blur);
+    return () => { v.removeEventListener('resize', on); v.removeEventListener('scroll', on); removeEventListener('focusin', focus); removeEventListener('focusout', blur); };
   }, []);
   return vv;
 }
@@ -94,7 +72,7 @@ function DebugBox({ vv }) {
   const r = (n) => (n == null ? '-' : Math.round(n));
   return (
     <pre style={{ position: 'fixed', left: 6, right: 6, bottom: 'auto', top: vv.kb ? 90 : 60, zIndex: 9999, margin: 0, padding: 6, font: '11px/1.35 monospace', color: '#0f0', background: 'rgba(0,0,0,.82)', pointerEvents: 'none', whiteSpace: 'pre-wrap' }}>
-      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.height || '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}\nchamp ${r(f?.top)}→${r(f?.bottom)}  body.top ${r(b.top)}  docScroll ${r(document.documentElement.scrollTop)}  active ${document.activeElement?.tagName}\n${LOG.join('\\n')}`}
+      {`innerH ${r(innerHeight)}  screenH ${r(screen.height)}  standalone ${STANDALONE}\nvv.h ${r(v?.height)}  vv.top ${r(v?.offsetTop)}  scrollY ${r(scrollY)}\nkb ${vv.kb}  applied h ${vv.kb ? vv.height : '100lvh'} top ${vv.top}  pad ${kbPad() || 0}\napp ${r(a?.top)}→${r(a?.bottom)}  composer ${r(c?.top)}→${r(c?.bottom)}\nchamp ${r(f?.top)}→${r(f?.bottom)}  body.top ${r(b.top)}  docScroll ${r(document.documentElement.scrollTop)}  active ${document.activeElement?.tagName}\n${LOG.join('\\n')}`}
     </pre>
   );
 }
@@ -116,7 +94,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   else if (route.kind === 'agents' || route.kind === 'agent') screen = <AgentListScreen agents={agents} go={go} connected={connected} tabs={<Tabs tab="agents" go={go} agents={agents} />} />;
   else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} tabs={<Tabs tab="sessions" go={go} agents={agents} />} />;
   return (
-    <div className="m-app" style={vv.height ? { top: 0, bottom: 'auto', height: vv.height, transform: vv.kb ? `translateY(${vv.top}px)` : undefined, paddingBottom: vv.kb ? kbPad() : undefined } : undefined}>
+    <div className="m-app" style={vv.kb ? { top: 0, bottom: 'auto', height: vv.height, transform: `translateY(${vv.top}px)`, paddingBottom: kbPad() } : undefined}>
       {screen}
       {debug && <DebugBox vv={vv} />}
       {banner.item && (
