@@ -15,6 +15,7 @@ const HELP = `supersept (alias : younghub) — piloter YoungHub
   supersept session ID
   supersept send ID "message"
   supersept archive ID
+  supersept attach CHEMIN                   (image ou vidéo locale → renvoie la ligne markdown à coller dans ta réponse)
   supersept agents
   supersept ask-agent AGENT_ID "mission"
   supersept create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
@@ -59,6 +60,7 @@ const run = {
   sessions: () => ops.listSessions({ project: flags.project, mine: !!flags.mine }),
   session: () => ops.getSession(pos[0]),
   send: () => ops.sendToSession(pos[0], pos.slice(1).join(' ') || flags.message),
+  attach: () => ops.attachMedia(pos[0]),
   archive: () => ops.archiveSession(pos[0]),
   memory: () => ops.readMemory(pos[0]),
   agents: () => ops.listAgents(),

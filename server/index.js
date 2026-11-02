@@ -955,7 +955,7 @@ app.get('/api/prompts', (req, res) => {
 });
 
 // Attachments are saved on disk and handed to Claude as paths it reads (an @file would paste images in base64).
-app.post('/api/attachments', express.raw({ type: '*/*', limit: '10mb' }), (req, res) => {
+app.post('/api/attachments', express.raw({ type: '*/*', limit: '200mb' }), (req, res) => {
   const name = path.basename(String(req.query.name || 'fichier')).replace(/[^\w.-]/g, '_') || 'fichier';
   const dir = path.join(HUB_DIR, 'attachments', uid());
   fs.mkdirSync(dir, { recursive: true });
@@ -968,8 +968,9 @@ app.get('/api/attachments/:id/:name', (req, res) => {
   const dir = path.join(HUB_DIR, 'attachments');
   const file = path.resolve(dir, path.basename(req.params.id), path.basename(req.params.name));
   if (!file.startsWith(dir + path.sep) || !fs.existsSync(file)) return res.status(404).end();
-  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'");
-  res.sendFile(file);
+  res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'");
+  // Absolute path with root: the hub folder (~/.claude-hub) is a dot-folder, which sendFile otherwise refuses (404).
+  res.sendFile(path.basename(file), { root: path.dirname(file), dotfiles: 'allow' });
 });
 
 app.get('/api/workspaces/:id/events', (req, res) => {

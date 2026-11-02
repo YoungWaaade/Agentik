@@ -85,3 +85,23 @@ export async function createAgent({ name, description, prompt, model, avatar }) 
   const a = await call('PUT', '/api/agents/new', { label: name, slug: name, description, prompt, model, avatar });
   return { id: a.slug, nom: a.label, statut: 'agent créé' };
 }
+
+// Attach a local image/video to a chat reply: uploaded to the attachments folder, returns markdown to paste.
+const MEDIA = /\.(png|jpe?g|gif|webp|mp4|mov|webm)$/i;
+export async function attachMedia(file) {
+  const fs = await import('node:fs');
+  const nodePath = await import('node:path');
+  const os = await import('node:os');
+  if (!file) throw new Error('chemin du fichier manquant (supersept attach CHEMIN)');
+  const abs = nodePath.resolve(String(file).replace(/^~(?=\/|$)/, os.homedir()));
+  if (!MEDIA.test(abs)) throw new Error('format non pris en charge (png, jpg, gif, webp, mp4, mov, webm)');
+  if (!fs.existsSync(abs) || !fs.statSync(abs).isFile()) throw new Error(`fichier introuvable : ${abs}`);
+  const res = await fetch(BASE() + `/api/attachments?name=${encodeURIComponent(nodePath.basename(abs))}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: fs.readFileSync(abs),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  const [id, name] = data.path.split('/').slice(-2);
+  const kind = /\.(mp4|mov|webm)$/i.test(name) ? 'vidéo' : 'image';
+  return `Colle cette ligne telle quelle dans ta réponse pour afficher le média (sur sa propre ligne) :\n![${nodePath.parse(name).name}](attachment:${id}/${name})`;
+}

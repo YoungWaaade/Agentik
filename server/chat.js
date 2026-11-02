@@ -116,6 +116,7 @@ function systemPrompt(a) {
     '    supersept session ID                       → statut, dernier message, activité',
     '    supersept send ID "message"                → répondre ou donner une consigne à une session',
     '    supersept archive ID',
+    '    supersept attach CHEMIN                    → joint une image/vidéo locale (png, jpg, gif, webp, mp4, mov, webm) : colle la ligne markdown renvoyée, seule sur sa ligne, dans ta réponse pour que l\'utilisateur la voie dans le chat',
     '    supersept memory PROJECT_ID   /   supersept set-memory PROJECT_ID --content "…"',
     "- Le travail concret est fait par les sessions que tu lances : donne-leur une mission complète, précise et autonome.",
     "- Avant de créer un projet, regarde les projets existants (supersept projects) et réutilise le plus pertinent. Crée un projet seulement si rien ne convient.",

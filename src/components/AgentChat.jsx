@@ -10,15 +10,29 @@ const SUGGESTIONS = [
   'Fais le point sur mes sessions en cours',
 ];
 
+// ![alt](attachment:ID/NAME) (or a path inside the attachments folder) → served URL; anything else is not shown.
+const mediaUrl = (src) => { const m = /^attachment:([\w-]+)\/([^/]+)$/.exec(src) || /\/attachments\/([\w-]+)\/([^/]+)$/.exec(src); return m ? attachmentUrl(`${m[1]}/${m[2]}`) : null; };
+function Media({ src, alt }) {
+  const [open, setOpen] = useState(false);
+  if (/\.(mp4|mov|webm)$/i.test(src)) return <video className="msg-media" src={src} controls playsInline preload="metadata" />;
+  return (
+    <>
+      <img className="msg-media" src={src} alt={alt} onClick={() => setOpen(true)} />
+      {open && <div className="lightbox" onClick={() => setOpen(false)}><img src={src} alt={alt} /></div>}
+    </>
+  );
+}
+
 // Tiny markdown: paragraphs, lists, **bold**, *italic*, `code`, links.
 function inline(text) {
   const parts = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|https?:\/\/[^\s)]+)/g;
+  const re = /(!\[[^\]]*\]\([^)]+\)|\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)]+\)|\*[^*]+\*|https?:\/\/[^\s)]+)/g;
   let last = 0, m, k = 0;
   while ((m = re.exec(text))) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     const t = m[0];
-    if (t.startsWith('**')) parts.push(<strong key={k++}>{t.slice(2, -2)}</strong>);
+    if (t.startsWith('![')) { const [, alt, src] = /!\[([^\]]*)\]\(([^)]+)\)/.exec(t); const u = mediaUrl(src); if (u) parts.push(<Media key={k++} src={u} alt={alt} />); else parts.push(t); }
+    else if (t.startsWith('**')) parts.push(<strong key={k++}>{t.slice(2, -2)}</strong>);
     else if (t.startsWith('`')) parts.push(<code key={k++}>{t.slice(1, -1)}</code>);
     else if (t.startsWith('[')) { const [, label, href] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t); parts.push(<a key={k++} href={href} target="_blank" rel="noreferrer">{label}</a>); }
     else if (t.startsWith('http')) parts.push(<a key={k++} href={t} target="_blank" rel="noreferrer">{t}</a>);
