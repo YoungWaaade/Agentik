@@ -6,9 +6,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-export const AGENTS_DIR = path.join(os.homedir(), '.claude', 'agents');
+// SUPERSEPT_AGENTS_DIR points a test instance at a throwaway folder (Claude Code itself still reads ~/.claude/agents).
+export const AGENTS_DIR = process.env.SUPERSEPT_AGENTS_DIR || path.join(os.homedir(), '.claude', 'agents');
 const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
-const FIELDS = ['name', 'description', 'model', 'tools', 'color', 'icon', 'avatar', 'effort', 'permissionMode', 'initialPrompt', 'manager'];
+const FIELDS = ['name', 'description', 'model', 'tools', 'color', 'icon', 'avatar', 'effort', 'permissionMode', 'initialPrompt', 'manager', 'gender'];
 
 export const isSlug = (s) => SLUG.test(String(s || ''));
 export const slugify = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')

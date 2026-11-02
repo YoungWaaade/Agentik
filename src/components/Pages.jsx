@@ -158,6 +158,13 @@ export function SettingsPage({ me }) {
               )}
             </div>
           </section>
+          <section>
+            <h2>Agent chef d'équipe</h2>
+            <div className="settings-row">
+              <span>Choisir à nouveau le genre, le nom, l'avatar et ton prénom. L'agent chef est mis à jour (ou créé) ; les autres agents ne changent pas.</span>
+              <button className="btn-ghost" onClick={() => { location.hash = '#/onboarding'; }}>Refaire l'onboarding</button>
+            </div>
+          </section>
           <ContextRelay />
           <RemoteAccess />
           <section>
