@@ -7,16 +7,16 @@ import Terminal, { restartTerminal, killTerminal, focusTerminal, useTerminalTitl
 import DiffView, { FileViewer } from './DiffView.jsx';
 import RightPanel from './RightPanel.jsx';
 import { StatusIndicator } from './ui.jsx';
-import claudeLogo from '../assets/claude.svg';
+import BotAvatar from './BotAvatar.jsx';
 import { AgentIcon } from './AgentsPage.jsx';
 
 // Which custom agent runs in a pane: 'agent' = the workspace's main session, 'ag-<id>' = an agent tab.
 const AgentsCtx = createContext({ agentOf: () => null });
 const useAgentOf = () => useContext(AgentsCtx).agentOf;
-function PaneIcon({ pane, size = 14 }) {
+function PaneIcon({ pane, size = 16 }) {
   const agent = useAgentOf()(pane);
   if (agent) return <AgentIcon agent={agent} size={size} />;
-  return pane === 'agent' ? <img src={claudeLogo} alt="" className="preset-icon" /> : null;
+  return pane === 'agent' ? <BotAvatar seed="claude" size={16} /> : null;
 }
 
 const rid = () => Math.random().toString(36).slice(2, 8);
@@ -141,7 +141,7 @@ export default function WorkspaceView({ ws, project, agents, go, onFork, rightOp
                 {addMenu && (
                   <Dropdown onClose={() => setAddMenu(false)} className="tab-add-menu">
                     <button className="popover-item" onClick={() => { setAddMenu(false); showAgent(); }}>
-                      <img src={claudeLogo} alt="" className="preset-icon" /> Claude
+                      <BotAvatar seed="claude" size={16} /> Claude
                     </button>
                     <button className="popover-item" onClick={() => { setAddMenu(false); openTab(`shell-${rid()}`); }}>
                       <HiMiniCommandLine size={14} /> Terminal <kbd className="popover-kbd">⌘T</kbd>
@@ -172,7 +172,7 @@ export default function WorkspaceView({ ws, project, agents, go, onFork, rightOp
           <div className="presets">
             <button className="preset-gear" title="Gérer les agents" onClick={() => go({ kind: 'agents' })}><LuSettings size={14} strokeWidth={2} /></button>
             <button className="preset" title={ws.running ? 'Afficher Claude' : ws.has_conversation ? 'Reprendre la conversation' : 'Lancer Claude'} onClick={showAgent}>
-              <img src={claudeLogo} alt="" className="preset-icon" />
+              <BotAvatar seed="claude" size={16} />
               <span>Claude</span>
             </button>
           </div>
@@ -202,7 +202,7 @@ export default function WorkspaceView({ ws, project, agents, go, onFork, rightOp
             {!state.tabs.length && (
               <div className="no-tabs">
                 <p>Aucun onglet ouvert. {ws.running ? 'Claude tourne toujours en arrière-plan.' : ''}</p>
-                <button className="preset" onClick={showAgent}><img src={claudeLogo} alt="" className="preset-icon" /> <span>Ouvrir Claude</span></button>
+                <button className="preset" onClick={showAgent}><BotAvatar seed="claude" size={16} /> <span>Ouvrir Claude</span></button>
               </div>
             )}
           </div>

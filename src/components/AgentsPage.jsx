@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuDices } from 'react-icons/lu';
-import BotAvatar, { parseAvatar, avatarSpec, randomAvatar, BOT_COLORS, PICKABLE_COLORS, pickable, BOT_EYES, BOT_MOUTHS, BOT_ANTENNAS, BOT_ACCESSORIES, BOT_LABELS } from './BotAvatar.jsx';
+import BotAvatar, { BOT_SHAPES, shapeOf, randomShape } from './BotAvatar.jsx';
 import { api } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 
@@ -9,9 +9,9 @@ const EFFORTS = [['', 'Effort par défaut'], ['low', 'Low'], ['medium', 'Medium'
 const MODES = [['', 'Permissions par défaut'], ['manual', 'Demander à chaque action'], ['acceptEdits', 'Accepter les modifications de fichiers'], ['auto', 'Auto'], ['plan', 'Plan (lecture seule, propose un plan)']];
 const EMPTY = { label: '', avatar: '', description: '', prompt: '', model: '', effort: '', permissionMode: '', tools: '', initialPrompt: '' };
 
-// Every agent is a little pixel bot; agents without one get a stable bot derived from their name.
-export function AgentIcon({ agent, size = 16 }) {
-  return <BotAvatar spec={agent?.avatar} seed={agent?.slug || agent?.label} size={size} />;
+// Every agent is a little shape with eyes; agents without one get a stable shape derived from their name.
+export function AgentIcon({ agent, size = 16, running }) {
+  return <BotAvatar spec={agent?.avatar} seed={agent?.slug || agent?.label} size={size} running={running} />;
 }
 
 export default function AgentsPage({ agents, initial }) {
@@ -102,35 +102,25 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
   );
 }
 
-// Reserved parts (Nami's look) only show up in the editor of the agent that already has them.
-const withCurrent = (options, current) => (current && !options.includes(current) ? [current, ...options] : options);
-
 function BotBuilder({ spec, seed, onChange }) {
-  const a = parseAvatar(spec, seed);
-  const setPart = (k, v) => onChange(avatarSpec({ ...a, [k]: v }));
-  const Row = ({ label, part, options }) => (
-    <div className="bot-row">
-      <span className="bot-row-label">{label}</span>
-      <div className="bot-options">
-        {options.map((o) => (
-          <button key={o} type="button" className={`bot-option ${a[part] === o ? 'on' : ''}`} title={BOT_LABELS[o] || o} onClick={() => setPart(part, o)}>
-            {part === 'color' ? <span className="bot-swatch" style={{ background: BOT_COLORS[o] }} /> : <BotAvatar spec={{ ...a, [part]: o }} size={28} />}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+  const current = shapeOf(spec, seed);
   return (
     <div className="bot-builder">
       <div className="bot-preview">
-        <BotAvatar spec={a} size={96} />
-        <button type="button" className="btn-ghost" onClick={() => onChange(avatarSpec(randomAvatar()))}><LuDices size={14} /> Aléatoire</button>
+        <BotAvatar spec={current} size={96} />
+        <button type="button" className="btn-ghost" onClick={() => onChange(randomShape())}><LuDices size={14} /> Aléatoire</button>
       </div>
       <div className="bot-parts">
-        <Row label="Couleur" part="color" options={withCurrent(PICKABLE_COLORS, a.color)} />
-        <Row label="Yeux" part="eyes" options={withCurrent(pickable(BOT_EYES), a.eyes)} />
-        <Row label="Antenne" part="antenna" options={withCurrent(pickable(BOT_ANTENNAS), a.antenna)} />
-        <Row label="Accessoire" part="accessory" options={withCurrent(pickable(BOT_ACCESSORIES), a.accessory)} />
+        <div className="bot-row">
+          <span className="bot-row-label">Forme</span>
+          <div className="bot-options">
+            {Object.entries(BOT_SHAPES).map(([key, s]) => (
+              <button key={key} type="button" className={`bot-option ${current === key ? 'on' : ''}`} title={s.label} onClick={() => onChange(key)}>
+                <BotAvatar spec={key} size={28} />
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

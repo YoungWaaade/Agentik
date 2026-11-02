@@ -195,7 +195,7 @@ export default function AgentChat({ agent, go }) {
       onDragLeave={(e) => !e.currentTarget.contains(e.relatedTarget) && setDragging(false)}
       onDrop={(e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}>
       <header className="chat-head">
-        <BotAvatar spec={agent.avatar} seed={agent.slug} size={22} />
+        <BotAvatar spec={agent.avatar} seed={agent.slug} size={22} running={!!chat?.busy} />
         <div className="chat-head-text">
           <span className="chat-name">{agent.label}</span>
           <span className="chat-status">{chat?.busy ? 'travaille…' : badges.busy(agent.slug) ? 'travaille dans une autre conversation…' : 'disponible'}</span>
@@ -265,7 +265,7 @@ export default function AgentChat({ agent, go }) {
           )}
           {messages.map((m) => <Message key={m.id} m={m} agent={agent} go={go} />)}
           {chat?.busy && messages[messages.length - 1]?.role !== 'assistant' && (
-            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
+            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} running className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
           )}
         </div>
       </div>

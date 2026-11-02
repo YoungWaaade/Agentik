@@ -1,166 +1,164 @@
-// Pixel-art bot avatars for agents, in Supersept's art direction: the [SP] pixel mark style
-// and the "ember" palette. Drawn on a 16×16 grid, rendered crisp at any size.
+// Agent avatars: one of seven flat shapes (src/assets/bots, colours and outlines kept as drawn)
+// with two little black eyes that blink, glance around, follow the mouse and squint while the
+// agent works. Every avatar goes through this component.
+import { useEffect, useRef } from 'react';
+import lunes from '../assets/bots/lunes.svg?raw';
+import etoile from '../assets/bots/etoile.svg?raw';
+import pile from '../assets/bots/pile.svg?raw';
+import trio from '../assets/bots/trio.svg?raw';
+import sceau from '../assets/bots/sceau.svg?raw';
+import fleur from '../assets/bots/fleur.svg?raw';
+import soleil from '../assets/bots/soleil.svg?raw';
 
-export const BOT_COLORS = {
-  roux: '#d9602a',
-  jaune: '#f2c230',
-  ember: '#e07850',
-  sable: '#e5c07b',
-  sauge: '#7ec699',
-  ciel: '#61afef',
-  lilas: '#c678dd',
-  corail: '#dc6b6b',
-  galet: '#a8a5a3',
+const V = 280; // every shape is centred in a 280×280 box
+const parse = (raw) => {
+  const num = (k) => Number(raw.match(new RegExp(`\\b${k}="([\\d.]+)"`))[1]);
+  return { d: raw.match(/\sd="([^"]+)"/)[1], fill: raw.match(/<path[^>]*fill="([^"]+)"/)[1], ox: (V - num('width')) / 2, oy: (V - num('height')) / 2 };
 };
-// The team lead (Nami) has her own look: ginger colour, hair tuft and big blue bow. These parts are
-// not offered for other agents, nor picked at random.
-export const RESERVED = ['roux', 'meche', 'ruban', 'cils', 'ronde'];
-export const BOT_SHAPES = ['carree', 'ronde'];
-export const PICKABLE_COLORS = Object.keys(BOT_COLORS).filter((c) => !RESERVED.includes(c));
-export const BOT_EYES = ['ronds', 'joyeux', 'pixels', 'endormis', 'etoiles', 'cils'];
-export const BOT_MOUTHS = ['sourire', 'o', 'neutre', 'langue'];
-export const BOT_ANTENNAS = ['boule', 'double', 'eclair', 'aucune', 'meche'];
-export const BOT_ACCESSORIES = ['aucun', 'palette', 'loupe', 'plume', 'casque', 'noeud', 'cle', 'ruban'];
-export const pickable = (list) => list.filter((x) => !RESERVED.includes(x));
-export const BOT_LABELS = {
-  ronds: 'Ronds', joyeux: 'Joyeux', pixels: 'Pixels', endormis: 'Endormis', etoiles: 'Étoiles',
-  sourire: 'Sourire', o: 'Oh', neutre: 'Neutre', langue: 'Langue',
-  boule: 'Boule', double: 'Double', eclair: 'Éclair', aucune: 'Aucune', meche: 'Mèche',
-  aucun: 'Aucun', palette: 'Palette', loupe: 'Loupe', plume: 'Plume', casque: 'Casque', noeud: 'Nœud', cle: 'Clé', ruban: 'Grand nœud',
+// Eyes per shape, in the 280 box: centre (x, y), half-gap between the eyes, radii, and how far
+// they may travel sideways (so they never leave the shape).
+const EYES = { x: 140, y: 140, gap: 40, rx: 15, ry: 27, reach: 22 };
+export const BOT_SHAPES = {
+  fleur: { label: 'Fleur', ...parse(fleur), eyes: { ...EYES } },
+  sceau: { label: 'Sceau', ...parse(sceau), eyes: { ...EYES } },
+  trio: { label: 'Trio', ...parse(trio), eyes: { ...EYES, gap: 44 } },
+  lunes: { label: 'Lunes', ...parse(lunes), eyes: { ...EYES, y: 196, gap: 38, rx: 14, ry: 24 } },
+  pile: { label: 'Pile', ...parse(pile), eyes: { ...EYES, gap: 44, ry: 25 } },
+  etoile: { label: 'Étoile', ...parse(etoile), eyes: { ...EYES, gap: 36 } },
+  soleil: { label: 'Soleil', ...parse(soleil), eyes: { ...EYES, gap: 24, rx: 12, ry: 22, reach: 10 } },
 };
-
-const BG = '#151110';
-const mix = (hex, to, t) => {
-  const a = parseInt(hex.slice(1), 16), b = parseInt(to.slice(1), 16);
-  const c = [16, 8, 0].map((s) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t));
-  return `#${c.map((v) => v.toString(16).padStart(2, '0')).join('')}`;
-};
-
-// "ember,joyeux,sourire,boule,loupe" ⇄ object. Unknown or missing parts fall back to a stable pick.
+const KEYS = Object.keys(BOT_SHAPES);
+// Stable look for the team; any other agent gets a shape derived from its name.
+const BY_AGENT = { nami: 'fleur', adi: 'sceau', franky: 'trio', katrina: 'lunes', robin: 'pile', git: 'etoile', claude: 'soleil' };
 const hash = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-export function parseAvatar(spec, seed = '') {
-  const parts = String(spec || '').split(',');
-  const h = hash(seed || spec || 'bot');
-  const pick = (list, i, val) => (list.includes(val) ? val : list[(h >> (i * 3)) % list.length]);
-  return {
-    color: Object.keys(BOT_COLORS).includes(parts[0]) ? parts[0] : pick(PICKABLE_COLORS, 0),
-    eyes: BOT_EYES.includes(parts[1]) ? parts[1] : pick(pickable(BOT_EYES), 1),
-    mouth: pick(BOT_MOUTHS, 2, parts[2]),
-    antenna: BOT_ANTENNAS.includes(parts[3]) ? parts[3] : pick(pickable(BOT_ANTENNAS), 3),
-    accessory: parts[4] && BOT_ACCESSORIES.includes(parts[4]) ? parts[4] : 'aucun',
-    shape: BOT_SHAPES.includes(parts[5]) ? parts[5] : 'carree',
-  };
+// `spec` is the agent's saved avatar: a shape name, or an older pixel-bot spec (ignored).
+export function shapeOf(spec, seed = '') {
+  if (BOT_SHAPES[spec]) return spec;
+  const key = String(seed || spec || 'bot').toLowerCase();
+  return BY_AGENT[key] || KEYS[hash(key) % KEYS.length];
 }
-export const avatarSpec = (a) => [a.color, a.eyes, a.mouth, a.antenna, a.accessory, ...(a.shape && a.shape !== 'carree' ? [a.shape] : [])].join(',');
-export function randomAvatar() {
-  const r = (l) => l[Math.floor(Math.random() * l.length)];
-  return { color: r(PICKABLE_COLORS), eyes: r(BOT_EYES), mouth: r(BOT_MOUTHS), antenna: r(pickable(BOT_ANTENNAS)), accessory: r(pickable(BOT_ACCESSORIES)) };
+export const randomShape = () => KEYS[Math.floor(Math.random() * KEYS.length)];
+
+// One scheduler for all avatars: a single pointer listener + one rAF for mouse follow, and a
+// single timer for blinks and glances. It writes transforms straight to the DOM (no React render).
+const bots = new Set();
+const bySvg = new WeakMap();
+const reduce = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+const rnd = (a, b) => a + Math.random() * (b - a);
+let mouse = null; // { x, y, at }
+let raf = 0;
+let timer = 0;
+let io = null;
+const FOLLOW_MS = 2500;
+
+function look(b, x, y) {
+  if (b.lx === x && b.ly === y) return;
+  b.lx = x; b.ly = y;
+  b.look.style.transform = x || y ? `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)` : '';
 }
+function blink(b, now) {
+  b.svg.classList.add('blink');
+  setTimeout(() => b.svg.classList.remove('blink'), 120);
+  // Now and then a quick double blink.
+  if (Math.random() < 0.15) setTimeout(() => { b.svg.classList.add('blink'); setTimeout(() => b.svg.classList.remove('blink'), 110); }, 240);
+  b.nextBlink = now + (b.running ? rnd(1500, 3500) : rnd(2500, 7000));
+}
+const following = (now) => mouse && now - mouse.at < FOLLOW_MS;
 
-function draw(a) {
-  const base = BOT_COLORS[a.color] || BOT_COLORS.ember;
-  const P = { D: mix(base, BG, 0.55), B: base, L: mix(base, '#ffffff', 0.38), S: '#2a1f1c', E: mix(base, '#ffffff', 0.72), F: mix(base, '#fff6ee', 0.82), W: '#ffffff', C: '#f4a0a0', K: '#eae8e6', G: '#5c5856', H: mix(base, '#7a2a0c', 0.35), U: '#61afef', V: '#3a7fc4', Y: '#a9d6fa' };
-  const px = new Map();
-  const set = (x, y, c) => { if (x >= 0 && x < 16 && y >= 0 && y < 16) px.set(`${x},${y}`, c); };
-  const rect = (x0, y0, x1, y1, c) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) set(x, y, c); };
-  const dots = (list, c) => list.forEach(([x, y]) => set(x, y, c));
-
-  // Antenna (drawn first, the head overlaps its base).
-  if (a.antenna === 'boule') { rect(7, 1, 8, 2, 'D'); rect(7, 0, 8, 0, 'L'); }
-  const round = a.shape === 'ronde';
-  // Round shape: Franky-style double antennas with blue tips matching the bow.
-  if (a.antenna === 'double' && round) { dots([[4, 2], [11, 2], [3, 1], [12, 1]], 'D'); dots([[2, 0], [3, 0], [12, 0], [13, 0]], 'U'); dots([[2, 0], [12, 0]], 'Y'); }
-  else if (a.antenna === 'double') { dots([[5, 2], [10, 2], [4, 1], [11, 1]], 'D'); dots([[4, 0], [11, 0]], 'L'); }
-  if (a.antenna === 'eclair') { dots([[8, 0], [7, 1], [8, 1], [8, 2]], 'L'); dots([[7, 2]], 'D'); }
-  // Hair tuft: a little ginger curl falling over the top of the head.
-  // The round shape always has its little hair curl, centred between the antennas.
-  if (round && a.antenna !== 'meche') dots([[7, 1], [8, 1], [6, 2], [7, 2], [8, 2], [9, 2]], 'H');
-  if (a.antenna === 'meche') { dots([[6, 1], [7, 0], [8, 0], [9, 1], [7, 1], [8, 1], [5, 2], [6, 2], [7, 2]], 'H'); dots([[8, 1], [6, 2]], 'D'); }
-
-  if (round) {
-    // Round head (Nami): a soft circle-ish outline instead of a box, small ears.
-    const rows = { 3: [4, 11], 4: [3, 12], 5: [2, 13], 6: [2, 13], 7: [2, 13], 8: [2, 13], 9: [2, 13], 10: [2, 13], 11: [3, 12], 12: [4, 11] };
-    const inside = (x, y) => rows[y] && x >= rows[y][0] && x <= rows[y][1];
-    for (const y of Object.keys(rows).map(Number)) for (let x = rows[y][0]; x <= rows[y][1]; x++) {
-      const edge = !inside(x - 1, y) || !inside(x + 1, y) || !inside(x, y - 1) || !inside(x, y + 1);
-      set(x, y, edge ? 'D' : 'B');
-    }
-    rect(5, 4, 7, 4, 'L'); set(4, 5, 'L');
-    rect(1, 7, 1, 8, 'D'); rect(14, 7, 14, 8, 'D');
-  } else {
-    // Head: rounded box with outline, highlight and ears.
-    rect(2, 3, 13, 12, 'D');
-    rect(3, 4, 12, 11, 'B');
-    [[2, 3], [13, 3], [2, 12], [13, 12]].forEach(([x, y]) => px.delete(`${x},${y}`));
-    rect(4, 4, 6, 4, 'L');
-    set(3, 5, 'L');
-    rect(0, 6, 1, 9, 'D'); rect(1, 7, 1, 8, 'B');
-    rect(14, 6, 15, 9, 'D'); rect(14, 7, 14, 8, 'B');
+function follow() {
+  raf = 0;
+  if (!mouse || reduce.matches) return;
+  for (const b of bots) {
+    if (!b.visible || b.running) continue;
+    const r = b.svg.getBoundingClientRect();
+    if (!r.width) continue;
+    const dx = mouse.x - (r.left + r.width / 2), dy = mouse.y - (r.top + r.height / 2);
+    const d = Math.hypot(dx, dy) || 1, k = Math.min(1, d / 320);
+    look(b, (dx / d) * k * b.reach, (dy / d) * k * b.reach * 0.6);
   }
+}
+function onMove(e) {
+  mouse = { x: e.clientX, y: e.clientY, at: performance.now() };
+  if (!raf) raf = requestAnimationFrame(follow);
+}
+function onLeave() { mouse = null; }
 
-  // Face: a soft cream plate with dark eyes and a sparkle, like a little kawaii robot.
-  rect(4, 5, 11, 10, 'F');
-  [[4, 5], [11, 5], [4, 10], [11, 10]].forEach(([x, y]) => set(x, y, 'B'));
-  if (round) { rect(3, 6, 3, 9, 'F'); rect(12, 6, 12, 9, 'F'); }
-
-  // Eyes: big eyes, no mouth (that's the whole face, and it's cuter that way).
-  if (a.eyes === 'ronds') { rect(5, 6, 6, 8, 'S'); rect(9, 6, 10, 8, 'S'); dots([[5, 6], [9, 6]], 'W'); }
-  if (a.eyes === 'pixels') { rect(6, 6, 6, 8, 'S'); rect(9, 6, 9, 8, 'S'); dots([[6, 6], [9, 6]], 'W'); }
-  if (a.eyes === 'joyeux') { dots([[4, 8], [5, 7], [6, 7], [7, 8], [8, 8], [9, 7], [10, 7], [11, 8]], 'S'); px.delete('7,8'); px.delete('8,8'); set(7, 8, 'F'); set(8, 8, 'F'); dots([[4, 8], [11, 8]], 'S'); }
-  if (a.eyes === 'endormis') { rect(4, 8, 6, 8, 'S'); rect(9, 8, 11, 8, 'S'); dots([[4, 7], [11, 7]], 'S'); }
-  if (a.eyes === 'cils' && round) {
-    // Big, tall, wide-set eyes (2×3) with a sparkle on top and a lash flicking outwards.
-    rect(4, 6, 5, 8, 'S'); rect(10, 6, 11, 8, 'S'); dots([[4, 6], [10, 6]], 'W'); dots([[3, 6], [12, 6]], 'S');
-  } else if (a.eyes === 'cils') { rect(5, 6, 6, 8, 'S'); rect(9, 6, 10, 8, 'S'); dots([[5, 6], [9, 6]], 'W'); dots([[4, 6], [11, 6]], 'S'); }
-  if (a.eyes === 'etoiles') { dots([[5, 6], [4, 7], [5, 7], [6, 7], [5, 8], [10, 6], [9, 7], [10, 7], [11, 7], [10, 8]], 'B'); dots([[5, 7], [10, 7]], 'W'); }
-
-  // Cheeks: always a little blush, it's what makes them cute.
-  dots([[4, 9], [11, 9]], 'C');
-  if (round) { px.delete('4,9'); px.delete('11,9'); dots([[3, 9], [4, 9], [11, 9], [12, 9]], 'C'); }
-
-  // Neck + tiny body (rounded shoulders for the round shape).
-  rect(7, 13, 8, 13, 'D');
-  if (round) {
-    rect(5, 14, 10, 14, 'D'); rect(4, 15, 11, 15, 'D'); rect(6, 14, 9, 15, 'B'); set(7, 15, 'L');
-  } else {
-    rect(4, 14, 11, 15, 'D');
-    rect(5, 14, 10, 15, 'B');
-    set(7, 15, 'L');
+function tick() {
+  if (document.hidden || reduce.matches) return;
+  const now = performance.now(), track = following(now);
+  for (const b of bots) {
+    if (!b.visible) continue;
+    if (now >= b.nextBlink) blink(b, now);
+    if (track && !b.running) { b.glanceEnd = 0; continue; }
+    if (b.glanceEnd && now >= b.glanceEnd) {
+      // Back to the centre; a working agent keeps scanning from side to side.
+      b.glanceEnd = 0;
+      look(b, 0, 0);
+      b.nextGlance = now + (b.running ? rnd(150, 600) : rnd(2500, 8000));
+    } else if (!b.glanceEnd && now >= b.nextGlance) {
+      const side = b.running ? -Math.sign(b.lastSide || 1) : Math.random() < 0.5 ? -1 : 1;
+      b.lastSide = side;
+      look(b, side * b.reach * (b.running ? 1 : rnd(0.7, 1)), b.running ? b.reach * 0.25 : 0);
+      b.glanceEnd = now + (b.running ? rnd(400, 900) : rnd(600, 1600));
+    } else if (!track && !b.glanceEnd && (b.lx || b.ly)) look(b, 0, 0); // the mouse stopped: recentre
   }
-
-  // Accessories.
-  if (a.accessory === 'palette') {
-    rect(11, 11, 15, 14, 'K'); [[11, 11], [15, 11], [15, 14]].forEach(([x, y]) => px.delete(`${x},${y}`));
-    set(12, 12, 'C'); set(14, 12, 'L'); set(13, 13, '#61afef'); set(12, 14, 'D');
-  }
-  if (a.accessory === 'loupe') {
-    dots([[12, 10], [13, 10], [11, 11], [14, 11], [11, 12], [14, 12], [12, 13], [13, 13]], 'K');
-    rect(12, 11, 13, 12, 'E'); dots([[14, 14], [15, 15]], 'G');
-  }
-  if (a.accessory === 'plume') { dots([[15, 9], [14, 10], [15, 10], [13, 11], [14, 11], [12, 12], [13, 12]], 'K'); dots([[11, 13], [10, 14]], 'G'); }
-  if (a.accessory === 'casque') { rect(3, 2, 12, 2, 'G'); dots([[2, 3], [13, 3]], 'G'); rect(0, 5, 1, 10, 'G'); rect(14, 5, 15, 10, 'G'); }
-  if (a.accessory === 'noeud') { dots([[10, 2], [11, 1], [11, 2], [11, 3], [13, 1], [13, 2], [13, 3], [14, 2]], 'C'); set(12, 2, 'L'); }
-  // Big blue bow on the side of the head.
-  if (a.accessory === 'ruban' && round) {
-    // On the round head the bow sits on the side, like a hair clip, leaving room for the antennas.
-    dots([[11, 3], [11, 4], [11, 5], [12, 4]], 'U');
-    dots([[14, 4], [15, 3], [15, 4], [15, 5]], 'U');
-    dots([[13, 4]], 'V'); dots([[11, 3], [15, 3]], 'Y');
-  } else if (a.accessory === 'ruban') {
-    dots([[9, 1], [10, 1], [9, 2], [10, 2], [11, 2], [9, 3], [10, 3]], 'U');
-    dots([[13, 1], [14, 1], [12, 2], [13, 2], [14, 2], [13, 3], [14, 3]], 'U');
-    set(12, 2, 'V'); set(11, 2, 'V'); dots([[9, 1], [14, 1]], 'Y');
-  }
-  if (a.accessory === 'cle') { rect(12, 11, 14, 13, 'sable'); set(13, 12, 'S'); rect(13, 14, 13, 15, 'sable'); set(14, 15, 'sable'); }
-
-  return [...px].map(([k, c]) => { const [x, y] = k.split(',').map(Number); return { x, y, fill: P[c] || BOT_COLORS[c] || c }; });
 }
 
-export default function BotAvatar({ spec, seed, size = 16, className = '' }) {
-  const a = typeof spec === 'object' && spec ? spec : parseAvatar(spec, seed);
+function register(b) {
+  bots.add(b);
+  bySvg.set(b.svg, b);
+  if (bots.size === 1) {
+    addEventListener('pointermove', onMove, { passive: true });
+    document.documentElement.addEventListener('pointerleave', onLeave);
+    timer = setInterval(tick, 100);
+    io = typeof IntersectionObserver === 'function' ? new IntersectionObserver((entries) => {
+      for (const e of entries) { const x = bySvg.get(e.target); if (x) x.visible = e.isIntersecting; }
+    }) : null;
+  }
+  if (io) io.observe(b.svg); else b.visible = true;
+}
+function unregister(b) {
+  bots.delete(b);
+  io?.unobserve(b.svg);
+  if (!bots.size) {
+    removeEventListener('pointermove', onMove);
+    document.documentElement.removeEventListener('pointerleave', onLeave);
+    clearInterval(timer); cancelAnimationFrame(raf); raf = 0;
+    io?.disconnect(); io = null;
+  }
+}
+
+export default function BotAvatar({ spec, seed, size = 16, running = false, className = '', title }) {
+  const shape = BOT_SHAPES[shapeOf(spec, seed)];
+  const e = shape.eyes;
+  // Small avatars get bigger eyes so the face still reads at 12–24 px.
+  const k = size <= 16 ? 1.35 : size <= 24 ? 1.2 : 1;
+  const svg = useRef(null), lookRef = useRef(null), bot = useRef(null);
+  useEffect(() => {
+    const now = performance.now();
+    const b = { svg: svg.current, look: lookRef.current, reach: e.reach, lx: 0, ly: 0, visible: false, running,
+      nextBlink: now + rnd(400, 6000), nextGlance: now + rnd(800, 7000), glanceEnd: 0 };
+    bot.current = b;
+    register(b);
+    return () => unregister(b);
+  }, [e.reach]);
+  useEffect(() => {
+    const b = bot.current;
+    if (!b) return;
+    b.running = running;
+    b.glanceEnd = 0;
+    b.nextGlance = performance.now() + rnd(100, 600);
+  }, [running]);
   return (
-    <svg className={`bot-avatar ${className}`} width={size} height={size} viewBox="0 0 16 16" shapeRendering="crispEdges" aria-hidden="true">
-      {draw(a).map(({ x, y, fill }) => <rect key={`${x},${y}`} x={x} y={y} width="1.02" height="1.02" fill={fill} />)}
+    <svg ref={svg} className={`bot-avatar ${running ? 'running' : ''} ${className}`} width={size} height={size} viewBox={`0 0 ${V} ${V}`} aria-hidden={title ? undefined : 'true'} role={title ? 'img' : undefined}>
+      {title && <title>{title}</title>}
+      <path d={shape.d} fill={shape.fill} transform={`translate(${shape.ox} ${shape.oy})`} />
+      <g transform={`translate(${e.x} ${e.y}) scale(${k})`}>
+        <g ref={lookRef} className="bot-look">
+          <ellipse className="bot-eye" cx={-e.gap} cy="0" rx={e.rx} ry={e.ry} />
+          <ellipse className="bot-eye" cx={e.gap} cy="0" rx={e.rx} ry={e.ry} />
+        </g>
+      </g>
     </svg>
   );
 }
