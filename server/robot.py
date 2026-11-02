@@ -200,23 +200,107 @@ def norm(s: str) -> str:
     return "".join(c for c in s if not unicodedata.combining(c)).strip()
 
 
-async def cmd_simple(action: str):
+# ---------- réglages de nettoyage (Q10) ----------
+# Chaque réglage : (drapeau, DP, attribut d'état, {alias: valeur}, libellés français affichés)
+# Valeurs vérifiées sur le R2 (écriture puis relecture) le 2026-11-02.
+def reglages():
+    from roborock.data.b01_q10.b01_q10_code_mappings import (B01_Q10_DP as D, YXCleanType as T,
+                                                              YXFanLevel as F, YXWaterLevel as W)
+    return {
+        "mode": (D.CLEAN_MODE, "clean_mode", "Mode", {
+            "aspi": T.VACUUM, "aspiration": T.VACUUM, "vacuum": T.VACUUM,
+            "lavage": T.MOP, "laver": T.MOP, "serpillere": T.MOP, "mop": T.MOP,
+            "les-deux": T.VAC_AND_MOP, "aspi+lavage": T.VAC_AND_MOP, "aspiration+lavage": T.VAC_AND_MOP,
+            "both": T.VAC_AND_MOP}, {
+            T.VACUUM: "aspi (aspiration seule)", T.MOP: "lavage (lavage seul)",
+            T.VAC_AND_MOP: "les-deux (aspiration + lavage)"}),
+        "puissance": (D.FAN_LEVEL, "fan_level", "Puissance d'aspiration", {
+            "silencieux": F.QUIET, "quiet": F.QUIET, "equilibre": F.BALANCED, "balanced": F.BALANCED,
+            "turbo": F.TURBO, "max": F.MAX, "max+": F.MAX_PLUS, "max-plus": F.MAX_PLUS, "maxplus": F.MAX_PLUS}, {
+            F.QUIET: "silencieux", F.BALANCED: "equilibre", F.TURBO: "turbo", F.MAX: "max",
+            F.MAX_PLUS: "max+ (le plus fort)"}),
+        "eau": (D.WATER_LEVEL, "water_level", "Débit d'eau", {
+            "off": W.OFF, "aucun": W.OFF, "coupe": W.OFF, "faible": W.LOW, "low": W.LOW, "bas": W.LOW,
+            "moyen": W.MEDIUM, "medium": W.MEDIUM, "fort": W.HIGH, "eleve": W.HIGH, "high": W.HIGH}, {
+            W.OFF: "aucun (eau coupée)", W.LOW: "faible", W.MEDIUM: "moyen", W.HIGH: "fort"}),
+        "passages": (D.CLEAN_COUNT, "clean_count", "Nombre de passages", {"1": 1, "2": 2, "3": 3},
+                     {1: "1 passage", 2: "2 passages", 3: "3 passages"}),
+    }
+
+
+def code_de(v):
+    return v.code if hasattr(v, "code") else v
+
+
+def lire_option(table, brut: str):
+    k = norm(brut).replace(" ", "-")
+    if k not in table:
+        die(f"valeur « {brut} » inconnue. Choix possibles : " + ", ".join(sorted(set(table))))
+    return table[k]
+
+
+async def appliquer_reglages(r: Robot, flags: dict):
+    """Écrit les réglages demandés (--mode, --puissance, --eau, --passages). Ne bouge pas le robot."""
+    voulu = {k: flags[k][0] for k in ("mode", "puissance", "eau", "passages") if k in flags}
+    if not voulu:
+        return []
+    if r.q is None:
+        die("les réglages de mode/puissance/eau ne sont gérés que pour les robots de type Q10 (comme le R2).")
+    table = reglages()
+    faits = []
+    for k, brut in voulu.items():
+        dp, attr, titre, alias, libs = table[k]
+        val = lire_option(alias, brut)
+        await r.q.command.send(command=dp, params=code_de(val))
+        faits.append(f"{titre} : {libs[val]}")
+    await asyncio.sleep(1.5)
+    return faits
+
+
+async def cmd_modes():
+    async with Robot() as r:
+        if r.q is None:
+            die("cette liste n'existe que pour les robots de type Q10 (comme le R2).")
+        await q10_refresh(r)
+        st = r.q.status
+        print(f"Réglages du {r.dev.name} (options à passer à start / clean, ou à enregistrer avec « set ») :")
+        for k, (dp, attr, titre, alias, libs) in reglages().items():
+            cur = getattr(st, attr)
+            cur_l = libs.get(cur, libs.get(code_de(cur), joli(cur))) if cur is not None else "inconnu"
+            print(f"\n--{k}  — {titre} (actuel : {cur_l})")
+            for v, lib in libs.items():
+                print(f"   • {lib}")
+        print("\nExemple : supersept robot start --mode les-deux --puissance turbo --eau moyen --passages 2")
+        print("Ces réglages restent mémorisés par le robot jusqu'au prochain changement.")
+
+
+async def cmd_set(flags):
+    async with Robot() as r:
+        faits = await appliquer_reglages(r, flags)
+        if not faits:
+            die("indique au moins un réglage : --mode, --puissance, --eau ou --passages (voir : supersept robot modes).")
+        print("Réglages enregistrés (le robot ne bouge pas) : " + " ; ".join(faits) + ".")
+
+
+async def cmd_simple(action: str, flags: dict | None = None):
     cmd = {"start": RoborockCommand.APP_START, "pause": RoborockCommand.APP_PAUSE,
            "stop": RoborockCommand.APP_STOP, "dock": RoborockCommand.APP_CHARGE}[action]
     ok = {"start": "Ménage complet lancé.", "pause": "Robot mis en pause.",
           "stop": "Robot arrêté.", "dock": "Le robot retourne à sa base."}[action]
     async with Robot() as r:
+        faits = await appliquer_reglages(r, flags or {}) if action == "start" else []
         if r.q is not None:
             v = r.q.vacuum
             await {"start": v.start_clean, "pause": v.pause_clean, "stop": v.stop_clean,
                    "dock": v.return_to_dock}[action]()
         else:
             await r.p.command.send(cmd)
-        print(ok)
+        print(ok + (" Réglages : " + " ; ".join(faits) + "." if faits else ""))
 
 
-async def cmd_clean(names: list[str]):
+async def cmd_clean(names: list[str], flags: dict | None = None):
     async with Robot() as r:
+        faits = await appliquer_reglages(r, flags or {})
         rooms = await room_list(r)
         if not rooms:
             die("aucune pièce connue sur le robot.")
@@ -233,7 +317,7 @@ async def cmd_clean(names: list[str]):
             await r.q.vacuum.clean_segments(ids)
         else:
             await r.p.command.send(RoborockCommand.APP_SEGMENT_CLEAN, [{"segments": ids, "repeat": 1}])
-        print("Nettoyage lancé : " + ", ".join(noms) + ".")
+        print("Nettoyage lancé : " + ", ".join(noms) + "." + (" Réglages : " + " ; ".join(faits) + "." if faits else ""))
 
 
 def parse(argv):
@@ -260,6 +344,9 @@ AIDE = """supersept robot — piloter l'aspirateur Roborock
   supersept robot stop
   supersept robot dock                   retour à la base
   supersept robot rooms                  liste des pièces
+  supersept robot modes                  réglages dispo (mode, puissance, eau, passages) + valeurs actuelles
+  supersept robot set [--mode …] [--puissance …] [--eau …] [--passages N]   enregistre sans bouger
+  (start et clean acceptent aussi --mode aspi|lavage|les-deux --puissance silencieux|equilibre|turbo|max|max+ --eau aucun|faible|moyen|fort --passages 1|2|3)
   supersept robot clean --room NOM [--room NOM2 …]   (ou --room "salon,cuisine")
   supersept robot login --email ADRESSE  envoie un code par mail
   supersept robot login --code CODE      termine la connexion"""
@@ -279,12 +366,14 @@ async def main():
             die("indique --email ADRESSE (pour recevoir un code) ou --code CODE.")
     elif sub == "status": await cmd_status()
     elif sub == "rooms": await cmd_rooms()
-    elif sub in ("start", "pause", "stop", "dock"): await cmd_simple(sub)
+    elif sub == "modes": await cmd_modes()
+    elif sub == "set": await cmd_set(flags)
+    elif sub in ("start", "pause", "stop", "dock"): await cmd_simple(sub, flags)
     elif sub == "clean":
         names = [n.strip() for v in flags.get("room", []) for n in v.split(",") if n.strip() and n != "true"]
         if not names:
             die("indique la pièce : supersept robot clean --room NOM")
-        await cmd_clean(names)
+        await cmd_clean(names, flags)
     else:
         print(AIDE); sys.exit(1)
 
