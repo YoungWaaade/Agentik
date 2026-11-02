@@ -10,3 +10,6 @@
 .bot-options .btn-ghost.on { box-shadow: inset 0 0 0 1px var(--foreground); }
 /* Colour already taken by another agent (agents page): still selectable, but dimmed. */
 .bot-option.taken .orb { opacity: 0.35; }
+
+/* Soft white glow around the team lead's photo on the Agents page (mobile pinned photo, desktop lead card). */
+.m-pin-photo .bot-avatar, .sb-agent-tile.lead .bot-avatar { box-shadow: 0 0 18px 3px rgba(255, 255, 255, 0.38), 0 0 4px 1px rgba(255, 255, 255, 0.3); }
