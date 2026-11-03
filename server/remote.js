@@ -67,6 +67,6 @@ export async function status(port) {
 }
 
 export const PAIR_PAGE = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Agentic</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#151110;color:#eae8e6;font:15px/1.5 system-ui,sans-serif;padding:24px;box-sizing:border-box}
+<title>Agentik</title><style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#151110;color:#eae8e6;font:15px/1.5 system-ui,sans-serif;padding:24px;box-sizing:border-box}
 div{max-width:340px;text-align:center}h1{font-size:18px}p{color:#a8a5a3}</style></head><body><div><h1>Appareil non relié</h1>
-<p>Sur ton Mac, ouvre Agentic → Réglages → Accès depuis le téléphone, puis scanne le QR code avec l'appareil photo de ton iPhone.</p></div></body></html>`;
+<p>Sur ton Mac, ouvre Agentik → Réglages → Accès depuis le téléphone, puis scanne le QR code avec l'appareil photo de ton iPhone.</p></div></body></html>`;

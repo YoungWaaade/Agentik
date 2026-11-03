@@ -20,7 +20,7 @@ export default function ProjectMenu({ project, x, y, go, onNew, onLinkGitHub, on
     if (name && name !== project.name) return api.patch(`/api/projects/${project.id}`, { name });
   };
   const remove = async () => {
-    if (!confirm(`Retirer « ${project.name} » d'Agentic ?\nLes fichiers, worktrees et la mémoire restent sur le disque.`)) return;
+    if (!confirm(`Retirer « ${project.name} » d'Agentik ?\nLes fichiers, worktrees et la mémoire restent sur le disque.`)) return;
     await api.del(`/api/projects/${project.id}`);
     go({ kind: 'board' });
   };

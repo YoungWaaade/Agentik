@@ -37,4 +37,4 @@ EOF
 
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
-echo "Agentic tourne → http://supersept.localhost:4317"
+echo "Agentik tourne → http://supersept.localhost:4317"

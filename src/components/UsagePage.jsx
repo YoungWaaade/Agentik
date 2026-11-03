@@ -79,7 +79,7 @@ export function UsageSection() {
               <span className="usage-note">tokens traités</span>
             </>
           )}
-          <span className="usage-note">{data.sessions} session{data.sessions > 1 ? 's' : ''} Agentic, sous-agents compris</span>
+          <span className="usage-note">{data.sessions} session{data.sessions > 1 ? 's' : ''} Agentik, sous-agents compris</span>
           {t.unpriced > 0 && <span className="usage-note warn">{fmtTokens(t.unpriced)} tokens au tarif inconnu, non comptés dans le coût</span>}
         </div>
         <UsageChart daily={data.daily} value={value} fmt={fmt} axis={mode === 'cost' ? (v) => `${num(v, v && v < 10 ? 2 : 0)} $` : (v) => fmtTokens(v).replace(/,00(?= )/, '')} />

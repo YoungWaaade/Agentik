@@ -151,12 +151,12 @@ function managerSection(a) {
   ];
 }
 
-// Each agent gets a home folder with `agentic` and `supersept` (alias) launchers on its PATH.
+// Each agent gets a home folder with `agentik`, `agentic` and `supersept` (aliases) launchers on its PATH.
 function agentHome(agent) {
   const dir = path.join(HUB_DIR, 'agent-home', agent);
   const bin = path.join(dir, 'bin');
   fs.mkdirSync(bin, { recursive: true });
-  for (const name of ['agentic', 'supersept']) {
+  for (const name of ['agentik', 'agentic', 'supersept']) {
     fs.writeFileSync(path.join(bin, name), `#!/bin/sh\nexec "${process.execPath}" "${CLI}" "$@"\n`, { mode: 0o755 });
   }
   return { dir, bin };
@@ -169,7 +169,7 @@ function describeTool(name, input = {}) {
   const q = (s) => (s ? ` « ${String(s).slice(0, 70)} »` : '');
   if (name === 'Bash') {
     const cmd = String(input.command || '');
-    const verb = (/(?:agentic|supersept)\s+([\w-]+)/.exec(cmd) || [])[1];
+    const verb = (/(?:agentik|agentic|supersept)\s+([\w-]+)/.exec(cmd) || [])[1];
     switch (verb) {
       case 'projects': return { icon: 'folder', label: 'Regarde tes projets' };
       case 'create-project': return { icon: 'folder-plus', label: `Crée le projet${q(flag(cmd, 'name'))}` };
@@ -187,7 +187,7 @@ function describeTool(name, input = {}) {
         return { icon: 'send', label: `Confie une mission à ${label}`, agent: who };
       }
       case 'create-agent': return { icon: 'bot', label: `Crée l'agent${q(flag(cmd, 'name'))}` };
-      default: return { icon: 'tool', label: 'Commande Agentic' };
+      default: return { icon: 'tool', label: 'Commande Agentik' };
     }
   }
   const t = name;
@@ -248,7 +248,7 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
 function spawnTurn(a, agent, conv, st, text, format) {
   const { dir, bin } = agentHome(agent);
   const args = ['-p', '--output-format', format, ...(format === 'stream-json' ? ['--verbose'] : []),
-    '--allowedTools', 'Bash(agentic:*)', 'Bash(supersept:*)', 'mcp__figma', 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
+    '--allowedTools', 'Bash(agentik:*)', 'Bash(agentic:*)', 'Bash(supersept:*)', 'mcp__figma', 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
     '--disallowedTools', 'Edit', 'Write', 'NotebookEdit',
     '--add-dir', path.join(HUB_DIR, 'attachments'),
     '--append-system-prompt', systemPrompt(a)];

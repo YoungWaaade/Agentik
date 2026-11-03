@@ -12,6 +12,7 @@
   },
   "type": "module",
   "bin": {
+    "agentik": "server/cli.mjs",
     "agentic": "server/cli.mjs",
     "supersept": "server/cli.mjs"
   },
@@ -36,7 +37,7 @@
     "vite": "^8.3.5"
   },
   "private": true,
-  "description": "Agentic : interface locale façon Superset pour piloter ses sessions Claude Code par projet, avec mémoire",
+  "description": "Agentik : interface locale façon Superset pour piloter ses sessions Claude Code par projet, avec mémoire",
   "engines": {
     "node": ">=22.13"
   }

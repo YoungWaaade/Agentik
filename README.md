@@ -1,4 +1,4 @@
-# Agentic
+# Agentik
 
 Une interface locale façon [Superset](https://superset.sh) pour faire tourner plusieurs sessions **Claude Code** en parallèle, les ranger par projet et garder une mémoire par projet. Tout tourne sur ta machine : rien n'est hébergé, rien n'est envoyé ailleurs que ce que Claude Code envoie déjà.
 
@@ -25,7 +25,7 @@ npm install
 npm run service
 ```
 
-`npm run service` compile l'interface et installe Agentic comme service macOS : il démarre tout seul à l'ouverture de session et redémarre s'il plante.
+`npm run service` compile l'interface et installe Agentik comme service macOS : il démarre tout seul à l'ouverture de session et redémarre s'il plante.
 
 Ouvre ensuite **http://supersept.localhost:4317** (ou http://localhost:4317 si ton navigateur ne gère pas les adresses `.localhost`).
 
@@ -37,12 +37,12 @@ Astuce : pour l'avoir dans le Dock comme une app, utilise Chrome (menu ⋮ → C
 npm start
 ```
 
-Agentic tourne tant que le terminal reste ouvert.
+Agentik tourne tant que le terminal reste ouvert.
 
 ## Utilisation
 
 1. **Ajoute un projet** : bouton dossier à côté de « PROJETS » dans la sidebar.
-   - **Ouvrir un dossier** existant (Agentic propose aussi ceux où tu as déjà utilisé Claude Code) ;
+   - **Ouvrir un dossier** existant (Agentik propose aussi ceux où tu as déjà utilisé Claude Code) ;
    - **Cloner depuis GitHub** : choisis un de tes repos (ou colle son URL), il est cloné dans `~/claude sessions/<repo>` et devient un projet (nécessite `gh`) ;
    - **Nouveau projet vide** dans `~/claude sessions/`, que tu pourras relier à GitHub plus tard (clic droit sur le projet → Relier à un repo GitHub).
 2. **Nouvel espace de travail** (⌘N) : décris la tâche, choisis le projet, **Worktree** (branche isolée) ou **Local** (ton dossier), puis le modèle et l'effort.
@@ -55,7 +55,7 @@ Section **AGENTS** de la sidebar : chaque agent est un petit robot avec qui tu d
 
 - il crée des projets (vides, depuis un dossier ou un repo GitHub) et lance des sessions Claude Code avec une mission précise ;
 - il suit ces sessions : quand l'une se termine ou attend une réponse, il est prévenu automatiquement et te fait un point ;
-- il ne modifie jamais de fichiers lui-même : il agit uniquement via la commande `agentic` (alias `supersept`, `server/cli.mjs`), et les sessions qu'il lance restent visibles dans tes projets.
+- il ne modifie jamais de fichiers lui-même : il agit uniquement via la commande `agentik` (alias `agentic` et `supersept`, `server/cli.mjs`), et les sessions qu'il lance restent visibles dans tes projets.
 
 Le **+** de la section crée un agent (rôle, instructions, modèle, robot). Les agents sont enregistrés au format natif de Claude Code (`~/.claude/agents/<nom>.md`).
 
@@ -63,10 +63,10 @@ Raccourcis : ⌘N nouvel espace · ⌘K rechercher · ⌘T terminal · ⌘D divi
 
 ## Depuis ton iPhone
 
-Agentic a une vue mobile : liste des espaces (ceux qui attendent ta réponse en premier), terminal de Claude avec une barre de saisie et les touches qui manquent au clavier iOS (Esc, flèches, ⇧Tab, ^C…), et création d'un nouvel espace.
+Agentik a une vue mobile : liste des espaces (ceux qui attendent ta réponse en premier), terminal de Claude avec une barre de saisie et les touches qui manquent au clavier iOS (Esc, flèches, ⇧Tab, ^C…), et création d'un nouvel espace.
 
 1. Sur le Mac : **Réglages → Accès depuis le téléphone → Activer**.
-2. Scanne le QR code avec l'appareil photo de l'iPhone, puis dans Safari : **Partager → Sur l'écran d'accueil**. Tu as une icône Agentic qui s'ouvre en plein écran comme une app.
+2. Scanne le QR code avec l'appareil photo de l'iPhone, puis dans Safari : **Partager → Sur l'écran d'accueil**. Tu as une icône Agentik qui s'ouvre en plein écran comme une app.
 3. Pour y accéder hors de chez toi, installe [Tailscale](https://tailscale.com/download) sur le Mac et l'iPhone (même compte) : un QR code « Tailscale » apparaît. Sans Tailscale, ça ne marche que sur le même Wi‑Fi.
 
 Si l'iPhone n'arrive pas à se connecter, le pare-feu de macOS bloque peut-être `node` : Réglages Système → Réseau → Pare-feu → Options, et autorise les connexions entrantes pour `node`.
@@ -81,7 +81,7 @@ Tout est dans `~/.claude-hub/` :
 |---|---|
 | `hub.db` | projets, espaces, activité (SQLite) |
 | `memory/<projet>.md` | la mémoire de chaque projet |
-| `worktrees/` | les git worktrees créés par Agentic |
+| `worktrees/` | les git worktrees créés par Agentik |
 | `attachments/` | les pièces jointes envoyées à Claude |
 | `remote.json` | l'accès téléphone (activé ou non, jeton d'appairage) |
 
@@ -89,7 +89,7 @@ Les conversations elles-mêmes restent celles de Claude Code (`~/.claude/project
 
 ## Sécurité
 
-Agentic peut lancer des terminaux sur ta machine, il est donc verrouillé :
+Agentik peut lancer des terminaux sur ta machine, il est donc verrouillé :
 
 - il n'écoute que sur `127.0.0.1` : il est inaccessible depuis le réseau, sauf si tu actives l'accès téléphone ;
 - avec l'accès téléphone, seuls les appareils qui ont scanné le QR code (un jeton secret) peuvent se connecter. « Révoquer » change le jeton et déconnecte tous les téléphones. Sur un Wi‑Fi partagé, préfère Tailscale : le trafic local n'est pas chiffré ;

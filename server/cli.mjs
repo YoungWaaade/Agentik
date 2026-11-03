@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// `agentic` command (alias: `supersept`) used by chat agents (through Claude Code's Bash tool) to drive Agentic.
+// `agentik` command (aliases: `agentic`, `supersept`) used by chat agents (through Claude Code's Bash tool) to drive Agentik.
 import * as ops from './ops.js';
 
-const HELP = `agentic — piloter Agentic (alias : supersept, mêmes commandes)
+const HELP = `agentik — piloter Agentik (alias : agentic et supersept, mêmes commandes)
 
-  agentic projects
-  agentic create-project --name "Nom" [--github owner/repo | --folder ~/chemin]
-  agentic start-session --task "mission complète" [--project ID] [--name "Nom"] [--mode local|worktree] [--agent slug]
-  agentic sessions [--project ID] [--mine]
-  agentic session ID
-  agentic send ID "message"
-  agentic archive ID
-  agentic agents
-  agentic ask-agent AGENT_ID "mission"
-  agentic create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
-  agentic update-agent AGENT_ID [--name "Nom"] [--description "…"] [--prompt "…"] [--model sonnet]   (agent chef ; seuls ces champs changent)
-  agentic delete-agent AGENT_ID   (agent chef ; l'agent chef lui-même ne peut pas être supprimé)
-  agentic memory PROJECT_ID
-  agentic set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
+  agentik projects
+  agentik create-project --name "Nom" [--github owner/repo | --folder ~/chemin]
+  agentik start-session --task "mission complète" [--project ID] [--name "Nom"] [--mode local|worktree] [--agent slug]
+  agentik sessions [--project ID] [--mine]
+  agentik session ID
+  agentik send ID "message"
+  agentik archive ID
+  agentik agents
+  agentik ask-agent AGENT_ID "mission"
+  agentik create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
+  agentik update-agent AGENT_ID [--name "Nom"] [--description "…"] [--prompt "…"] [--model sonnet]   (agent chef ; seuls ces champs changent)
+  agentik delete-agent AGENT_ID   (agent chef ; l'agent chef lui-même ne peut pas être supprimé)
+  agentik memory PROJECT_ID
+  agentik set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
 
 Résultats en JSON.`;
 
