@@ -74,8 +74,8 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
               <div className="onb-hero">
                 {Object.keys(BOT_SHAPES).map((s) => <BotAvatar key={s} spec={s} size={40} />)}
               </div>
-              <h1>{redo ? "On reconfigure ton agent chef d'équipe" : 'Bienvenue dans Supersept'}</h1>
-              <p>Supersept réunit tes sessions Claude Code et une équipe d'agents. Commençons par {w.the} d'équipe : {w.il} reçoit toutes tes demandes, les confie à l'agent le plus adapté ou lance une session, puis te fait la synthèse.</p>
+              <h1>{redo ? "On reconfigure ton agent chef d'équipe" : 'Bienvenue dans Agentic'}</h1>
+              <p>Agentic réunit tes sessions Claude Code et une équipe d'agents. Commençons par {w.the} d'équipe : {w.il} reçoit toutes tes demandes, les confie à l'agent le plus adapté ou lance une session, puis te fait la synthèse.</p>
               <p className="muted small">Cinq étapes, une minute. Tout reste modifiable ensuite dans Agents.</p>
             </>
           )}
