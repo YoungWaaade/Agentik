@@ -1,21 +1,21 @@
 #!/usr/bin/env node
-// `supersept` command used by chat agents (through Claude Code's Bash tool) to drive Supersept.
+// `agentic` command (alias: `supersept`) used by chat agents (through Claude Code's Bash tool) to drive Agentic.
 import * as ops from './ops.js';
 
-const HELP = `supersept — piloter Supersept
+const HELP = `agentic — piloter Agentic (alias : supersept, mêmes commandes)
 
-  supersept projects
-  supersept create-project --name "Nom" [--github owner/repo | --folder ~/chemin]
-  supersept start-session --task "mission complète" [--project ID] [--name "Nom"] [--mode local|worktree] [--agent slug]
-  supersept sessions [--project ID] [--mine]
-  supersept session ID
-  supersept send ID "message"
-  supersept archive ID
-  supersept agents
-  supersept ask-agent AGENT_ID "mission"
-  supersept create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
-  supersept memory PROJECT_ID
-  supersept set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
+  agentic projects
+  agentic create-project --name "Nom" [--github owner/repo | --folder ~/chemin]
+  agentic start-session --task "mission complète" [--project ID] [--name "Nom"] [--mode local|worktree] [--agent slug]
+  agentic sessions [--project ID] [--mine]
+  agentic session ID
+  agentic send ID "message"
+  agentic archive ID
+  agentic agents
+  agentic ask-agent AGENT_ID "mission"
+  agentic create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
+  agentic memory PROJECT_ID
+  agentic set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
 
 Résultats en JSON.`;
 
@@ -55,7 +55,7 @@ const run = {
 
 if (!cmd || !run[cmd]) {
   console.log(HELP);
-  process.exit(cmd && cmd !== 'help' ? 1 : 0);
+  process.exit(cmd && !['help', '--help', '-h'].includes(cmd) ? 1 : 0);
 }
 try {
   const out = await run[cmd]();

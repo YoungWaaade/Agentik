@@ -99,7 +99,7 @@ export default function App() {
   }, [load]);
 
   const attention = data.workspaces.filter((w) => !w.archived && ['review', 'waiting', 'error'].includes(w.status)).length;
-  useEffect(() => { document.title = attention ? `(${attention}) Supersept` : 'Supersept'; }, [attention]);
+  useEffect(() => { document.title = attention ? `(${attention}) Agentic` : 'Agentic'; }, [attention]);
 
   const go = (r) => { location.hash = r.id ? `#/${r.kind}/${r.id}` : `#/${r.kind}`; };
   // A relayed session (context full) opens the one that took over.
