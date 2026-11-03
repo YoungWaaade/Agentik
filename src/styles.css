@@ -94,6 +94,7 @@
   --status-working-ping: var(--amber-400);
   --status-waiting: var(--yellow-500);
   --status-waiting-ping: var(--yellow-400);
+  --spinner-size: 16px;
   --overlay: rgba(0, 0, 0, 0.5);
   --overlay-cmd: rgba(0, 0, 0, 0.4);
   --lightbox-bg: rgba(0, 0, 0, 0.82);
@@ -201,10 +202,11 @@
   --event-fg: #9a3a17;
   --event-bg: rgba(var(--primary-rgb), 0.12);
   --event-ring: inset 0 0 0 1px rgba(var(--primary-rgb), 0.3);
-  --status-working: #b06d00;
-  --status-working-ping: #b06d00;
-  --status-waiting: #b06d00;
-  --status-waiting-ping: #b06d00;
+  --status-working: #8a4500;
+  --status-working-ping: #8a4500;
+  --status-waiting: #733800;
+  --status-waiting-ping: #733800;
+  --spinner-size: 22px;
   --overlay: rgba(0, 0, 0, 0.25);
   --overlay-cmd: rgba(0, 0, 0, 0.18);
   --lightbox-bg: rgba(0, 0, 0, 0.82);
@@ -286,7 +288,7 @@ input, select, textarea { font: inherit; color: var(--foreground); }
 .context-menu { position: fixed; width: 230px; }
 
 /* ---------- workspace + project icons ---------- */
-.ascii-spinner { color: var(--status-working); font-family: var(--font-mono); font-size: 16px; line-height: 20px; user-select: none; }
+.ascii-spinner { color: var(--status-working); font-family: var(--font-mono); font-size: var(--spinner-size); line-height: 20px; user-select: none; }
 .ws-icon { position: relative; display: inline-flex; color: var(--muted-foreground); opacity: 0.8; }
 .ws-icon.active { opacity: 1; }
 .status-ind { position: relative; display: inline-flex; width: 8px; height: 8px; flex: none; }
@@ -758,6 +760,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .bsi { flex: none; }
 .bsi.idle { color: rgba(var(--muted-fg-rgb), 0.55); }
 .bsi.working { color: var(--status-working); }
+/* Light: running/waiting markers drawn a little larger, scaled so rows keep their size. */
+:root[data-theme='light'] .status-ind, :root[data-theme='light'] .bsi.working { transform: scale(1.25); }
 .bsi.attention { color: var(--red-500); }
 .bsi.review { color: var(--emerald-500); }
 .bsi-slot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; }
