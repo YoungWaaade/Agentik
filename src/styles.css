@@ -87,6 +87,13 @@
   --checker-a: #67635f;
   --checker-b: #5a5754;
   --bot-eye: #000;
+  --event-fg: var(--primary-fg);
+  --event-bg: rgba(var(--primary-rgb), 0.08);
+  --event-ring: none;
+  --status-working: var(--amber-500);
+  --status-working-ping: var(--amber-400);
+  --status-waiting: var(--yellow-500);
+  --status-waiting-ping: var(--yellow-400);
   --overlay: rgba(0, 0, 0, 0.5);
   --overlay-cmd: rgba(0, 0, 0, 0.4);
   --lightbox-bg: rgba(0, 0, 0, 0.82);
@@ -191,6 +198,13 @@
   --checker-a: #ececf0;
   --checker-b: #dcdce0;
   --bot-eye: #000;
+  --event-fg: #9a3a17;
+  --event-bg: rgba(var(--primary-rgb), 0.12);
+  --event-ring: inset 0 0 0 1px rgba(var(--primary-rgb), 0.3);
+  --status-working: #b06d00;
+  --status-working-ping: #b06d00;
+  --status-waiting: #b06d00;
+  --status-waiting-ping: #b06d00;
   --overlay: rgba(0, 0, 0, 0.25);
   --overlay-cmd: rgba(0, 0, 0, 0.18);
   --lightbox-bg: rgba(0, 0, 0, 0.82);
@@ -272,17 +286,17 @@ input, select, textarea { font: inherit; color: var(--foreground); }
 .context-menu { position: fixed; width: 230px; }
 
 /* ---------- workspace + project icons ---------- */
-.ascii-spinner { color: var(--amber-500); font-family: var(--font-mono); font-size: 16px; line-height: 20px; user-select: none; }
+.ascii-spinner { color: var(--status-working); font-family: var(--font-mono); font-size: 16px; line-height: 20px; user-select: none; }
 .ws-icon { position: relative; display: inline-flex; color: var(--muted-foreground); opacity: 0.8; }
 .ws-icon.active { opacity: 1; }
 .status-ind { position: relative; display: inline-flex; width: 8px; height: 8px; flex: none; }
 .status-ind.corner { position: absolute; top: -2px; right: -2px; }
 .status-ind-ping { position: absolute; inset: 0; border-radius: 50%; opacity: 0.75; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite; }
 .status-ind-dot { position: relative; width: 8px; height: 8px; border-radius: 50%; }
-.status-ind.waiting .status-ind-ping { background: var(--yellow-400); }
-.status-ind.waiting .status-ind-dot { background: var(--yellow-500); }
-.status-ind.working .status-ind-ping { background: var(--amber-400); }
-.status-ind.working .status-ind-dot { background: var(--amber-500); }
+.status-ind.waiting .status-ind-ping { background: var(--status-waiting-ping); }
+.status-ind.waiting .status-ind-dot { background: var(--status-waiting); }
+.status-ind.working .status-ind-ping { background: var(--status-working-ping); }
+.status-ind.working .status-ind-dot { background: var(--status-working); }
 .status-ind.review .status-ind-dot { background: var(--green-500); }
 .status-ind.error .status-ind-dot { background: var(--red-500); }
 @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
@@ -743,7 +757,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 
 .bsi { flex: none; }
 .bsi.idle { color: rgba(var(--muted-fg-rgb), 0.55); }
-.bsi.working { color: var(--amber-500); }
+.bsi.working { color: var(--status-working); }
 .bsi.attention { color: var(--red-500); }
 .bsi.review { color: var(--emerald-500); }
 .bsi-slot { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; flex: none; }
@@ -1090,8 +1104,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .msg-activity.error { color: var(--danger-fg); }
 .msg-activity.link { cursor: pointer; }
 .msg-activity.link:hover { color: var(--foreground); border-color: var(--ring); }
-.msg-system { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: rgba(var(--primary-rgb), 0.08); font-size: 11.5px; color: var(--primary-fg); margin: 4px 0; }
-.msg-system.error { background: rgba(var(--destructive-rgb), 0.1); color: var(--danger-fg); }
+.msg-system { align-self: center; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; background: var(--event-bg); box-shadow: var(--event-ring); font-size: 11.5px; color: var(--event-fg); margin: 4px 0; }
+.msg-system.error { box-shadow: none; background: rgba(var(--destructive-rgb), 0.1); color: var(--danger-fg); }
 .msg-typing { display: inline-flex; gap: 4px; padding: 10px 2px; }
 .msg-typing span, .sb-agent-busy span { width: 5px; height: 5px; border-radius: 50%; background: var(--muted-foreground); animation: typing 1.2s infinite ease-in-out; }
 .msg-typing span:nth-child(2), .sb-agent-busy span:nth-child(2) { animation-delay: 0.15s; }
