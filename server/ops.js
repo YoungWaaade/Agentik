@@ -81,6 +81,24 @@ export async function askAgent(slug, mission) {
   await call('POST', `/api/agents/${slug}/chat`, { text: mission });
   return { agent: slug, statut: 'mission confiée — sa réponse te sera transmise automatiquement' };
 }
+// Changes only the fields given; everything else in the agent's file is sent back as it is (same route as the app).
+export async function updateAgent(slug, { name, description, prompt, model }) {
+  const a = (await call('GET', '/api/agents')).find((x) => x.slug === slug);
+  if (!a) throw new Error(`agent « ${slug} » introuvable (agentic agents pour la liste)`);
+  const changes = Object.fromEntries(Object.entries({ label: name, description, prompt, model }).filter(([, v]) => typeof v === 'string'));
+  if (!Object.keys(changes).length) throw new Error('rien à modifier : passe --name, --description, --prompt ou --model');
+  const { slug: _, ...current } = a;
+  // Like the app, a new name renames the agent (its id follows the name).
+  const b = await call('PUT', `/api/agents/${slug}`, { ...current, ...changes, slug: changes.label || slug });
+  return { id: b.slug, nom: b.label, modifie: Object.keys(changes).map((k) => (k === 'label' ? 'name' : k)), statut: 'agent mis à jour' };
+}
+export async function deleteAgent(slug) {
+  const a = (await call('GET', '/api/agents')).find((x) => x.slug === slug);
+  if (!a) throw new Error(`agent « ${slug} » introuvable (agentic agents pour la liste)`);
+  if (a.manager) throw new Error(`« ${a.label} » est l'agent chef : il ne peut pas être supprimé`);
+  await call('DELETE', `/api/agents/${slug}`);
+  return { id: slug, nom: a.label, statut: 'agent supprimé' };
+}
 export async function createAgent({ name, description, prompt, model, avatar }) {
   const a = await call('PUT', '/api/agents/new', { label: name, slug: name, description, prompt, model, avatar });
   return { id: a.slug, nom: a.label, statut: 'agent créé' };

@@ -164,6 +164,7 @@ export function SettingsPage({ me }) {
               <span>Choisir à nouveau le genre, le nom, l'avatar et ton prénom. L'agent chef est mis à jour (ou créé) ; les autres agents ne changent pas.</span>
               <button className="btn-ghost" onClick={() => { location.hash = '#/onboarding'; }}>Refaire l'onboarding</button>
             </div>
+            <LeadManagesAgents />
           </section>
           <ContextRelay />
           <RemoteAccess />
@@ -182,6 +183,23 @@ export function SettingsPage({ me }) {
         </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// The team lead may edit and delete agents from the CLI (update-agent, delete-agent), never itself.
+function LeadManagesAgents() {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => { api.get('/api/lead-settings').then(setCfg).catch(() => {}); }, []);
+  if (!cfg) return null;
+  const toggle = () => api.put('/api/lead-settings', { manageAgents: !cfg.manageAgents }).then(setCfg).catch((e) => alert(e.message));
+  return (
+    <div className="settings-row">
+      <span>L'agent chef peut gérer les agents : les modifier et les supprimer (jamais lui-même)</span>
+      <span className="settings-row-actions">
+        <span className={`tag ${cfg.manageAgents ? 'green' : ''}`}>{cfg.manageAgents ? 'activé' : 'désactivé'}</span>
+        <button className="btn-ghost" onClick={toggle}>{cfg.manageAgents ? 'Désactiver' : 'Activer'}</button>
+      </span>
     </div>
   );
 }

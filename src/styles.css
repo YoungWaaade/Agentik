@@ -75,6 +75,7 @@ input, select, textarea { font: inherit; color: var(--foreground); }
 .tag { font-size: 11px; line-height: 16px; padding: 0 6px; border-radius: 4px; background: var(--fill-selected); color: var(--muted-foreground); white-space: nowrap; }
 .tag.green { background: rgba(0, 188, 125, 0.15); color: var(--emerald-400); }
 .tag.red { background: rgba(251, 44, 54, 0.15); color: var(--red-400); }
+.settings-row-actions { display: flex; align-items: center; gap: 8px; flex: none; }
 .empty-note { color: var(--muted-foreground); padding: 16px; margin: 0; font-size: 12px; }
 .empty-note a { color: var(--foreground); text-decoration: underline; }
 .error-bar { margin-top: 8px; padding: 6px 10px; border-radius: 6px; background: rgba(204, 68, 68, 0.1); box-shadow: inset 0 0 0 1px rgba(204, 68, 68, 0.25); color: #e88888; font-size: 12px; cursor: pointer; }

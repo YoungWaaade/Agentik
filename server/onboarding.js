@@ -6,6 +6,7 @@ import { HUB_DIR } from './db.js';
 import { listAgents, getAgent, saveAgent, slugify } from './agents.js';
 
 const FILE = path.join(HUB_DIR, 'onboarding.json');
+const LEAD = path.join(HUB_DIR, 'lead.json');
 
 function read() {
   try { return JSON.parse(fs.readFileSync(FILE, 'utf8')); } catch { return null; }
@@ -23,6 +24,21 @@ export function status() {
 }
 
 export const firstName = () => read()?.firstName || '';
+
+// What the team lead may do beyond delegating. manageAgents: edit and delete agents from the CLI (on by default).
+export function leadSettings() {
+  let saved = {};
+  try { saved = JSON.parse(fs.readFileSync(LEAD, 'utf8')); } catch {}
+  return { manageAgents: saved.manageAgents !== false };
+}
+
+export function setLeadSettings(patch = {}) {
+  const s = leadSettings();
+  if (patch.manageAgents !== undefined) s.manageAgents = !!patch.manageAgents;
+  fs.mkdirSync(HUB_DIR, { recursive: true });
+  fs.writeFileSync(LEAD, JSON.stringify(s, null, 2) + '\n');
+  return s;
+}
 
 // Agreement variants of the coordination prompt, kept faithful to the original team lead's role.
 const WORDS = {

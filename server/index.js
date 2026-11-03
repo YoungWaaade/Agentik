@@ -882,9 +882,20 @@ app.post('/api/workspaces/:id/send', wrap(async (req, res) => {
   res.json({ ok: true, demarree: fresh, ...(ws.id !== req.params.id ? { relayee_vers: ws.id } : {}) });
 }));
 
+// Requests from a chat agent (the CLI sets X-Supersept-Agent) may edit or delete agents only when it is
+// the team lead and the "L'agent chef peut gérer les agents" setting is on. The app itself is not limited.
+function checkAgentAdmin(req, target) {
+  const caller = req.get('X-Supersept-Agent');
+  if (!caller) return;
+  if (!getAgent(caller)?.manager) throw new Error("seul l'agent chef peut modifier ou supprimer des agents");
+  if (!onboarding.leadSettings().manageAgents) throw new Error("la gestion des agents par l'agent chef est désactivée dans les Réglages");
+  if (!getAgent(target)) throw new Error(`agent « ${target} » introuvable`);
+}
+
 app.put('/api/agents/:slug', wrap(async (req, res) => {
   const slug = req.body.slug ? slugify(req.body.slug) : req.params.slug;
   if (!isSlug(req.params.slug) && req.params.slug !== 'new') throw new Error('agent invalide');
+  if (req.params.slug !== 'new') checkAgentAdmin(req, req.params.slug);
   if (slug !== req.params.slug && getAgent(slug)) throw new Error(`un agent « ${slug} » existe déjà`);
   const a = saveAgent(slug, req.body);
   if (req.params.slug !== 'new' && slug !== req.params.slug) {
@@ -906,6 +917,8 @@ app.put('/api/agents/:slug', wrap(async (req, res) => {
 }));
 
 app.get('/api/onboarding', (req, res) => res.json(onboarding.status()));
+app.get('/api/lead-settings', (req, res) => res.json(onboarding.leadSettings()));
+app.put('/api/lead-settings', wrap(async (req, res) => res.json(onboarding.setLeadSettings(req.body || {}))));
 app.post('/api/onboarding', wrap(async (req, res) => {
   const a = onboarding.complete(req.body || {});
   broadcast({ type: 'reload' });
@@ -913,6 +926,8 @@ app.post('/api/onboarding', wrap(async (req, res) => {
 }));
 
 app.delete('/api/agents/:slug', wrap(async (req, res) => {
+  checkAgentAdmin(req, req.params.slug);
+  if (req.get('X-Supersept-Agent') && getAgent(req.params.slug)?.manager) throw new Error("l'agent chef ne peut pas être supprimé");
   deleteAgent(req.params.slug);
   broadcast({ type: 'reload' });
   res.json({ ok: true });

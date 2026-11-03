@@ -14,6 +14,8 @@ const HELP = `agentic — piloter Agentic (alias : supersept, mêmes commandes)
   agentic agents
   agentic ask-agent AGENT_ID "mission"
   agentic create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
+  agentic update-agent AGENT_ID [--name "Nom"] [--description "…"] [--prompt "…"] [--model sonnet]   (agent chef ; seuls ces champs changent)
+  agentic delete-agent AGENT_ID   (agent chef ; l'agent chef lui-même ne peut pas être supprimé)
   agentic memory PROJECT_ID
   agentic set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
 
@@ -50,6 +52,8 @@ const run = {
   agents: () => ops.listAgents(),
   'ask-agent': () => ops.askAgent(pos[0], pos.slice(1).join(' ') || flags.mission),
   'create-agent': () => ops.createAgent({ name: flags.name, description: flags.description, prompt: flags.prompt, model: flags.model, avatar: flags.avatar }),
+  'update-agent': () => ops.updateAgent(pos[0], { name: flags.name, description: flags.description, prompt: flags.prompt, model: flags.model }),
+  'delete-agent': () => ops.deleteAgent(pos[0]),
   'set-memory': async () => ops.writeMemory(pos[0], flags.content ?? await stdin()),
 };
 

@@ -57,6 +57,10 @@ export function saveAgent(slug, data) {
     const v = k === 'name' ? slug : String(meta[k] ?? '').trim();
     if (v) lines.push(`${k}: ${k === 'description' || k === 'initialPrompt' ? JSON.stringify(v) : yamlValue(v)}`);
   }
+  // Keys this app doesn't manage (added by hand or by Claude Code) are kept as they are.
+  for (const [k, v] of Object.entries(data)) {
+    if (!FIELDS.includes(k) && !['slug', 'label', 'prompt'].includes(k) && /^[A-Za-z][\w-]*$/.test(k) && typeof v === 'string' && v.trim()) lines.push(`${k}: ${yamlValue(v.trim())}`);
+  }
   // The display name may differ from the slug: keep it as a Supersept label.
   if (String(data.label || '').trim()) lines.push(`label: ${JSON.stringify(String(data.label).trim())}`);
   lines.push('---', '', String(data.prompt).trim(), '');

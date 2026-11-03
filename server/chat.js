@@ -8,6 +8,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR } from './db.js';
 import { getAgent, listAgents } from './agents.js';
+import { leadSettings } from './onboarding.js';
 import * as relay from './relay.js';
 
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cli.mjs');
@@ -143,6 +144,10 @@ function managerSection(a) {
     '- Si aucun agent ne convient, lance toi-même une session (supersept start-session).',
     "- Si un besoin revient souvent et qu'aucun agent ne le couvre, propose à l'utilisateur de créer un agent ; crée-le seulement après son accord : supersept create-agent --name \"Nom\" --description \"quand l'utiliser\" --prompt \"instructions\".",
     "- supersept agents liste l'équipe à jour.",
+    ...(leadSettings().manageAgents ? [
+      '- Modifier un agent (seuls les champs passés changent) : supersept update-agent IDENTIFIANT [--name "Nom"] [--description "…"] [--prompt "…"] [--model sonnet]',
+      "- Supprimer un agent, seulement après l'accord de l'utilisateur : supersept delete-agent IDENTIFIANT (tu ne peux pas te supprimer toi-même).",
+    ] : []),
   ];
 }
 
