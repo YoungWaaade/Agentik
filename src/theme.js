@@ -5,8 +5,8 @@ import { useSyncExternalStore } from 'react';
 
 const KEY = 'agentik-theme';
 export const THEME_PREFS = [['light', 'Clair'], ['dark', 'Sombre'], ['system', 'Système']];
-// Status bar / browser chrome colour, the --background of each theme.
-const CHROME = { dark: '#151110', light: '#faf8f7' };
+// Status bar / browser chrome colour: the background (dark) or the header grey (light).
+const CHROME = { dark: '#151110', light: '#f2f2f7' };
 const media = matchMedia('(prefers-color-scheme: light)');
 const subs = new Set();
 

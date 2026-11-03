@@ -32,7 +32,7 @@ export const BOT_SHAPES = {
 // The shapes' own colours, then brighter ones that stand out on the dark UI and keep the black eyes readable.
 // `light` is the same colour for the light theme: pale ones get deeper so the shape still shows on paper.
 export const BOT_COLORS = {
-  blanc: { label: 'Blanc', hex: '#FFFFFF', light: '#CFC8C3' },
+  blanc: { label: 'Blanc', hex: '#FFFFFF', light: '#C7C7CC' },
   ecume: { label: 'Écume', hex: '#DAFBF2', light: '#9FDCCB' },
   menthe: { label: 'Menthe', hex: '#94FFB4', light: '#4FD883' },
   vert: { label: 'Vert', hex: '#00BD57', light: '#00BD57' },

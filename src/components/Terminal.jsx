@@ -7,8 +7,8 @@ import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { wsUrl, uploadFile } from '../api.js';
 import { activeTheme, onThemeChange } from '../theme.js';
 
-// Superset's built-in "ember" dark theme, and a light counterpart with the same hues darkened
-// enough to read on paper (ANSI "white" stays light-ish: TUIs use it as a background tint).
+// Superset's built-in "ember" dark theme, and a light one on white (lavender-indigo blue for paths
+// and links, every colour above 4.5:1; ANSI "white" stays light-ish: TUIs use it as a background tint).
 const THEMES = {
   dark: {
     background: '#151110',
@@ -20,13 +20,13 @@ const THEMES = {
     brightBlack: '#5c5856', brightRed: '#e88888', brightGreen: '#98d1a8', brightYellow: '#ecd08f', brightBlue: '#7ec0f5', brightMagenta: '#d494e6', brightCyan: '#73c7d3', brightWhite: '#ffffff',
   },
   light: {
-    background: '#faf8f7',
-    foreground: '#1f1a18',
-    cursor: '#b9512b',
-    cursorAccent: '#faf8f7',
-    selectionBackground: 'rgba(185,81,43,0.2)',
-    black: '#1f1a18', red: '#c0392b', green: '#2e7d32', yellow: '#946200', blue: '#1f63a8', magenta: '#8e3fa8', cyan: '#00737a', white: '#e8e3e0',
-    brightBlack: '#6f6864', brightRed: '#a8281c', brightGreen: '#1f6a25', brightYellow: '#7a5200', brightBlue: '#17508a', brightMagenta: '#74308c', brightCyan: '#005e64', brightWhite: '#f3f0ee',
+    background: '#ffffff',
+    foreground: '#000000',
+    cursor: '#111113',
+    cursorAccent: '#ffffff',
+    selectionBackground: 'rgba(88,98,216,0.18)',
+    black: '#000000', red: '#d1293d', green: '#0e7a3e', yellow: '#8f5f00', blue: '#5862d8', magenta: '#8e44ad', cyan: '#00727a', white: '#e5e5ea',
+    brightBlack: '#6e6e73', brightRed: '#c0213a', brightGreen: '#0b6b35', brightYellow: '#7a5200', brightBlue: '#4a55c8', brightMagenta: '#7b3699', brightCyan: '#005f66', brightWhite: '#f2f2f7',
   },
 };
 const FONT = '"JetBrains Mono", "JetBrainsMono Nerd Font", "MesloLGM Nerd Font", "MesloLGM NF", "MesloLGS NF", "MesloLGS Nerd Font", "Hack Nerd Font", "FiraCode Nerd Font", "CaskaydiaCove Nerd Font", "Menlo", "Monaco", "Courier New", monospace';
