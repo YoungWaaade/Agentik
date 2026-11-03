@@ -7,7 +7,7 @@ import { useChat, useConvs, loadConvs, loadChat, peekConvs, peekChat, setViewing
 import { checkLive } from '../live.js';
 import BotAvatar, { accentOf } from './BotAvatar.jsx';
 import { splitAgents } from '../agentTeam.js';
-import { Message, convTitle, lastKey } from './AgentChat.jsx';
+import { Message, JumpDown, convTitle, lastKey } from './AgentChat.jsx';
 import { PushBell, PushCallout } from './PushPanel.jsx';
 
 const SUGGESTIONS = ['Qu\'est-ce que tu peux faire pour moi ?', 'Fais le point sur mes sessions en cours'];
@@ -162,21 +162,39 @@ export function AgentScreen({ agent, go }) {
     return () => removeEventListener('m-open-conv', on);
   }, [agent.slug]);
 
-  // Opens on the last message; stays at the bottom while new ones arrive, unless scrolled up.
-  const toBottom = () => { const el = scroller.current; if (el) el.scrollTop = el.scrollHeight; };
-  useLayoutEffect(() => { stick.current = true; toBottom(); }, [active, chat?.loaded]);
+  // Opens on the last message before the first paint (no visible scrolling); stays at the bottom while images/messages
+  // arrive, until the user scrolls up (only a real upward scroll unsticks: content growing must not).
+  const lastTop = useRef(0);
+  const [away, setAway] = useState(false);
+  const toBottom = (smooth) => {
+    const el = scroller.current;
+    if (!el) return;
+    if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    else el.scrollTop = el.scrollHeight;
+  };
+  useLayoutEffect(() => { stick.current = true; setAway(false); toBottom(); lastTop.current = scroller.current?.scrollTop || 0; }, [active, chat?.loaded]);
   useLayoutEffect(() => { if (stick.current) toBottom(); }, [chat?.messages.length, chat?.busy]);
   useEffect(() => {
     const el = scroller.current;
     const col = el?.firstElementChild;
     if (!col) return;
-    const onScroll = () => { stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60; };
+    const onScroll = () => {
+      const gap = el.scrollHeight - el.scrollTop - el.clientHeight;
+      if (gap < 40) stick.current = true;
+      else if (el.scrollTop < lastTop.current - 2) stick.current = false;
+      lastTop.current = el.scrollTop;
+      setAway(!stick.current && gap > 160);
+    };
+    const onLoad = () => { if (stick.current) toBottom(); }; // an image/video got its height
     const ro = new ResizeObserver(() => { if (stick.current) toBottom(); });
     el.addEventListener('scroll', onScroll, { passive: true });
+    col.addEventListener('load', onLoad, true);
+    col.addEventListener('loadedmetadata', onLoad, true);
     ro.observe(col);
     ro.observe(el); // the keyboard opening shrinks the list
-    return () => { el.removeEventListener('scroll', onScroll); ro.disconnect(); };
+    return () => { el.removeEventListener('scroll', onScroll); col.removeEventListener('load', onLoad, true); col.removeEventListener('loadedmetadata', onLoad, true); ro.disconnect(); };
   }, []);
+  const jump = () => { stick.current = true; setAway(false); toBottom(true); };
   useEffect(() => {
     const el = input.current;
     el.style.height = 'auto';
@@ -257,6 +275,7 @@ export function AgentScreen({ agent, go }) {
             <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={26} className="msg-bot" busy /><div className="msg-typing"><span /><span /><span /></div></div>
           )}
         </div>
+        {away && <JumpDown onClick={jump} />}
       </div>
 
       {error && <div className="error-bar m-chat-error" onClick={() => setError(null)}>{error}</div>}

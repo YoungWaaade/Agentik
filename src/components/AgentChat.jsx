@@ -35,6 +35,11 @@ function MediaActions({ src }) {
     </div>
   );
 }
+// Zero-height sticky anchor at the end of the scroller: the button floats above the composer without changing the layout.
+export function JumpDown({ onClick }) {
+  return <div className="jump-down"><button type="button" onClick={onClick} aria-label="Aller au dernier message"><LuChevronDown size={18} /></button></div>;
+}
+
 function Media({ src, alt }) {
   const [open, setOpen] = useState(false);
   if (/\.(mp4|mov|webm)$/i.test(src)) return (
@@ -143,6 +148,7 @@ export default function AgentChat({ agent, go }) {
   const lastTop = useRef(0);
   const opened = useRef(0); // when the conversation was shown: content arriving soon after jumps, later it glides
   const convKey = `${agent.slug}:${active}`;
+  const [away, setAway] = useState(false); // scrolled up to read: show the "↓ latest" button
   const toBottom = (smooth) => {
     const el = list_.current;
     if (!el) return;
@@ -172,12 +178,17 @@ export default function AgentChat({ agent, go }) {
       if (atBottom) stick.current = true;
       else if (el.scrollTop < lastTop.current - 2) stick.current = false; // only the user scrolls up
       lastTop.current = el.scrollTop;
+      setAway(!stick.current && el.scrollHeight - el.scrollTop - el.clientHeight > 160);
     };
+    const onLoad = () => { if (stick.current) toBottom(false); }; // an image/video got its height
+    col.addEventListener('load', onLoad, true);
+    col.addEventListener('loadedmetadata', onLoad, true);
     const ro = new ResizeObserver(() => { if (stick.current) toBottom(performance.now() - opened.current > 1500); });
     el.addEventListener('scroll', onScroll, { passive: true });
     ro.observe(col);
-    return () => { el.removeEventListener('scroll', onScroll); ro.disconnect(); };
+    return () => { el.removeEventListener('scroll', onScroll); col.removeEventListener('load', onLoad, true); col.removeEventListener('loadedmetadata', onLoad, true); ro.disconnect(); };
   }, []);
+  const jump = () => { stick.current = true; setAway(false); toBottom(true); };
   useEffect(() => {
     drafts.current.set(active, text);
     const el = input.current;
@@ -316,6 +327,7 @@ export default function AgentChat({ agent, go }) {
             <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={26} className="msg-bot" busy /><div className="msg-typing"><span /><span /><span /></div></div>
           )}
         </div>
+        {away && <JumpDown onClick={jump} />}
       </div>
 
       <div className="chat-composer">
