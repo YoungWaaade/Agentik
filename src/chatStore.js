@@ -29,6 +29,7 @@ export async function loadConvs(agent) {
 }
 
 export function onChatEvent(m) {
+  if (m.type !== 'chat' || m.message?.role === 'error' || m.message?.role === 'user') missionsChanged();
   if (m.type === 'chat-convs' || m.type === 'chat-reset') {
     if (convs.has(m.agent)) loadConvs(m.agent).catch(() => {});
     return;
@@ -85,4 +86,26 @@ export function useChatBadges() {
     busyConv: (a, c) => !!chats.get(k(a, c))?.busy,
     unreadConv: (a, c) => unread.get(k(a, c)) || 0,
   };
+}
+
+// Missions handed off by a conversation (other agents, sessions), see missions() in server/chat.js.
+// Refetched when something that changes them happens: a turn starts or ends, a session changes status.
+const missionSubs = new Set();
+let missionTimer = null;
+export function missionsChanged() {
+  clearTimeout(missionTimer);
+  missionTimer = setTimeout(() => missionSubs.forEach((f) => f()), 200);
+}
+export function useMissions(agent, conv) {
+  const [state, setState] = useState({ missions: [], skew: 0 });
+  useEffect(() => {
+    if (!agent || conv === null || conv === undefined) { setState({ missions: [], skew: 0 }); return; }
+    let alive = true;
+    const load = () => api.get(`/api/agents/${agent}/conversations/${conv}/missions`)
+      .then((r) => alive && setState({ missions: r.missions, skew: Date.now() - r.now })).catch(() => {});
+    load();
+    missionSubs.add(load);
+    return () => { alive = false; missionSubs.delete(load); };
+  }, [agent, conv]);
+  return state;
 }

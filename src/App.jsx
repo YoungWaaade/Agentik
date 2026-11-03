@@ -6,7 +6,7 @@ import Board from './components/Board.jsx';
 import ProjectMenu from './components/ProjectMenu.jsx';
 import AgentsPage from './components/AgentsPage.jsx';
 import AgentChat from './components/AgentChat.jsx';
-import { onChatEvent } from './chatStore.js';
+import { onChatEvent, missionsChanged } from './chatStore.js';
 import { MemoryPage, HistoryPage, SettingsPage } from './components/Pages.jsx';
 import NewWorkspacePage from './components/NewWorkspacePage.jsx';
 import AddProject from './components/AddProject.jsx';
@@ -82,6 +82,7 @@ export default function App() {
           } else toast({ title: 'Session relayée', text: `Conversation de ${m.label} : contexte plein${size}, elle continue sur une nouvelle session.`, route: { kind: 'agent', id: m.agent } });
         }
         if (m.type === 'workspace') {
+          if (m.workspace.owner_agent) missionsChanged();
           setData((d) => {
             const prev = d.workspaces.find((w) => w.id === m.workspace.id);
             if (prev && prev.status !== m.workspace.status) notify(m.workspace, d.projects, routeRef.current);

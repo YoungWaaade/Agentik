@@ -928,6 +928,33 @@ body.resizing { user-select: none; cursor: col-resize; }
 .chat-send:disabled { background: rgba(234, 232, 230, 0.1); color: var(--muted-foreground); opacity: 1; }
 .chat-send.stop { background: rgba(234, 232, 230, 0.12); color: var(--foreground); }
 .chat-hint { margin-top: 6px; text-align: center; font-size: 11px; color: rgba(168, 165, 163, 0.6); }
+/* Missions handed off by the conversation (MissionStrip): one pill per agent or session at work. */
+.missions { display: flex; gap: 6px; min-width: 0; padding: 0 2px; overflow: hidden; }
+.missions.expanded { flex-wrap: wrap; }
+.mission { flex: 0 1 auto; min-width: 0; max-width: 250px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px 0 5px; border-radius: 999px; border: 0.5px solid var(--border); background: rgba(234, 232, 230, 0.025); font-size: 11.5px; color: var(--muted-foreground); cursor: pointer; animation: fadeIn 200ms var(--ease); transition: opacity 600ms var(--ease), border-color 150ms var(--ease), color 150ms var(--ease); }
+.mission:hover, .mission:focus-visible { color: var(--foreground); border-color: var(--ring); outline: none; }
+.mission.leaving { opacity: 0; }
+.mission-bot, .mission-icon { flex: none; }
+.mission-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 5px; background: var(--fill-selected); color: var(--fg-80); }
+.mission-name { flex: none; font-weight: 500; color: var(--fg-80); }
+.mission-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mission-state { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.mission.waiting .mission-state { color: var(--yellow-400); }
+.mission.done .mission-state { color: var(--emerald-500); }
+.mission.error { border-color: rgba(204, 68, 68, 0.35); }
+.mission.error .mission-state { color: #e88888; }
+.mission-dots { display: inline-flex; gap: 2.5px; }
+.mission-dots span { width: 3.5px; height: 3.5px; border-radius: 50%; background: var(--primary); animation: typing 1.2s infinite ease-in-out; }
+.mission-dots span:nth-child(2) { animation-delay: 0.15s; }
+.mission-dots span:nth-child(3) { animation-delay: 0.3s; }
+.mission-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2s infinite ease-in-out; }
+.mission-dismiss { display: inline-flex; margin-right: -3px; padding: 2px; border-radius: 999px; color: var(--muted-foreground); }
+.mission-dismiss:hover { color: var(--foreground); background: var(--fill-hover); }
+.mission-more { flex: none; padding: 0 9px; gap: 5px; }
+@media (prefers-reduced-motion: reduce) {
+  .mission { animation: none; transition: none; }
+  .mission-dots span, .mission-dot { animation: none; opacity: 0.8; }
+}
 .sb-agent .sb-ws-inner { padding-left: 17px; }
 .sb-agent .sb-ws-icon { width: 22px; margin-right: 6px; }
 .sb-agent-busy { display: inline-flex; gap: 3px; }

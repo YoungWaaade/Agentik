@@ -4,6 +4,7 @@ import { api, ago, uploadFile, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
 import { AttachmentChip, Lightbox } from './Attachments.jsx';
+import MissionStrip from './MissionStrip.jsx';
 import { safeHref, trimUrl, isPath } from '../links.js';
 
 const ICONS = { folder: LuFolder, 'folder-plus': LuFolderPlus, play: LuPlay, layers: LuLayers, eye: LuEye, send: LuSend, archive: LuArchive, brain: LuBrain, search: LuSearch, globe: LuGlobe, tool: LuWrench, users: LuUsers, bot: LuBot, image: LuImage };
@@ -288,6 +289,7 @@ export default function AgentChat({ agent, go }) {
 
       <div className="chat-composer">
         <div className="chat-column">
+          <MissionStrip agent={agent.slug} conversation={active} go={go} />
           {error && <div className="error-bar" onClick={() => setError(null)}>{error}</div>}
           <div className="chat-input">
             {(images.length > 0 || uploading) && (

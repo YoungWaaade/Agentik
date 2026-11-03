@@ -13,7 +13,7 @@ import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } fr
 import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
 import * as onboarding from './onboarding.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
-import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation } from './chat.js';
+import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions } from './chat.js';
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
@@ -792,6 +792,7 @@ app.get('/api/agents/:slug/chat', (req, res) => {
 });
 app.get('/api/agents/:slug/conversations', (req, res) => res.json(conversations(req.params.slug)));
 app.post('/api/agents/:slug/conversations', (req, res) => res.json({ conversation: newConversation(req.params.slug) }));
+app.get('/api/agents/:slug/conversations/:n/missions', (req, res) => res.json({ now: Date.now(), missions: missions(req.params.slug, Number(req.params.n)) }));
 app.patch('/api/agents/:slug/conversations/:n', wrap(async (req, res) => {
   updateConversation(req.params.slug, Number(req.params.n), req.body);
   res.json({ ok: true });

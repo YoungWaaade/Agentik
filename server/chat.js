@@ -68,6 +68,52 @@ export function conversations(agent) {
 }
 export const isBusy = (agent, conv = null) => (conv === null ? [...running.keys()].some((k) => k.startsWith(`${agent}:`)) : running.has(key(agent, conv)));
 
+// What a conversation has handed off, for the live strip above the composer: missions given to other
+// agents (their conversation runs, waits on its own missions, answered or failed) and sessions it launched.
+// Finished ones are only listed for a short while; the UI drops them after a few seconds.
+const DONE_FOR = 5 * 60 * 1000;
+const ERROR_FOR = 30 * 60 * 1000;
+const SESSION_STATE = { working: 'running', waiting: 'waiting', review: 'done', done: 'done', error: 'error' };
+const short = (s, n = 90) => { const t = String(s || '').replace(/\s+/g, ' ').trim(); return t.length > n ? `${t.slice(0, n - 1)}…` : t; };
+function rootPrompt(ws) {
+  const seen = new Set();
+  while (ws?.predecessor && !seen.has(ws.id)) {
+    seen.add(ws.id);
+    const prev = db.prepare('SELECT id, predecessor, initial_prompt FROM workspaces WHERE id = ?').get(ws.predecessor);
+    if (!prev) break;
+    ws = prev;
+  }
+  return ws?.initial_prompt;
+}
+export function missions(agent, conv, depth = 0) {
+  const t = now();
+  const out = [];
+  for (const c of db.prepare('SELECT agent, conversation, title FROM agent_convs WHERE manager = ? AND manager_conv = ?').all(agent, conv)) {
+    const a = getAgent(c.agent);
+    if (!a || c.agent === agent) continue;
+    const k = key(c.agent, c.conversation);
+    const ask = db.prepare("SELECT text, at FROM chat_messages WHERE agent = ? AND conversation = ? AND role = 'user' AND meta LIKE '%\"from\"%' ORDER BY id DESC LIMIT 1").get(c.agent, c.conversation);
+    const last = db.prepare('SELECT role, at FROM chat_messages WHERE agent = ? AND conversation = ? ORDER BY id DESC LIMIT 1').get(c.agent, c.conversation);
+    let state;
+    if (running.has(k) || queues.get(k)?.length) state = 'running';
+    else if (depth < 3 && missions(c.agent, c.conversation, depth + 1).some((m) => m.state === 'running' || m.state === 'waiting')) state = 'waiting';
+    else state = last?.role === 'error' ? 'error' : 'done';
+    const since = state === 'running' ? ask?.at ?? last?.at ?? t : last?.at ?? t;
+    out.push({ kind: 'agent', key: `a:${k}`, agent: c.agent, conversation: c.conversation, label: a.label, avatar: a.avatar || null, mission: short(ask?.text || c.title), state, since });
+  }
+  for (const ws of db.prepare('SELECT * FROM workspaces WHERE owner_agent = ? AND owner_conv = ? AND archived = 0').all(agent, conv)) {
+    // Just created, its Claude session still booting: already at work.
+    let state = SESSION_STATE[ws.status] || (ws.status === 'idle' && !ws.has_conversation && t - ws.created_at < 2 * 60 * 1000 ? 'running' : null);
+    if (!state) continue;
+    const a = ws.agent ? getAgent(ws.agent) : null;
+    out.push({ kind: 'session', key: `w:${ws.id}`, workspace: ws.id, agent: a ? ws.agent : null, label: ws.name, avatar: a?.avatar || null, mission: short(rootPrompt(ws)), state, since: ws.status_since });
+  }
+  // What needs the user first, and the just finished (shown a few seconds), so they stay visible when the strip folds.
+  const order = { waiting: 0, error: 1, done: 2, running: 3 };
+  return out.filter((m) => m.state === 'running' || m.state === 'waiting' || t - m.since < (m.state === 'error' ? ERROR_FOR : DONE_FOR))
+    .sort((x, y) => order[x.state] - order[y.state] || x.since - y.since);
+}
+
 export function newConversation(agent) { return createConv(agent); }
 // Close (hide the tab, the conversation stays in the history) or reopen, rename.
 export function updateConversation(agent, conv, { open, title } = {}) {
