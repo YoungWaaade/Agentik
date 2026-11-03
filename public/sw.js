@@ -18,8 +18,8 @@ self.addEventListener('push', (e) => {
     // The agent speaking (its avatar, absolute URL) or the app icon. iOS ignores it and always shows the
     // app icon; Android, Chrome, Firefox and macOS show it. The badge stays the app's (Android draws it
     // as a one-colour silhouette in the status bar: a photo would be a blob).
-    icon: abs(d.icon) || abs('/icon.png'),
-    badge: abs('/favicon.png'),
+    icon: abs(d.icon) || abs('/icons/icon-192.png?v=2'),
+    badge: abs('/icons/favicon-32.png?v=2'),
     data: { url: d.url || '/' },
   }));
 });

@@ -339,7 +339,7 @@ function trusted(req) {
 // Static files with nothing secret, that iOS may fetch outside the page (home screen icon, service worker updates).
 const PUBLIC_FILES = new Set(['/sw.js', '/icon.png', '/apple-touch-icon.png', '/favicon.png']);
 app.use((req, res, next) => {
-  if (req.method === 'GET' && (PUBLIC_FILES.has(req.path) || req.path.startsWith('/api/push/avatar/'))) return next();
+  if (req.method === 'GET' && (PUBLIC_FILES.has(req.path) || req.path.startsWith('/icons/') || req.path.startsWith('/api/push/avatar/'))) return next();
   const local = remote.isLocal(req);
   if (!local && remote.enabled() && req.path === '/pair') {
     if (!remote.tokenOk(req.query.token)) return res.status(403).type('html').send(remote.PAIR_PAGE);
@@ -1352,8 +1352,10 @@ app.get('/manifest.webmanifest', (req, res) => res.type('application/manifest+js
   background_color: '#151110', theme_color: '#151110',
   start_url: remote.isLocal(req) ? '/' : remote.pairPath(),
   icons: [
-    { src: '/icon.png', sizes: '400x400', type: 'image/png', purpose: 'any' },
-    { src: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    { src: '/icons/icon-192.png?v=2', sizes: '192x192', type: 'image/png', purpose: 'any' },
+    { src: '/icons/icon-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'any' },
+    { src: '/icons/icon-maskable-512.png?v=2', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    { src: '/icons/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' },
   ],
 }));
 
