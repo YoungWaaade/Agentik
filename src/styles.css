@@ -1184,8 +1184,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .chat-tabs { height: 36px; }
 .chat-tabs .tab-cell { width: 190px; }
 .chat-tabs .tab { height: 32px; }
-.chat-tabs .tab.active { height: 33px; }
-.chat-tabs .tab-add { width: 24px; height: 24px; }
+.chat-tabs .tab.active { height: 33px; border-color: transparent; }
+.chat-tabs .tab-add { width: 24px; height: 24px; border-color: transparent; }
 .chat-tab-busy { color: var(--primary); flex: none; }
 .chat-tab-unread { flex: none; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: var(--primary); color: var(--background); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
 .chat-tab-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--ring); background: var(--background); color: var(--foreground); font-size: 12px; outline: none; }
