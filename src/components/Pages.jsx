@@ -3,7 +3,7 @@ import { LuSearch, LuPlay, LuBrain } from 'react-icons/lu';
 import { api, ago } from '../api.js';
 import { ProjectThumbnail } from './ui.jsx';
 import { UsageSection } from './UsagePage.jsx';
-import { PushSettings } from './PushPanel.jsx';
+import { PushSettings, ThemeSettings } from './PushPanel.jsx';
 
 export function PageHeader({ title, children }) {
   return (
@@ -149,6 +149,7 @@ export function SettingsPage({ me }) {
       <div className="page-scroll">
         {tab === 'usage' ? <div className="settings wide"><UsageSection /></div> : (
         <div className="settings">
+          <ThemeSettings />
           <PushSettings />
           <AutoTrust />
           <ContextRelay />

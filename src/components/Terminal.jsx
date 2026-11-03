@@ -5,6 +5,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { wsUrl, uploadFile } from '../api.js';
+import { resolvedTheme, onTheme } from '../theme.js';
 
 // Superset's built-in "ember" dark theme.
 const THEME = {
@@ -16,6 +17,16 @@ const THEME = {
   black: '#151110', red: '#dc6b6b', green: '#7ec699', yellow: '#e5c07b', blue: '#61afef', magenta: '#c678dd', cyan: '#56b6c2', white: '#eae8e6',
   brightBlack: '#5c5856', brightRed: '#e88888', brightGreen: '#98d1a8', brightYellow: '#ecd08f', brightBlue: '#7ec0f5', brightMagenta: '#d494e6', brightCyan: '#73c7d3', brightWhite: '#ffffff',
 };
+const LIGHT_THEME = {
+  background: '#ffffff',
+  foreground: '#1c1c1e',
+  cursor: '#d9633b',
+  cursorAccent: '#ffffff',
+  selectionBackground: 'rgba(217,99,59,0.22)',
+  black: '#1c1c1e', red: '#c9302c', green: '#1a7f37', yellow: '#9a6700', blue: '#0a69da', magenta: '#8250df', cyan: '#0b7285', white: '#d1d1d6',
+  brightBlack: '#6c6c70', brightRed: '#e5484d', brightGreen: '#2da44e', brightYellow: '#bf8700', brightBlue: '#218bff', brightMagenta: '#a475f9', brightCyan: '#1b9eb5', brightWhite: '#8e8e93',
+};
+const themeFor = () => (resolvedTheme() === 'light' ? LIGHT_THEME : THEME);
 const FONT = '"JetBrains Mono", "JetBrainsMono Nerd Font", "MesloLGM Nerd Font", "MesloLGM NF", "MesloLGS NF", "MesloLGS Nerd Font", "Hack Nerd Font", "FiraCode Nerd Font", "CaskaydiaCove Nerd Font", "Menlo", "Monaco", "Courier New", monospace';
 
 // Phones get a smaller font so Claude Code's TUI keeps enough columns.
@@ -23,6 +34,7 @@ export const isPhone = matchMedia('(max-width: 760px) and (pointer: coarse)').ma
 
 // Terminals outlive the component that shows them, so switching workspace keeps scrollback and the socket.
 const pool = new Map();
+onTheme(() => pool.forEach((e) => { e.term.options.theme = themeFor(); }));
 
 function create(key) {
   const el = document.createElement('div');
@@ -40,7 +52,7 @@ function create(key) {
     allowProposedApi: true,
     scrollback: 10000,
     macOptionIsMeta: false,
-    theme: THEME,
+    theme: themeFor(),
   });
   const fit = new FitAddon();
   term.loadAddon(fit);

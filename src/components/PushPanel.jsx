@@ -1,6 +1,7 @@
 // "Notifications" on this device: Web Push (lock screen, app closed). Desktop settings section and phone screen.
 import { useEffect, useState } from 'react';
 import { LuBell, LuBellOff, LuChevronLeft, LuShare, LuSquarePlus } from 'react-icons/lu';
+import { themePref, setThemePref } from '../theme.js';
 import { pushState, onPushChange, enablePush, disablePush, pushStatus, setPushPrefs, testPush, isIOS } from '../push.js';
 
 export function usePush() {
@@ -31,6 +32,28 @@ const PREFS = [
   ['sessions', 'Sessions', 'Une session a terminé, attend ta réponse ou a une erreur'],
   ['agents', 'Agents', 'Un agent (Nami…) t’a répondu dans une de tes conversations'],
 ];
+
+const THEMES = [['auto', 'Automatique'], ['light', 'Clair'], ['dark', 'Sombre']];
+export function ThemePicker() {
+  const [v, setV] = useState(themePref);
+  return (
+    <div className="theme-seg" role="radiogroup" aria-label="Apparence">
+      {THEMES.map(([k, label]) => (
+        <button key={k} role="radio" aria-checked={v === k} className={v === k ? 'on' : ''} onClick={() => { setThemePref(k); setV(k); }}>{label}</button>
+      ))}
+    </div>
+  );
+}
+
+// Desktop: Réglages → Apparence.
+export function ThemeSettings() {
+  return (
+    <section>
+      <h2>Apparence</h2>
+      <div className="settings-row"><span>Thème (Automatique suit le réglage clair/sombre de l'appareil)</span><ThemePicker /></div>
+    </section>
+  );
+}
 
 // Desktop: Réglages → Notifications.
 export function PushSettings() {
@@ -73,9 +96,12 @@ export function PushScreen({ go }) {
     <>
       <header className="m-head">
         <button className="m-iconbtn" onClick={() => (history.length > 1 ? history.back() : go({ kind: 'agents' }))} aria-label="Retour"><LuChevronLeft size={22} /></button>
-        <h1>Notifications</h1>
+        <h1>Réglages</h1>
       </header>
       <div className="m-scroll m-form">
+        <h2 className="m-section">Apparence</h2>
+        <ThemePicker />
+        <h2 className="m-section">Notifications</h2>
         {p.state === 'install' && (
           <div className="m-push-card">
             <strong>Ajoute d'abord YoungHub à l'écran d'accueil</strong>
