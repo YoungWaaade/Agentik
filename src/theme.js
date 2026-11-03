@@ -18,9 +18,7 @@ export function applyTheme() {
   let m = document.querySelector('meta[name="theme-color"]');
   if (!m) { m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
   m.content = COLORS[t];
-  // Barre d'état iOS : "default" = texte sombre sur fond clair ; "black-translucent" = texte clair, la page passe dessous.
-  const s = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-  if (s) s.content = t === 'dark' ? 'black-translucent' : 'default';
+  // Barre d'état iOS : on garde TOUJOURS black-translucent (layout validé en 8cfada2), ne pas la basculer en 'default'.
   subs.forEach((f) => f(t));
 }
 export function setThemePref(p) {
