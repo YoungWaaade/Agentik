@@ -31,11 +31,11 @@ function Dropdown({ open, onClose, className = '', children }) {
 }
 
 const STATUS_ICON = {
-  A: [VscDiffAdded, '#05df72'], '?': [VscDiffAdded, '#05df72'],
-  M: [VscDiffModified, '#fdc700'], T: [VscDiffModified, '#fdc700'],
-  D: [VscDiffRemoved, '#fb2c36'], R: [VscDiffRenamed, '#51a2ff'], C: [VscDiffRenamed, '#c27aff'],
+  A: [VscDiffAdded, 'var(--git-added)'], '?': [VscDiffAdded, 'var(--git-added)'],
+  M: [VscDiffModified, 'var(--git-modified)'], T: [VscDiffModified, 'var(--git-modified)'],
+  D: [VscDiffRemoved, 'var(--git-deleted)'], R: [VscDiffRenamed, 'var(--git-renamed)'], C: [VscDiffRenamed, 'var(--git-copied)'],
 };
-const TINT = { A: '#00a63e', '?': '#00a63e', M: '#d08700', D: '#e7000b', R: '#3886c1' };
+const TINT = { A: 'var(--git-added-text)', '?': 'var(--git-added-text)', M: 'var(--git-modified-text)', D: 'var(--git-deleted-text)', R: 'var(--git-renamed-text)' };
 
 export default function RightPanel({ ws, project, go, onOpenDiff, onOpenFile, onRun, sendToAgent }) {
   const [width, setWidth] = useState(() => Number(localStorage.getItem('rp-width')) || DEFAULT_WIDTH);

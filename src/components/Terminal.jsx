@@ -5,16 +5,29 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { wsUrl, uploadFile } from '../api.js';
+import { activeTheme, onThemeChange } from '../theme.js';
 
-// Superset's built-in "ember" dark theme.
-const THEME = {
-  background: '#151110',
-  foreground: '#eae8e6',
-  cursor: '#e07850',
-  cursorAccent: '#151110',
-  selectionBackground: 'rgba(224,120,80,0.25)',
-  black: '#151110', red: '#dc6b6b', green: '#7ec699', yellow: '#e5c07b', blue: '#61afef', magenta: '#c678dd', cyan: '#56b6c2', white: '#eae8e6',
-  brightBlack: '#5c5856', brightRed: '#e88888', brightGreen: '#98d1a8', brightYellow: '#ecd08f', brightBlue: '#7ec0f5', brightMagenta: '#d494e6', brightCyan: '#73c7d3', brightWhite: '#ffffff',
+// Superset's built-in "ember" dark theme, and a light counterpart with the same hues darkened
+// enough to read on paper (ANSI "white" stays light-ish: TUIs use it as a background tint).
+const THEMES = {
+  dark: {
+    background: '#151110',
+    foreground: '#eae8e6',
+    cursor: '#e07850',
+    cursorAccent: '#151110',
+    selectionBackground: 'rgba(224,120,80,0.25)',
+    black: '#151110', red: '#dc6b6b', green: '#7ec699', yellow: '#e5c07b', blue: '#61afef', magenta: '#c678dd', cyan: '#56b6c2', white: '#eae8e6',
+    brightBlack: '#5c5856', brightRed: '#e88888', brightGreen: '#98d1a8', brightYellow: '#ecd08f', brightBlue: '#7ec0f5', brightMagenta: '#d494e6', brightCyan: '#73c7d3', brightWhite: '#ffffff',
+  },
+  light: {
+    background: '#faf8f7',
+    foreground: '#1f1a18',
+    cursor: '#b9512b',
+    cursorAccent: '#faf8f7',
+    selectionBackground: 'rgba(185,81,43,0.2)',
+    black: '#1f1a18', red: '#c0392b', green: '#2e7d32', yellow: '#946200', blue: '#1f63a8', magenta: '#8e3fa8', cyan: '#00737a', white: '#e8e3e0',
+    brightBlack: '#6f6864', brightRed: '#a8281c', brightGreen: '#1f6a25', brightYellow: '#7a5200', brightBlue: '#17508a', brightMagenta: '#74308c', brightCyan: '#005e64', brightWhite: '#f3f0ee',
+  },
 };
 const FONT = '"JetBrains Mono", "JetBrainsMono Nerd Font", "MesloLGM Nerd Font", "MesloLGM NF", "MesloLGS NF", "MesloLGS Nerd Font", "Hack Nerd Font", "FiraCode Nerd Font", "CaskaydiaCove Nerd Font", "Menlo", "Monaco", "Courier New", monospace';
 
@@ -23,6 +36,10 @@ export const isPhone = matchMedia('(max-width: 760px) and (pointer: coarse)').ma
 
 // Terminals outlive the component that shows them, so switching workspace keeps scrollback and the socket.
 const pool = new Map();
+// Claude Code paints its own truecolor UI for a dark terminal: in light mode xterm darkens any
+// colour that would fall under 4.5:1 against its background.
+const CONTRAST = { dark: 1, light: 4.5 };
+onThemeChange((t) => pool.forEach((e) => { e.term.options.theme = THEMES[t]; e.term.options.minimumContrastRatio = CONTRAST[t]; }));
 
 function create(key) {
   const el = document.createElement('div');
@@ -33,14 +50,14 @@ function create(key) {
     lineHeight: 1,
     letterSpacing: 0,
     fontWeight: 'normal',
-    minimumContrastRatio: 1,
+    minimumContrastRatio: CONTRAST[activeTheme()],
     cursorStyle: 'block',
     cursorBlink: true,
     cursorInactiveStyle: 'outline',
     allowProposedApi: true,
     scrollback: 10000,
     macOptionIsMeta: false,
-    theme: THEME,
+    theme: THEMES[activeTheme()],
   });
   const fit = new FitAddon();
   term.loadAddon(fit);

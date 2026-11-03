@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuDices } from 'react-icons/lu';
-import BotAvatar, { BOT_SHAPES, BOT_COLORS, parseAvatar, avatarSpec, randomAvatar } from './BotAvatar.jsx';
+import BotAvatar, { BOT_SHAPES, BOT_COLORS, botHex, parseAvatar, avatarSpec, randomAvatar } from './BotAvatar.jsx';
 import { api } from '../api.js';
 import { PageHeader } from './Pages.jsx';
+import { useTheme } from '../theme.js';
 
 const MODELS = [['', 'Modèle par défaut'], ['fable', 'Fable'], ['opus', 'Opus'], ['sonnet', 'Sonnet'], ['haiku', 'Haiku']];
 const EFFORTS = [['', 'Effort par défaut'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['xhigh', 'xHigh'], ['max', 'Max']];
@@ -108,6 +109,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
 export function BotBuilder({ spec, seed, onChange }) {
   const a = parseAvatar(spec, seed);
   const set = (part) => onChange(avatarSpec({ ...a, ...part }));
+  const theme = useTheme();
   return (
     <div className="bot-builder">
       <div className="bot-preview">
@@ -130,7 +132,7 @@ export function BotBuilder({ spec, seed, onChange }) {
           <div className="bot-options">
             {Object.entries(BOT_COLORS).map(([key, c]) => (
               <button key={key} type="button" className={`bot-option bot-color ${a.color === key ? 'on' : ''}`} title={c.label} onClick={() => set({ color: key })}>
-                <span className="bot-swatch" style={{ background: c.hex }} />
+                <span className="bot-swatch" style={{ background: botHex(c, theme) }} />
               </button>
             ))}
           </div>

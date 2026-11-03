@@ -3,6 +3,7 @@ import { LuSearch, LuPlay, LuBrain } from 'react-icons/lu';
 import { api, ago } from '../api.js';
 import { ProjectThumbnail } from './ui.jsx';
 import { UsageSection } from './UsagePage.jsx';
+import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
 
 export function PageHeader({ title, children }) {
   return (
@@ -149,6 +150,7 @@ export function SettingsPage({ me }) {
       <div className="page-scroll">
         {tab === 'usage' ? <div className="settings wide"><UsageSection /></div> : (
         <div className="settings">
+          <Appearance />
           <section>
             <h2>Notifications</h2>
             <div className="settings-row">
@@ -184,6 +186,22 @@ export function SettingsPage({ me }) {
         )}
       </div>
     </div>
+  );
+}
+
+// Light, dark, or whatever the system uses (followed live). Kept in this browser only.
+function Appearance() {
+  const pref = useThemePref();
+  return (
+    <section>
+      <h2>Apparence</h2>
+      <div className="settings-row">
+        <span>Thème de l'interface{pref === 'system' && <span className="muted"> — suit le réglage du système</span>}</span>
+        <div className="wsp-segmented">
+          {THEME_PREFS.map(([k, label]) => <button key={k} className={pref === k ? 'on' : ''} onClick={() => setThemePref(k)}>{label}</button>)}
+        </div>
+      </div>
+    </section>
   );
 }
 

@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch } from 'react-icons/lu';
+import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuMoon, LuSun, LuSunMoon } from 'react-icons/lu';
+import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
 import { api, ago, STATUS } from '../api.js';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
 import { StatusIndicator, ProjectThumbnail, AsciiSpinner, DiffStats } from './ui.jsx';
+
+// No settings page on the phone (and the installed app keeps its own storage): one button cycles
+// Sombre → Clair → Système.
+const THEME_ICON = { dark: LuMoon, light: LuSun, system: LuSunMoon };
+function ThemeButton() {
+  const pref = useThemePref();
+  const i = THEME_PREFS.findIndex(([k]) => k === pref);
+  const [next, nextLabel] = THEME_PREFS[(i + 2) % 3];
+  const Icon = THEME_ICON[pref];
+  return <button className="m-iconbtn" onClick={() => setThemePref(next)} aria-label={`Thème : ${THEME_PREFS[i][1]} (passer à ${nextLabel})`}><Icon size={19} /></button>;
+}
 
 // Keys Claude Code needs that the iOS keyboard doesn't have.
 const KEYS = [
@@ -48,6 +60,7 @@ function ListScreen({ data, projectsById, go, connected }) {
       <header className="m-head">
         <h1><img className="m-logo" src="/icon-192.png" alt="" />Agentik</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
+        <ThemeButton />
         <button className="m-iconbtn" onClick={() => go({ kind: 'new' })} aria-label="Nouvel espace"><LuPlus size={20} /></button>
       </header>
       <div className="m-scroll">

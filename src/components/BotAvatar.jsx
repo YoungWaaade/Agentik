@@ -2,6 +2,7 @@
 // currentColor) in a colour from the palette, with two little black eyes that blink, glance around, follow the mouse and squint while the
 // agent works. Every avatar goes through this component.
 import { useEffect, useRef } from 'react';
+import { useTheme } from '../theme.js';
 import lunes from '../assets/bots/lunes.svg?raw';
 import etoile from '../assets/bots/etoile.svg?raw';
 import pile from '../assets/bots/pile.svg?raw';
@@ -29,23 +30,25 @@ export const BOT_SHAPES = {
   soleil: { label: 'Soleil', color: 'canard', ...parse(soleil), eyes: { ...EYES, gap: 24, rx: 12, ry: 22, reach: 10 } },
 };
 // The shapes' own colours, then brighter ones that stand out on the dark UI and keep the black eyes readable.
+// `light` is the same colour for the light theme: pale ones get deeper so the shape still shows on paper.
 export const BOT_COLORS = {
-  blanc: { label: 'Blanc', hex: '#FFFFFF' },
-  ecume: { label: 'Écume', hex: '#DAFBF2' },
-  menthe: { label: 'Menthe', hex: '#94FFB4' },
-  vert: { label: 'Vert', hex: '#00BD57' },
-  emeraude: { label: 'Émeraude', hex: '#1EA678' },
-  canard: { label: 'Canard', hex: '#006666' },
-  sapin: { label: 'Sapin', hex: '#003D3D' },
-  jaune: { label: 'Jaune', hex: '#FFD84D' },
-  peche: { label: 'Pêche', hex: '#FFB07A' },
-  corail: { label: 'Corail', hex: '#FF7A6B' },
-  rose: { label: 'Rose', hex: '#FFA6D0' },
-  lilas: { label: 'Lilas', hex: '#C3A6FF' },
-  ciel: { label: 'Ciel', hex: '#7CC4FF' },
+  blanc: { label: 'Blanc', hex: '#FFFFFF', light: '#CFC8C3' },
+  ecume: { label: 'Écume', hex: '#DAFBF2', light: '#9FDCCB' },
+  menthe: { label: 'Menthe', hex: '#94FFB4', light: '#4FD883' },
+  vert: { label: 'Vert', hex: '#00BD57', light: '#00BD57' },
+  emeraude: { label: 'Émeraude', hex: '#1EA678', light: '#1EA678' },
+  canard: { label: 'Canard', hex: '#006666', light: '#006666' },
+  sapin: { label: 'Sapin', hex: '#003D3D', light: '#003D3D' },
+  jaune: { label: 'Jaune', hex: '#FFD84D', light: '#F2C200' },
+  peche: { label: 'Pêche', hex: '#FFB07A', light: '#FF9A55' },
+  corail: { label: 'Corail', hex: '#FF7A6B', light: '#FF7A6B' },
+  rose: { label: 'Rose', hex: '#FFA6D0', light: '#FF86BE' },
+  lilas: { label: 'Lilas', hex: '#C3A6FF', light: '#A887FF' },
+  ciel: { label: 'Ciel', hex: '#7CC4FF', light: '#4FAEFF' },
 };
 const KEYS = Object.keys(BOT_SHAPES);
 const COLOR_KEYS = Object.keys(BOT_COLORS);
+export const botHex = (c, theme) => (theme === 'light' ? c.light : c.hex);
 // Stable look for the team; any other agent gets a shape derived from its name.
 const BY_AGENT = { nami: 'fleur', adi: 'sceau', franky: 'trio', katrina: 'lunes', robin: 'pile', git: 'etoile', claude: 'soleil' };
 const hash = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -155,6 +158,7 @@ export default function BotAvatar({ spec, seed, size = 16, running = false, clas
   const a = typeof spec === 'object' && spec ? spec : parseAvatar(spec, seed);
   const shape = BOT_SHAPES[a.shape];
   const e = shape.eyes;
+  const theme = useTheme();
   // Small avatars get bigger eyes so the face still reads at 12–24 px.
   const k = size <= 16 ? 1.35 : size <= 24 ? 1.2 : 1;
   const svg = useRef(null), lookRef = useRef(null), bot = useRef(null);
@@ -174,7 +178,7 @@ export default function BotAvatar({ spec, seed, size = 16, running = false, clas
     b.nextGlance = performance.now() + rnd(100, 600);
   }, [running]);
   return (
-    <svg ref={svg} className={`bot-avatar ${running ? 'running' : ''} ${className}`} style={{ color: (BOT_COLORS[a.color] || BOT_COLORS[shape.color]).hex }} width={size} height={size} viewBox={`0 0 ${V} ${V}`} aria-hidden={title ? undefined : 'true'} role={title ? 'img' : undefined}>
+    <svg ref={svg} className={`bot-avatar ${running ? 'running' : ''} ${className}`} style={{ color: botHex(BOT_COLORS[a.color] || BOT_COLORS[shape.color], theme) }} width={size} height={size} viewBox={`0 0 ${V} ${V}`} aria-hidden={title ? undefined : 'true'} role={title ? 'img' : undefined}>
       {title && <title>{title}</title>}
       <path d={shape.d} fill="currentColor" transform={`translate(${shape.ox} ${shape.oy})`} />
       <g transform={`translate(${e.x} ${e.y}) scale(${k})`}>
