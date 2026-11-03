@@ -969,6 +969,7 @@ app.get('/api/attachments/:id/:name', (req, res) => {
   const file = path.resolve(dir, path.basename(req.params.id), path.basename(req.params.name));
   if (!file.startsWith(dir + path.sep) || !fs.existsSync(file)) return res.status(404).end();
   res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'");
+  if (req.query.download === '1') res.attachment(path.basename(file));
   // Absolute path with root: the hub folder (~/.claude-hub) is a dot-folder, which sendFile otherwise refuses (404).
   res.sendFile(path.basename(file), { root: path.dirname(file), dotfiles: 'allow' });
 });

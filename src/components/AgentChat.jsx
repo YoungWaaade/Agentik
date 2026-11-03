@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage } from 'react-icons/lu';
+import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage, LuDownload, LuShare, LuExternalLink } from 'react-icons/lu';
 import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar, { accentOf } from './BotAvatar.jsx';
@@ -12,13 +12,41 @@ const SUGGESTIONS = [
 
 // ![alt](attachment:ID/NAME) (or a path inside the attachments folder) → served URL; anything else is not shown.
 const mediaUrl = (src) => { const m = /^attachment:([\w-]+)\/([^/]+)$/.exec(src) || /\/attachments\/([\w-]+)\/([^/]+)$/.exec(src); return m ? attachmentUrl(`${m[1]}/${m[2]}`) : null; };
+const fileName = (src) => { try { return decodeURIComponent(src.split('?')[0].split('/').pop()) || 'fichier'; } catch { return 'fichier'; } };
+const canShareFiles = () => typeof navigator !== 'undefined' && !!navigator.canShare && !!navigator.share;
+// Feuille de partage (iOS : « Enregistrer l'image / la vidéo ») ; repli = ouverture du média seul.
+async function shareMedia(src) {
+  const name = fileName(src);
+  try {
+    const blob = await (await fetch(src)).blob();
+    const file = new File([blob], name, { type: blob.type || undefined });
+    if (canShareFiles() && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file] }); return; }
+  } catch (e) { if (e?.name === 'AbortError') return; }
+  window.open(src, '_blank');
+}
+function MediaActions({ src }) {
+  const name = fileName(src);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="media-actions" onClick={(e) => e.stopPropagation()}>
+      <a className="media-btn" href={`${src}?download=1`} download={name}><LuDownload size={16} /> Télécharger</a>
+      {canShareFiles() && <button className="media-btn" disabled={busy} onClick={async () => { setBusy(true); await shareMedia(src); setBusy(false); }}><LuShare size={16} /> Partager / Enregistrer</button>}
+      <a className="media-btn" href={src} target="_blank" rel="noreferrer"><LuExternalLink size={16} /> Plein écran</a>
+    </div>
+  );
+}
 function Media({ src, alt }) {
   const [open, setOpen] = useState(false);
-  if (/\.(mp4|mov|webm)$/i.test(src)) return <video className="msg-media" src={src} controls playsInline preload="metadata" />;
+  if (/\.(mp4|mov|webm)$/i.test(src)) return (
+    <div className="msg-video">
+      <video className="msg-media" src={src} controls playsInline preload="metadata" />
+      <MediaActions src={src} />
+    </div>
+  );
   return (
     <>
       <img className="msg-media" src={src} alt={alt} onClick={() => setOpen(true)} />
-      {open && <div className="lightbox" onClick={() => setOpen(false)}><img src={src} alt={alt} /></div>}
+      {open && <div className="lightbox" onClick={() => setOpen(false)}><img src={src} alt={alt} /><MediaActions src={src} /></div>}
     </>
   );
 }
