@@ -202,10 +202,10 @@
   --event-fg: #9a3a17;
   --event-bg: rgba(var(--primary-rgb), 0.12);
   --event-ring: inset 0 0 0 1px rgba(var(--primary-rgb), 0.3);
-  --status-working: #8a4500;
-  --status-working-ping: #8a4500;
-  --status-waiting: #733800;
-  --status-waiting-ping: #733800;
+  --status-working: #d9480f;
+  --status-working-ping: #d9480f;
+  --status-waiting: #d9480f;
+  --status-waiting-ping: #d9480f;
   --spinner-size: 22px;
   --overlay: rgba(0, 0, 0, 0.25);
   --overlay-cmd: rgba(0, 0, 0, 0.18);
