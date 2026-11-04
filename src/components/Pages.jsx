@@ -3,6 +3,7 @@ import { LuSearch, LuPlay, LuBrain } from 'react-icons/lu';
 import { api, ago } from '../api.js';
 import { ProjectThumbnail } from './ui.jsx';
 import { UsageSection } from './UsagePage.jsx';
+import { UpdateSection } from './UpdateSection.jsx';
 import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
 
 export function PageHeader({ title, children }) {
@@ -151,6 +152,7 @@ export function SettingsPage({ me }) {
         {tab === 'usage' ? <div className="settings wide"><UsageSection /></div> : (
         <div className="settings">
           <Appearance />
+          <UpdateSection />
           <section>
             <h2>Notifications</h2>
             <div className="settings-row">
