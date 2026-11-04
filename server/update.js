@@ -121,10 +121,17 @@ export function makeUpdater({ root = ROOT, restartCmd = process.env.SUPERSEPT_RE
     return r;
   }
 
+  // The tree was clean at the start: a lock file rewritten by this npm version is put back, else the next update would be refused.
+  async function install() {
+    const r = await npm('install', '--no-audit', '--no-fund');
+    await git('checkout', '--', 'package-lock.json');
+    return r;
+  }
+
   async function rollback(from, reinstall) {
     log(`  mise à jour : retour à ${from.slice(0, 7)}`);
     await git('reset', '--hard', from);
-    if (reinstall) await npm('install', '--no-audit', '--no-fund');
+    if (reinstall) await install();
   }
 
   async function apply(st) {
@@ -140,10 +147,10 @@ export function makeUpdater({ root = ROOT, restartCmd = process.env.SUPERSEPT_RE
         ? 'La mise à jour écraserait des fichiers locaux non suivis par git. Déplace-les puis réessaie.'
         : 'git pull a échoué : rien n\'a été modifié.', tail(pull.err));
     }
-    const install = needsInstall(files);
-    if (install) {
+    const deps = needsInstall(files);
+    if (deps) {
       job.step = 'install';
-      const r = await npm('install', '--no-audit', '--no-fund');
+      const r = await install();
       if (!r.ok) {
         job.step = 'rollback';
         await rollback(from, true);
@@ -154,7 +161,7 @@ export function makeUpdater({ root = ROOT, restartCmd = process.env.SUPERSEPT_RE
     const b = await build();
     if (!b.ok) {
       job.step = 'rollback';
-      await rollback(from, install);
+      await rollback(from, deps);
       throw new UpdateError('build', "La compilation (npm run build) a échoué. Agentik est revenu à la version précédente : rien n'a changé.", tail(`${b.out}\n${b.err}`));
     }
     return { from, to, count: st.behind };
