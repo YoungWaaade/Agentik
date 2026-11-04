@@ -147,6 +147,9 @@ function systemPrompt(ws, project) {
     ws.is_worktree ? `Ce workspace est un git worktree isolé sur la branche "${ws.branch}" (base: ${ws.base_branch}). Ne travaille que dans ${ws.cwd}.` : '',
     `Mémoire persistante ${project ? 'du projet' : 'des sessions libres'} : ${mem}`,
     `Elle est partagée entre toutes les sessions ${project ? 'de ce projet' : 'libres'}. Quand tu apprends quelque chose de durable (décisions, conventions, commandes utiles, état d'avancement, pièges), mets-la à jour de façon concise (puces courtes, sections par thème). N'y mets rien d'éphémère. Garde-la courte (moins de ${MEMORY_INLINE_MAX} caractères) : fusionne ou retire les règles redondantes plutôt que d'en empiler.`,
+    // Claude Code's privacy guard asks for permission (even in bypassPermissions) when a tool input holds the
+    // account email: a session committing with `-c user.email=<email>` then stalls until someone answers.
+    "Identité git globale déjà configurée : commite avec un simple `git commit`, sans `-c user.name/user.email`, et n'écris jamais l'adresse email d'Emre dans une commande ou un fichier (Claude Code demanderait alors une permission et la session resterait bloquée).",
     "Chaque image que tu regardes (capture d'écran, Read d'un .png/.jpg) reste dans le contexte en base64, et au-delà d'environ 30 Mo l'API refuse toute requête : ne regarde que les captures utiles, réduites (par ex. sips -Z 1200), et ne relis pas la même plusieurs fois.",
     content ? `--- Contenu actuel de la mémoire ---\n${content}\n--- fin ---` : 'La mémoire est vide pour l\'instant.',
   ].filter(Boolean).join('\n');
