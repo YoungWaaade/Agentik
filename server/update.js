@@ -28,7 +28,7 @@ export function parseGithub(url) {
 // A git network failure, told apart from the rest by its message.
 export function gitFailure(stderr, repo) {
   const s = String(stderr || '');
-  if (/repository .* not found|not found/i.test(s)) return new UpdateError('repo', `Dépôt GitHub introuvable (${repo}). Vérifie le remote « origin » de ta copie.`, s);
+  if (/not found|could not read username|authentication failed/i.test(s)) return new UpdateError('repo', `Dépôt GitHub introuvable (${repo}). Vérifie le remote « origin » de ta copie.`, s);
   if (/could not resolve|unable to access|timed out|connection|network|operation timed out|failed to connect|ssl/i.test(s) || !s) {
     return new UpdateError('network', 'GitHub est injoignable : vérifie ta connexion internet, puis réessaie.', s);
   }
@@ -41,7 +41,8 @@ export const needsInstall = (files) => files.some((f) => f === 'package.json' ||
 // Tracked files modified locally (untracked ones never block a fast-forward by themselves).
 export const dirtyFiles = (porcelain) => porcelain.split('\n').filter((l) => l && !l.startsWith('??')).map((l) => l.slice(3).replace(/^.* -> /, ''));
 
-const tail = (s, n = 12) => String(s || '').trim().split('\n').slice(-n).join('\n');
+// The end of a command's output, without colors nor stack frames, to show under an error.
+export const tail = (s, n = 20) => String(s || '').replace(/\x1b\[[0-9;]*m/g, '').split('\n').filter((l) => l.trim() && !/^\s+at /.test(l)).slice(-n).join('\n');
 
 function run(cmd, args, { cwd = ROOT, timeout = 60_000, env } = {}) {
   return new Promise((ok) => execFile(cmd, args, { cwd, timeout, maxBuffer: 20 * 1024 * 1024, env: env || process.env }, (e, out, err) => ok({ ok: !e, out: String(out || ''), err: String(err || e?.message || '') })));
@@ -49,7 +50,7 @@ function run(cmd, args, { cwd = ROOT, timeout = 60_000, env } = {}) {
 
 export function makeUpdater({ root = ROOT, restartCmd = process.env.SUPERSEPT_RESTART_CMD, log = console.log } = {}) {
   // No credential prompt can hang the server, and npm is found next to the node running us.
-  const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_SSH_COMMAND: 'ssh -o BatchMode=yes', PATH: `${path.dirname(process.execPath)}:${process.env.PATH || ''}` };
+  const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_SSH_COMMAND: 'ssh -o BatchMode=yes', NO_COLOR: '1', FORCE_COLOR: '0', PATH: `${path.dirname(process.execPath)}:${process.env.PATH || ''}` };
   const git = (...args) => run('git', args, { cwd: root, env, timeout: 60_000 });
   const npm = (...args) => run('npm', args, { cwd: root, env, timeout: 15 * 60_000 });
   let job = null; // { step, error, done, from, to }
@@ -146,7 +147,7 @@ export function makeUpdater({ root = ROOT, restartCmd = process.env.SUPERSEPT_RE
       if (!r.ok) {
         job.step = 'rollback';
         await rollback(from, true);
-        throw new UpdateError('install', "npm install a échoué. Agentik est revenu à la version précédente : rien n'a changé.", tail(r.err || r.out));
+        throw new UpdateError('install', "npm install a échoué. Agentik est revenu à la version précédente : rien n'a changé.", tail(`${r.out}\n${r.err}`));
       }
     }
     job.step = 'build';
@@ -154,7 +155,7 @@ export function makeUpdater({ root = ROOT, restartCmd = process.env.SUPERSEPT_RE
     if (!b.ok) {
       job.step = 'rollback';
       await rollback(from, install);
-      throw new UpdateError('build', "La compilation (npm run build) a échoué. Agentik est revenu à la version précédente : rien n'a changé.", tail(b.err || b.out));
+      throw new UpdateError('build', "La compilation (npm run build) a échoué. Agentik est revenu à la version précédente : rien n'a changé.", tail(`${b.out}\n${b.err}`));
     }
     return { from, to, count: st.behind };
   }

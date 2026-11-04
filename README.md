@@ -116,9 +116,15 @@ Ne l'expose pas sur internet (pas de Vercel, de tunnel public ou de port forward
 
 ## Mise à jour
 
+Dans l'app : **Réglages → Mise à jour → Vérifier les mises à jour**, puis **Mettre à jour**. Agentik récupère `main` sur GitHub, refuse s'il y a des modifications locales, lance `npm install` si les dépendances ont changé, recompile, puis redémarre le service et recharge la page. Si l'installation ou la compilation échoue, il revient à la version précédente sans redémarrer.
+
+À la main :
+
 ```bash
 git pull && npm install && npm run service
 ```
+
+Hors service launchd, la page demande de relancer Agentik soi-même (ou définir `SUPERSEPT_RESTART_CMD`, une commande shell qui reçoit le PID du serveur dans `$AGENTIK_PID`).
 
 ## Désinstallation
 

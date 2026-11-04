@@ -19,6 +19,7 @@ test('git failures are told apart', () => {
   assert.equal(gitFailure("fatal: unable to access 'https://github.com/a/b.git/': Could not resolve host: github.com", 'a/b').code, 'network');
   assert.equal(gitFailure('remote: Repository not found.\nfatal: repository not found', 'a/b').code, 'repo');
   assert.equal(gitFailure('', 'a/b').code, 'network');
+  assert.equal(gitFailure("fatal: could not read Username for 'https://github.com': terminal prompts disabled", 'a/b').code, 'repo');
 });
 
 test('only package.json and the lock file trigger npm install', () => {
