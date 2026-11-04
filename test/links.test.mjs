@@ -4,11 +4,11 @@ import { safeHref, trimUrl, isPath } from '../src/links.js';
 
 test('web links are kept, localhost included', () => {
   assert.equal(safeHref('http://localhost:4399'), 'http://localhost:4399/');
-  assert.equal(safeHref('https://github.com/YoungWaaade/supersept'), 'https://github.com/YoungWaaade/supersept');
+  assert.equal(safeHref('https://github.com/YoungWaaade/Agentik'), 'https://github.com/YoungWaaade/Agentik');
 });
 
 test('every other scheme is blocked', () => {
-  for (const h of ['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'file:///etc/passwd', 'vbscript:x', '/Users/ekuzu', 'http://localhost:4399,']) assert.equal(safeHref(h), null, h);
+  for (const h of ['javascript:alert(1)', ' JavaScript:alert(1)', 'data:text/html,<script>alert(1)</script>', 'file:///etc/passwd', 'vbscript:x', '/Users/alice', 'http://localhost:4399,']) assert.equal(safeHref(h), null, h);
 });
 
 test('a bare URL leaves the sentence punctuation out', () => {
@@ -21,6 +21,6 @@ test('a bare URL leaves the sentence punctuation out', () => {
 });
 
 test('local paths are recognised', () => {
-  for (const h of ['/Users/ekuzu/a.png', '~/x', './a', 'file:///a']) assert.ok(isPath(h), h);
+  for (const h of ['/Users/alice/a.png', '~/x', './a', 'file:///a']) assert.ok(isPath(h), h);
   assert.ok(!isPath('https://x.com'));
 });

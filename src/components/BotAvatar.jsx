@@ -49,8 +49,7 @@ export const BOT_COLORS = {
 const KEYS = Object.keys(BOT_SHAPES);
 const COLOR_KEYS = Object.keys(BOT_COLORS);
 export const botHex = (c, theme) => (theme === 'light' ? c.light : c.hex);
-// Stable look for the team; any other agent gets a shape derived from its name.
-const BY_AGENT = { nami: 'fleur', adi: 'sceau', franky: 'trio', katrina: 'lunes', robin: 'pile', git: 'etoile', claude: 'soleil' };
+// An agent without a saved shape gets one derived from its name.
 const hash = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 // `spec` is the agent's saved avatar, "shape,colour" (e.g. "fleur,ciel"). A missing colour means the
 // shape's own; a missing shape (empty, or an older pixel-bot spec) means the agent's stable shape.
@@ -58,7 +57,7 @@ export function parseAvatar(spec, seed = '') {
   const [s, c] = String(spec || '').split(',').map((x) => x.trim());
   if (BOT_SHAPES[s]) return { shape: s, color: BOT_COLORS[c] ? c : BOT_SHAPES[s].color };
   const key = String(seed || spec || 'bot').toLowerCase();
-  const shape = BY_AGENT[key] || KEYS[hash(key) % KEYS.length];
+  const shape = KEYS[hash(key) % KEYS.length];
   return { shape, color: BOT_SHAPES[shape].color };
 }
 export const avatarSpec = ({ shape, color }) => `${shape},${color}`;
