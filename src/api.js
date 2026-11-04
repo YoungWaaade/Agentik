@@ -1,3 +1,5 @@
+import { MAX_ATTACHMENT_BYTES, tooBigMessage } from './attachments.js';
+
 async function req(method, url, body) {
   const res = await fetch(url, {
     method,
@@ -37,18 +39,28 @@ export const STATUS = {
   done: { label: 'Terminé', color: 'var(--dim)' },
 };
 
-// Upload a file to ~/.claude-hub/attachments; returns { path, name, size }.
-export async function uploadFile(f) {
-  if (f.size > 10 * 1024 * 1024) throw new Error(`${f.name || 'Le fichier'} dépasse 10 Mo`);
+// Upload a file to ~/.claude-hub/attachments; returns { path, name, size, type }.
+// onProgress(0…1) follows the upload (XHR: fetch has no upload progress).
+export function uploadFile(f, onProgress) {
+  if (f.size > MAX_ATTACHMENT_BYTES) return Promise.reject(new Error(tooBigMessage(f.name, f.size)));
   const name = f.name || `image-${Date.now()}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`;
-  const res = await fetch(`/api/attachments?name=${encodeURIComponent(name)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "l'envoi du fichier a échoué");
-  return data;
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', `/api/attachments?name=${encodeURIComponent(name)}`);
+    x.setRequestHeader('Content-Type', 'application/octet-stream');
+    if (onProgress) x.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    x.onload = () => {
+      let data = {};
+      try { data = JSON.parse(x.responseText); } catch {}
+      if (x.status >= 200 && x.status < 300) resolve({ ...data, ...(f.type ? { type: f.type } : {}) });
+      else reject(new Error(data.error || (x.status === 413 ? tooBigMessage(name, f.size) : `l'envoi de « ${name} » a échoué`)));
+    };
+    x.onerror = () => reject(new Error(`l'envoi de « ${name} » a échoué (connexion coupée ?)`));
+    x.send(f);
+  });
 }
 // …/attachments/<id>/<name> → the URL serving it.
 export const attachmentUrl = (p) => {
   const [id, name] = String(p).split('/').slice(-2);
   return `/api/attachments/${encodeURIComponent(id)}/${encodeURIComponent(name)}`;
 };
-export const imageFiles = (list) => [...(list || [])].filter((f) => f.type?.startsWith('image/'));

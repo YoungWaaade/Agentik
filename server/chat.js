@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR } from './db.js';
 import { getAgent, listAgents } from './agents.js';
 import * as relay from './relay.js';
+import { agentNote, kindOf } from '../src/attachments.js';
 
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cli.mjs');
 // Each conversation runs on its own, so several can work in parallel. Keyed by "agent:conversation".
@@ -117,7 +118,7 @@ function systemPrompt(a) {
     '    supersept send ID "message"                → répondre ou donner une consigne à une session',
     '    supersept archive ID                       → range une session terminée (rien n\'est perdu, elle reste dans le journal)',
     "    supersept journal --date AAAA-MM-JJ|hier   (ou --depuis AAAA-MM-JJ --jusqu-a AAAA-MM-JJ) → ce qui a été fait ce jour-là, sessions archivées comprises : utilise-le pour « qu'est-ce qu'on a fait le … ? »",
-    '    supersept attach CHEMIN                    → joint une image/vidéo locale (png, jpg, gif, webp, mp4, mov, webm) : colle la ligne markdown renvoyée, seule sur sa ligne, dans ta réponse pour que l\'utilisateur la voie dans le chat',
+    '    supersept attach CHEMIN                    → joint un fichier local (image, vidéo, audio, PDF, zip, document…, 200 Mo max) : colle la ligne markdown renvoyée, seule sur sa ligne, dans ta réponse pour que l\'utilisateur la voie dans le chat',
     '    supersept memory PROJECT_ID   /   supersept set-memory PROJECT_ID --content "…"',
     "- Le travail concret est fait par les sessions que tu lances : donne-leur une mission complète, précise et autonome.",
     "- Avant de créer un projet, regarde les projets existants (supersept projects) et réutilise le plus pertinent. Crée un projet seulement si rien ne convient.",
@@ -191,7 +192,11 @@ function describeTool(name, input = {}) {
   switch (t) {
     case 'WebSearch': return { icon: 'search', label: `Cherche sur le web${q(input.query)}` };
     case 'WebFetch': return { icon: 'globe', label: 'Lit une page web' };
-    case 'Read': return String(input.file_path || '').includes(`${path.sep}attachments${path.sep}`) ? { icon: 'image', label: "Regarde l'image" } : { icon: 'eye', label: 'Lit un fichier' };
+    case 'Read': {
+      const f = String(input.file_path || '');
+      if (!f.includes(`${path.sep}attachments${path.sep}`)) return { icon: 'eye', label: 'Lit un fichier' };
+      return kindOf(f) === 'image' ? { icon: 'image', label: "Regarde l'image" } : { icon: 'eye', label: `Lit la pièce jointe${q(path.basename(f))}` };
+    }
     default: return { icon: 'tool', label: t.startsWith('mcp__') ? t.split('__').slice(1).join(' · ') : t };
   }
 }
@@ -207,9 +212,9 @@ function recap(agent, conv) {
 
 // from: slug of the agent delegating this message (a manager like Nami), fromConv: its conversation;
 // replies go back there. conversation: where the message goes (default: the last active one).
-// images: [{ path, name }] attached files, read by the agent with the Read tool.
+// files: [{ path, name, size, type }] attached files (any type), read by the agent with the Read tool.
 // Returns the conversation number.
-export function sendToAgent(agent, text, { internal = false, from = null, fromConv = null, conversation = null, images = [] } = {}) {
+export function sendToAgent(agent, text, { internal = false, from = null, fromConv = null, conversation = null, files = [] } = {}) {
   const a = getAgent(agent);
   if (!a) throw new Error('agent introuvable');
   if (from && from === agent) throw new Error('un agent ne peut pas se déléguer une mission à lui-même');
@@ -227,11 +232,11 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
   if (!internal) db.prepare('UPDATE agent_convs SET manager = ?, manager_conv = ? WHERE agent = ? AND conversation = ?').run(sender ? sender.slug : null, sender ? fromConv : null, agent, conv);
   const meta = {};
   if (sender) Object.assign(meta, { from: sender.slug, fromLabel: sender.label });
-  if (images.length) meta.images = images.map((i) => ({ path: i.path, name: i.name }));
+  if (files.length) meta.files = files.map((f) => ({ path: f.path, name: f.name, size: f.size, ...(f.type ? { type: f.type } : {}) }));
   addMessage(agent, conv, internal ? 'system' : 'user', text, Object.keys(meta).length ? meta : null);
   if (!st.open) ctx.broadcast({ type: 'chat-convs', agent });
   if (sender) text = `[Message de ${sender.label}, qui coordonne l'équipe] ${text}`;
-  if (images.length) text += `\n\n[Images jointes, regarde-les avec l'outil Read : ${images.map((i) => i.path).join(' , ')}]`;
+  text += agentNote(files);
   if (!st.started && !st.handoff) text = recap(agent, conv) + text;
   const k = key(agent, conv);
   const q = queues.get(k) || [];

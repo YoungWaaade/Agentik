@@ -1,8 +1,10 @@
 // Phone view of the agents (Nami, Franky…): pick one, then chat with it like on the Mac.
 // Reuses the desktop chat pieces (chatStore + Message from AgentChat) with a touch-sized layout.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuArrowUp, LuSquare, LuImagePlus, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck, LuChevronRight } from 'react-icons/lu';
-import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
+import { LuChevronLeft, LuArrowUp, LuSquare, LuPaperclip, LuX, LuLoaderCircle, LuMessageSquare, LuPlus, LuCheck, LuChevronRight } from 'react-icons/lu';
+import { api, ago } from '../api.js';
+import { attachmentsSummary } from '../attachments.js';
+import { useAttachments, ComposerFiles } from './Attachments.jsx';
 import { useChat, useConvs, loadConvs, loadChat, peekConvs, peekChat, setViewing, useChatBadges } from '../chatStore.js';
 import { checkLive } from '../live.js';
 import BotAvatar, { accentOf } from './BotAvatar.jsx';
@@ -38,7 +40,7 @@ function previewOf(msgs) {
     const m = msgs[i];
     if (m.role === 'activity') continue;
     if (m.role === 'system') return { text: systemLabel(m.text), at: m.at };
-    const t = plain(m.text) || (m.meta?.images?.length ? 'Photo' : '');
+    const t = plain(m.text) || attachmentsSummary(m.meta?.files || m.meta?.images);
     if (t) return { text: (m.role === 'user' ? 'Toi : ' : '') + t, at: m.at };
   }
   return { text: '', at: 0 };
@@ -134,9 +136,8 @@ export function AgentScreen({ agent, go }) {
   });
   const chat = useChat(agent.slug, active);
   const [text, setText] = useState('');
-  const [images, setImages] = useState([]);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
+  const { files, setFiles, pending, uploading, upload, remove } = useAttachments({ onError: setError });
   const [sheet, setSheet] = useState(false);
   const scroller = useRef(null);
   const input = useRef(null);
@@ -212,27 +213,19 @@ export function AgentScreen({ agent, go }) {
     await loadConvs(agent.slug);
     setActive(r.conversation);
   };
-  const upload = async (files) => {
-    const imgs = imageFiles(files).slice(0, 8 - images.length);
-    if (!imgs.length) return;
-    setUploading(true);
-    setError(null);
-    try { for (const f of imgs) { const a = await uploadFile(f); setImages((l) => [...l, a]); } } catch (e) { setError(e.message); }
-    setUploading(false);
-  };
   const send = async (t = text) => {
     const v = t.trim();
-    if (!v && !images.length) return;
-    const imgs = images;
+    if (!v && !files.length) return;
+    const sent = files;
     setText('');
-    setImages([]);
+    setFiles([]);
     setError(null);
     stick.current = true;
     try {
-      const r = await api.post(`/api/agents/${agent.slug}/chat`, { text: v, conversation: active, images: imgs });
+      const r = await api.post(`/api/agents/${agent.slug}/chat`, { text: v, conversation: active, files: sent });
       checkLive(); // the message and the reply come back over the socket: make sure it is not dead
       if (r.conversation !== active) { await loadConvs(agent.slug); setActive(r.conversation); }
-    } catch (e) { setError(e.message); setText(v); setImages(imgs); }
+    } catch (e) { setError(e.message); setText(v); setFiles(sent); }
   };
 
   const messages = chat?.messages || [];
@@ -240,7 +233,7 @@ export function AgentScreen({ agent, go }) {
   const others = list.filter((c) => !c.open);
   const status = chat?.busy ? 'travaille…' : badges.busy(agent.slug) ? 'travaille dans une autre conversation…' : 'disponible';
   const otherUnread = open.reduce((n, c) => n + (c.conversation === active ? 0 : badges.unreadConv(agent.slug, c.conversation)), 0);
-  const canSend = (text.trim() || images.length) && !uploading;
+  const canSend = (text.trim() || files.length) && !uploading;
 
   return (
     <>
@@ -258,7 +251,9 @@ export function AgentScreen({ agent, go }) {
         </button>
       </header>
 
-      <div className="m-chat-list" ref={scroller}>
+      <div className="m-chat-list" ref={scroller}
+        onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+        onDrop={(e) => { if (!e.dataTransfer.files.length) return; e.preventDefault(); upload(e.dataTransfer.files); }}>
         <div className="chat-column">
           {!messages.length && chat?.loaded !== false && (
             <div className="chat-empty">
@@ -279,21 +274,12 @@ export function AgentScreen({ agent, go }) {
       </div>
 
       {error && <div className="error-bar m-chat-error" onClick={() => setError(null)}>{error}</div>}
-      {(images.length > 0 || uploading) && (
-        <div className="chat-thumbs m-thumbs">
-          {images.map((a) => (
-            <span key={a.path} className="chat-thumb">
-              <img src={attachmentUrl(a.path)} alt={a.name} />
-              <button type="button" className="m-thumb-x" aria-label="Retirer" onClick={() => setImages((l) => l.filter((x) => x !== a))}><LuX size={12} /></button>
-            </span>
-          ))}
-          {uploading && <span className="chat-thumb loading"><LuLoaderCircle size={14} className="spin" /></span>}
-        </div>
-      )}
+      <ComposerFiles files={files} pending={pending} onRemove={remove} mobile />
       <div className="m-composer">
-        <button className="m-attach" onPointerDown={(e) => e.preventDefault()} onClick={() => fileInput.current.click()} aria-label="Ajouter une image"><LuImagePlus size={20} /></button>
-        <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
-        <textarea ref={input} rows={1} value={text} placeholder={`Écris à ${agent.label}…`} onChange={(e) => setText(e.target.value)} />
+        <button className="m-attach" onPointerDown={(e) => e.preventDefault()} onClick={() => fileInput.current.click()} aria-label="Joindre des fichiers"><LuPaperclip size={20} /></button>
+        <input ref={fileInput} type="file" multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
+        <textarea ref={input} rows={1} value={text} placeholder={`Écris à ${agent.label}…`} onChange={(e) => setText(e.target.value)}
+          onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); upload(e.clipboardData.files); } }} />
         {chat?.busy && !canSend ? (
           <button className="m-send m-stop" onPointerDown={(e) => e.preventDefault()} onClick={() => api.post(`/api/agents/${agent.slug}/chat/stop`, { conversation: active })} aria-label="Arrêter"><LuSquare size={14} /></button>
         ) : (

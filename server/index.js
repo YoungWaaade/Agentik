@@ -18,6 +18,8 @@ import * as relay from './relay.js';
 import * as usage from './usage.js';
 import * as autotrust from './autotrust.js';
 import * as push from './push.js';
+import { uploadHandler, attachmentList } from './attachments.js';
+import { defaultText } from '../src/attachments.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -814,20 +816,16 @@ app.patch('/api/agents/:slug/conversations/:n', wrap(async (req, res) => {
   updateConversation(req.params.slug, Number(req.params.n), req.body);
   res.json({ ok: true });
 }));
-// Images attached in the chat: only files saved by /api/attachments.
-const attachmentList = (list) => (Array.isArray(list) ? list : []).slice(0, 8).map((a) => {
-  const file = path.resolve(String(a.path || ''));
-  if (!file.startsWith(path.join(HUB_DIR, 'attachments') + path.sep) || !fs.existsSync(file)) throw new Error('pièce jointe introuvable');
-  return { path: file, name: path.basename(file) };
-});
+const ATTACH_DIR = path.join(HUB_DIR, 'attachments');
 app.post('/api/agents/:slug/chat', wrap(async (req, res) => {
-  const images = attachmentList(req.body.images);
-  const text = String(req.body.text || '').trim() || (images.length ? 'Regarde cette image.' : '');
+  // `files` (any type); `images` = older clients.
+  const files = attachmentList(req.body.files || req.body.images, ATTACH_DIR);
+  const text = String(req.body.text || '').trim() || defaultText(files);
   if (!text) throw new Error('message vide');
   const from = req.get('X-Supersept-Agent') || null;
   const sender = from && getAgent(from) ? from : null;
   const conversation = sender ? null : convNum(req.body.conversation);
-  const conv = sendToAgent(req.params.slug, text, { from: sender, fromConv: sender ? convNum(req.get('X-Supersept-Conv')) : null, conversation, images });
+  const conv = sendToAgent(req.params.slug, text, { from: sender, fromConv: sender ? convNum(req.get('X-Supersept-Conv')) : null, conversation, files });
   res.json({ ok: true, conversation: conv });
 }));
 app.post('/api/agents/:slug/chat/stop', (req, res) => { stopTurn(req.params.slug, convNum(req.body?.conversation)); res.json({ ok: true }); });
@@ -958,20 +956,16 @@ app.get('/api/prompts', (req, res) => {
 });
 
 // Attachments are saved on disk and handed to Claude as paths it reads (an @file would paste images in base64).
-app.post('/api/attachments', express.raw({ type: '*/*', limit: '200mb' }), (req, res) => {
-  const name = path.basename(String(req.query.name || 'fichier')).replace(/[^\w.-]/g, '_') || 'fichier';
-  const dir = path.join(HUB_DIR, 'attachments', uid());
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, name);
-  fs.writeFileSync(file, req.body);
-  res.json({ path: file, name, size: req.body.length });
-});
+// Streamed to disk (up to 200 Mo, see src/attachments.js): never held in memory.
+app.post('/api/attachments', uploadHandler(ATTACH_DIR));
 
 app.get('/api/attachments/:id/:name', (req, res) => {
   const dir = path.join(HUB_DIR, 'attachments');
   const file = path.resolve(dir, path.basename(req.params.id), path.basename(req.params.name));
   if (!file.startsWith(dir + path.sep) || !fs.existsSync(file)) return res.status(404).end();
+  // Served as is (PDF, text, video…) but never run: no scripts, no type sniffing.
   res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   if (req.query.download === '1') res.attachment(path.basename(file));
   // Absolute path with root: the hub folder (~/.claude-hub) is a dot-folder, which sendFile otherwise refuses (404).
   res.sendFile(path.basename(file), { root: path.dirname(file), dotfiles: 'allow' });

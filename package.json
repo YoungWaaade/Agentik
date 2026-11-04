@@ -5,6 +5,7 @@
     "postinstall": "node scripts/fix-pty.mjs",
     "dev": "node --watch server/index.js & vite",
     "build": "vite build",
+    "test": "node --test test/*.test.js",
     "start": "vite build && node server/index.js",
     "serve": "node server/index.js",
     "service": "./scripts/install-service.sh",

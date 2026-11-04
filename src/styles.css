@@ -52,6 +52,9 @@
   --yellow-400: #fac800;
   --yellow-500: #edb200;
   --green-500: #00c950;
+  --blue-500: #4a9eff;
+  --violet-500: #a78bfa;
+  --pink-500: #f472b6;
   --destructive: #cc4444;
   --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
@@ -101,6 +104,9 @@
   --amber-500: #c47f00;
   --yellow-500: #b58900;
   --green-500: #34c759;
+  --blue-500: #2f74d0;
+  --violet-500: #7c5cd6;
+  --pink-500: #d6408f;
   --destructive: #d13b3b;
   --danger-text: #c62828;
   --primary-text: #b8502b;
@@ -1144,6 +1150,44 @@ body.resizing { user-select: none; cursor: col-resize; }
 .msg-images { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: 78%; }
 .msg-images img { display: block; max-width: 220px; max-height: 180px; border-radius: 12px; object-fit: cover; box-shadow: inset 0 0 0 0.5px var(--border); }
 .chat-drop { position: absolute; inset: 8px; display: flex; align-items: center; justify-content: center; border: 1.5px dashed var(--primary); border-radius: 14px; background: rgb(var(--bg-rgb) / 0.82); color: var(--foreground); font-size: 14px; pointer-events: none; z-index: 5; }
+/* Pièces jointes de tout type : vignettes du composer, cartes fichier, lecteurs */
+.chat-thumb video { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+.thumb-badge { position: absolute; left: 4px; bottom: 4px; display: flex; padding: 2px; border-radius: 5px; background: rgb(0 0 0 / 0.55); color: #fff; }
+.thumb-progress { position: absolute; bottom: 4px; left: 0; right: 0; text-align: center; font-size: 10px; font-variant-numeric: tabular-nums; color: var(--muted-foreground); }
+.chat-thumb.file { width: auto; max-width: 220px; justify-content: flex-start; gap: 8px; padding: 0 26px 0 8px; }
+.file-icon { flex: none; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; color: var(--fi, var(--muted-foreground)); background: color-mix(in srgb, var(--fi, var(--muted-foreground)) 15%, transparent); }
+.file-icon.k-pdf { --fi: var(--red-500); }
+.file-icon.k-archive { --fi: var(--amber-500); }
+.file-icon.k-sheet { --fi: var(--green-500); }
+.file-icon.k-doc, .file-icon.k-text { --fi: var(--blue-500); }
+.file-icon.k-slides { --fi: var(--primary); }
+.file-icon.k-video, .file-icon.k-image { --fi: var(--violet-500); }
+.file-icon.k-audio { --fi: var(--pink-500); }
+.chip-text { display: flex; flex-direction: column; min-width: 0; text-align: left; line-height: 1.25; }
+.chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 500; color: var(--foreground); }
+.chip-meta { font-size: 11px; color: var(--muted-foreground); white-space: nowrap; }
+.msg-files { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 78%; min-width: 0; }
+.msg-files .msg-images { max-width: 100%; }
+.msg-file-video { display: block; max-width: min(100%, 360px); max-height: 320px; border-radius: 14px; background: #000; }
+.msg-file-audio { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 6px; border-radius: 14px; background: var(--fill-selected); max-width: 100%; }
+.msg-file-audio audio { width: 280px; max-width: 100%; height: 36px; }
+.file-card { display: inline-flex; align-items: center; width: 280px; max-width: 100%; margin: 4px 0; border-radius: 14px; background: var(--fill-selected); box-shadow: inset 0 0 0 0.5px var(--border); overflow: hidden; vertical-align: middle; }
+.file-card-open { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 9px 4px 9px 10px; color: inherit; text-decoration: none; }
+.file-card-open .file-icon { width: 40px; height: 40px; border-radius: 9px; }
+.file-card-open .chip-name { font-size: 13.5px; }
+.file-card-open:hover .chip-name { text-decoration: underline; }
+.file-card-dl { flex: none; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; margin-right: 6px; border-radius: 10px; color: var(--muted-foreground); }
+.file-card-dl:hover { color: var(--foreground); background: var(--fill-hover); }
+.msg-text .file-card { display: flex; }
+.msg-text .file-card a { color: inherit; text-decoration: none; }
+.msg-text .file-card .file-card-dl { color: var(--muted-foreground); }
+.msg-text .file-card-open:hover .chip-name { text-decoration: underline; }
+.m-chat-list .msg-files { max-width: 85%; }
+.m-chat-list .file-card { width: 260px; }
+.m-chat-list .file-card-open .chip-name { font-size: 15px; }
+.m-chat-list .chip-meta { font-size: 12.5px; }
+.m-chat-list .msg-file-video { max-width: 100%; }
+.m-thumbs .chat-thumb.file { height: 56px; max-width: 70vw; }
 .term-box.dropping { outline: 1.5px dashed var(--primary); outline-offset: -6px; border-radius: 10px; }
 
 /* Context gauge in the agent pane header, and the relay toast */

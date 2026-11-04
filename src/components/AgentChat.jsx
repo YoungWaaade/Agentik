@@ -1,6 +1,8 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage, LuDownload, LuShare, LuExternalLink } from 'react-icons/lu';
-import { api, ago, uploadFile, attachmentUrl, imageFiles } from '../api.js';
+import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuPaperclip, LuImage, LuDownload, LuShare, LuExternalLink } from 'react-icons/lu';
+import { api, ago, attachmentUrl } from '../api.js';
+import { previewOf } from '../attachments.js';
+import { useAttachments, ComposerFiles, MessageFiles, FileCard } from './Attachments.jsx';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar, { accentOf } from './BotAvatar.jsx';
 
@@ -42,7 +44,10 @@ export function JumpDown({ onClick }) {
 
 function Media({ src, alt }) {
   const [open, setOpen] = useState(false);
-  if (/\.(mp4|mov|webm)$/i.test(src)) return (
+  const kind = previewOf(fileName(src));
+  if (kind === 'audio') return <span className="msg-file-audio"><span className="chip-name">{fileName(src)}</span><audio src={src} controls preload="metadata" /></span>;
+  if (kind === 'file') return <FileCard src={src} name={fileName(src)} />;
+  if (kind === 'video') return (
     <div className="msg-video">
       <video className="msg-media" src={src} controls playsInline preload="metadata" />
       <MediaActions src={src} />
@@ -67,7 +72,7 @@ function inline(text) {
     if (t.startsWith('![')) { const [, alt, src] = /!\[([^\]]*)\]\(([^)]+)\)/.exec(t); const u = mediaUrl(src); if (u) parts.push(<Media key={k++} src={u} alt={alt} />); else parts.push(t); }
     else if (t.startsWith('**')) parts.push(<strong key={k++}>{t.slice(2, -2)}</strong>);
     else if (t.startsWith('`')) parts.push(<code key={k++}>{t.slice(1, -1)}</code>);
-    else if (t.startsWith('[')) { const [, label, href] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t); parts.push(<a key={k++} href={href} target="_blank" rel="noreferrer">{label}</a>); }
+    else if (t.startsWith('[')) { const [, label, href] = /\[([^\]]+)\]\(([^)]+)\)/.exec(t); parts.push(<a key={k++} href={mediaUrl(href) || href} target="_blank" rel="noreferrer">{label}</a>); }
     else if (t.startsWith('http')) parts.push(<a key={k++} href={t} target="_blank" rel="noreferrer">{t}</a>);
     else parts.push(<em key={k++}>{t.slice(1, -1)}</em>);
     last = m.index + t.length;
@@ -112,10 +117,9 @@ export default function AgentChat({ agent, go }) {
   const chat = useChat(agent.slug, active);
   const drafts = useRef(new Map()); // conversation → unsent text
   const [text, setText] = useState('');
-  const [images, setImages] = useState([]); // [{ path, name }]
-  const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState(null);
+  const { files, setFiles, pending, uploading, upload, remove } = useAttachments({ onError: setError, onDone: () => input.current?.focus() });
   const [histOpen, setHistOpen] = useState(false);
   const [renaming, setRenaming] = useState(null);
   const list_ = useRef(null);
@@ -221,30 +225,17 @@ export default function AgentChat({ agent, go }) {
     if (title.trim() !== convTitle(c)) await api.patch(`/api/agents/${agent.slug}/conversations/${c.conversation}`, { title });
   };
 
-  const upload = async (files) => {
-    const imgs = imageFiles(files).slice(0, 8 - images.length);
-    if (!imgs.length) return false;
-    setUploading(true);
-    setError(null);
-    try {
-      for (const f of imgs) { const a = await uploadFile(f); setImages((l) => [...l, a]); }
-    } catch (e) { setError(e.message); }
-    setUploading(false);
-    input.current?.focus();
-    return true;
-  };
-
   const send = async (t = text) => {
     const v = t.trim();
-    if (!v && !images.length) return;
-    const imgs = images;
+    if (!v && !files.length) return;
+    const sent = files;
     setText('');
-    setImages([]);
+    setFiles([]);
     setError(null);
     try {
-      const r = await api.post(`/api/agents/${agent.slug}/chat`, { text: v, conversation: active, images: imgs });
+      const r = await api.post(`/api/agents/${agent.slug}/chat`, { text: v, conversation: active, files: sent });
       if (r.conversation !== active) { await loadConvs(agent.slug); setActive(r.conversation); }
-    } catch (e) { setError(e.message); setText(v); setImages(imgs); }
+    } catch (e) { setError(e.message); setText(v); setFiles(sent); }
   };
 
   const messages = chat?.messages || [];
@@ -334,34 +325,24 @@ export default function AgentChat({ agent, go }) {
         <div className="chat-column">
           {error && <div className="error-bar" onClick={() => setError(null)}>{error}</div>}
           <div className="chat-input">
-            {(images.length > 0 || uploading) && (
-              <div className="chat-thumbs">
-                {images.map((a) => (
-                  <span key={a.path} className="chat-thumb">
-                    <img src={attachmentUrl(a.path)} alt={a.name} />
-                    <button type="button" title="Retirer" onClick={() => setImages((l) => l.filter((x) => x !== a))}><LuX size={10} /></button>
-                  </span>
-                ))}
-                {uploading && <span className="chat-thumb loading"><LuLoaderCircle size={14} className="spin" /></span>}
-              </div>
-            )}
+            <ComposerFiles files={files} pending={pending} onRemove={remove} />
             <div className="chat-input-row">
-              <button className="chat-attach" title="Ajouter une image (ou colle-la, ou glisse-la ici)" onClick={() => fileInput.current.click()}><LuImagePlus size={16} /></button>
-              <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
+              <button className="chat-attach" title="Joindre des fichiers : photos, vidéos, PDF, zip… (ou colle-les, ou glisse-les ici)" onClick={() => fileInput.current.click()}><LuPaperclip size={16} /></button>
+              <input ref={fileInput} type="file" multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
               <textarea ref={input} rows={1} value={text} placeholder={`Écris à ${agent.label}…`} onChange={(e) => setText(e.target.value)}
-                onPaste={(e) => { if (imageFiles(e.clipboardData.files).length) { e.preventDefault(); upload(e.clipboardData.files); } }}
+                onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); upload(e.clipboardData.files); } }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} />
-              {chat?.busy && !text && !images.length ? (
+              {chat?.busy && !text && !files.length && !uploading ? (
                 <button className="chat-send stop" title="Arrêter" onClick={() => api.post(`/api/agents/${agent.slug}/chat/stop`, { conversation: active })}><LuSquare size={12} /></button>
               ) : (
-                <button className="chat-send" title="Envoyer (↵)" disabled={(!text.trim() && !images.length) || uploading} onClick={() => send()}><LuArrowUp size={14} /></button>
+                <button className="chat-send" title="Envoyer (↵)" disabled={(!text.trim() && !files.length) || uploading} onClick={() => send()}><LuArrowUp size={14} /></button>
               )}
             </div>
           </div>
           <div className="chat-hint">Le travail avance en arrière-plan dans tes projets, et tu es prévenu quand c'est fait.</div>
         </div>
       </div>
-      {dragging && <div className="chat-drop">Dépose ton image pour l'envoyer à {agent.label}</div>}
+      {dragging && <div className="chat-drop">Dépose tes fichiers pour les envoyer à {agent.label}</div>}
     </div>
   );
 }
@@ -371,11 +352,7 @@ export function Message({ m, agent, go }) {
     return (
       <div className={`msg user ${m.meta?.from ? 'delegated' : ''}`}>
         {m.meta?.from && <span className="msg-from">de {m.meta.fromLabel}</span>}
-        {m.meta?.images?.length > 0 && (
-          <div className="msg-images">
-            {m.meta.images.map((i) => <a key={i.path} href={attachmentUrl(i.path)} target="_blank" rel="noreferrer"><img src={attachmentUrl(i.path)} alt={i.name} /></a>)}
-          </div>
-        )}
+        <MessageFiles files={m.meta?.files || m.meta?.images} />
         {m.text && <div className="msg-bubble">{m.text}</div>}
       </div>
     );

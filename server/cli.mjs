@@ -17,7 +17,7 @@ const HELP = `supersept (alias : younghub) — piloter YoungHub
                                             (ce qui a été fait, jour par jour, sessions archivées comprises ; défaut : aujourd'hui)
   supersept send ID "message"
   supersept archive ID
-  supersept attach CHEMIN                   (image ou vidéo locale → renvoie la ligne markdown à coller dans ta réponse)
+  supersept attach CHEMIN                   (fichier local : image, vidéo, PDF, zip… → renvoie la ligne markdown à coller dans ta réponse)
   supersept agents
   supersept ask-agent AGENT_ID "mission"
   supersept create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
