@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR } from './db.js';
@@ -170,7 +171,7 @@ function systemPrompt(a) {
     "- Si une session te pose une question que tu peux trancher sans risque, réponds-lui toi-même (supersept send). Demande à l'utilisateur seulement pour les décisions importantes : supprimer, publier, payer, envoyer quelque chose à l'extérieur.",
     '',
     ...(a.manager ? managerSection(a) : [
-      "- Si un message vient d'un autre agent qui coordonne l'équipe (par exemple Nami), traite sa demande comme celle de l'utilisateur et réponds-lui aussi court ; ta réponse lui est transmise automatiquement.",
+      "- Si un message vient d'un autre agent qui coordonne l'équipe (l'agent chef), traite sa demande comme celle de l'utilisateur et réponds-lui aussi court ; ta réponse lui est transmise automatiquement.",
     ]),
     '',
     `Ton rôle : ${a.description || ''}`,
@@ -195,6 +196,14 @@ function managerSection(a) {
       "- Supprimer un agent, seulement après l'accord de l'utilisateur : supersept delete-agent IDENTIFIANT (tu ne peux pas te supprimer toi-même).",
     ] : []),
   ];
+}
+
+// MCP servers the user set up in Claude Code (~/.claude.json): their tools are allowed in chat turns.
+function userMcpTools() {
+  try {
+    const servers = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.claude.json'), 'utf8')).mcpServers || {};
+    return Object.keys(servers).map((name) => `mcp__${name}`);
+  } catch { return []; }
 }
 
 // Each agent gets a home folder with `agentik`, `agentic` and `supersept` (aliases) launchers on its PATH.
@@ -254,7 +263,7 @@ function recap(agent, conv) {
   return `[Supersept] Reprise d'une ancienne conversation. Voici ce qui s'était dit :\n${lines.join('\n')}\n\nNouveau message :\n`;
 }
 
-// from: slug of the agent delegating this message (a manager like Nami), fromConv: its conversation;
+// from: slug of the agent delegating this message (the team lead), fromConv: its conversation;
 // replies go back there. conversation: where the message goes (default: the last active one).
 // images: [{ path, name }] attached files, read by the agent with the Read tool.
 // Returns the conversation number.
@@ -294,7 +303,7 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
 function spawnTurn(a, agent, conv, st, text, format) {
   const { dir, bin } = agentHome(agent);
   const args = ['-p', '--output-format', format, ...(format === 'stream-json' ? ['--verbose'] : []),
-    '--allowedTools', 'Bash(agentik:*)', 'Bash(agentic:*)', 'Bash(supersept:*)', 'mcp__figma', 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
+    '--allowedTools', 'Bash(agentik:*)', 'Bash(agentic:*)', 'Bash(supersept:*)', ...userMcpTools(), 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
     '--disallowedTools', 'Edit', 'Write', 'NotebookEdit',
     '--add-dir', path.join(HUB_DIR, 'attachments'),
     '--append-system-prompt', systemPrompt(a)];

@@ -131,7 +131,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS chat_messages (
   meta TEXT,
   at INTEGER NOT NULL
 )`);
-// Agent that delegated the current mission (e.g. Nami): replies are forwarded to it.
+// Agent that delegated the current mission (the team lead): replies are forwarded to it.
 addColumn('agent_chats', 'manager', 'TEXT');
 // Conversations are numbered per agent: "Nouvelle conversation" archives instead of deleting.
 addColumn('chat_messages', 'conversation', 'INTEGER NOT NULL DEFAULT 0');

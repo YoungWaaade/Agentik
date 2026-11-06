@@ -19,8 +19,8 @@ Une interface locale façon [Superset](https://superset.sh) pour faire tourner p
 ## Installation
 
 ```bash
-git clone https://github.com/YoungWaaade/supersept.git
-cd supersept
+git clone https://github.com/YoungWaaade/Agentik.git
+cd Agentik
 npm install
 npm run service
 ```
@@ -28,6 +28,20 @@ npm run service
 `npm run service` compile l'interface et installe Agentik comme service macOS : il démarre tout seul à l'ouverture de session et redémarre s'il plante.
 
 Ouvre ensuite **http://supersept.localhost:4317** (ou http://localhost:4317 si ton navigateur ne gère pas les adresses `.localhost`).
+
+### Vérifier que ça tourne
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4317   # 200 = Agentik répond
+launchctl print gui/$(id -u)/sh.supersept.local | grep state       # state = running
+tail -n 20 ~/.claude-hub.log                                       # erreurs de démarrage
+```
+
+Au premier lancement, la page d'accueil propose de créer ton agent chef (cinq étapes).
+
+### Port 4317 déjà pris
+
+`lsof -iTCP:4317 -sTCP:LISTEN` montre quel programme l'occupe : arrête-le, puis relance `npm run service`. Le service utilise toujours le port 4317 ; pour un autre port, lance Agentik sans service : `PORT=4318 npm start`, puis ouvre http://localhost:4318.
 
 Astuce : pour l'avoir dans le Dock comme une app, utilise Chrome (menu ⋮ → Caster, enregistrer et partager → Installer la page en tant qu'application) ou Safari (Fichier → Ajouter au Dock).
 
@@ -56,6 +70,8 @@ Section **AGENTS** de la sidebar : chaque agent est un petit robot avec qui tu d
 - il crée des projets (vides, depuis un dossier ou un repo GitHub) et lance des sessions Claude Code avec une mission précise ;
 - il suit ces sessions : quand l'une se termine ou attend une réponse, il est prévenu automatiquement et te fait un point ;
 - il ne modifie jamais de fichiers lui-même : il agit uniquement via la commande `agentik` (alias `agentic` et `supersept`, `server/cli.mjs`), et les sessions qu'il lance restent visibles dans tes projets.
+
+La commande `agentik` est faite pour les agents, pas pour toi : Agentik la met dans leur PATH à chaque tour, et elle n'est pas installée sur ta machine (rien à faire avec `npm link` ou `npm install -g`). Elle parle à l'app qui tourne (http://127.0.0.1:4317) : `node server/cli.mjs help` liste ses commandes.
 
 Le **+** de la section crée un agent (rôle, instructions, modèle, robot). Les agents sont enregistrés au format natif de Claude Code (`~/.claude/agents/<nom>.md`).
 
@@ -100,9 +116,15 @@ Ne l'expose pas sur internet (pas de Vercel, de tunnel public ou de port forward
 
 ## Mise à jour
 
+Dans l'app : **Réglages → Mise à jour → Vérifier les mises à jour**, puis **Mettre à jour**. Agentik récupère `main` sur GitHub, refuse s'il y a des modifications locales, lance `npm install` si les dépendances ont changé, recompile, puis redémarre le service et recharge la page. Si l'installation ou la compilation échoue, il revient à la version précédente sans redémarrer.
+
+À la main :
+
 ```bash
 git pull && npm install && npm run service
 ```
+
+Hors service launchd, la page demande de relancer Agentik soi-même (ou définir `SUPERSEPT_RESTART_CMD`, une commande shell qui reçoit le PID du serveur dans `$AGENTIK_PID`).
 
 ## Désinstallation
 

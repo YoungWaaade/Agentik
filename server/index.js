@@ -17,6 +17,7 @@ import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conver
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
+import { makeUpdater, describe as describeUpdate, BOOT_ID } from './update.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -340,7 +341,7 @@ app.use((req, res, next) => {
     return res.status(remote.enabled() ? 401 : 403).type('html').send(remote.PAIR_PAGE);
   }
   // Hooks and pairing settings only make sense from the Mac itself.
-  if (!local && /^\/api\/(hook|remote)\b/.test(req.path)) return res.status(403).json({ error: 'réservé au Mac' });
+  if (!local && /^\/api\/(hook|remote|update)\b/.test(req.path)) return res.status(403).json({ error: 'réservé au Mac' });
   next();
 });
 
@@ -369,6 +370,22 @@ app.post('/api/remote/rotate', wrap(async (req, res) => {
   dropRemote();
   res.json(await remote.status(PORT));
 }));
+
+// ---------- built-in update ----------
+// The app on this Mac only: never the phone, never an agent (the CLI sends X-Supersept-Agent), and starting
+// one needs the Origin a browser sends, which a plain curl from a session does not.
+const updater = makeUpdater();
+app.get('/api/health', (req, res) => res.json({ ok: true, bootId: BOOT_ID }));
+const appOnly = (req, res, next) => {
+  if (req.get('X-Supersept-Agent')) return res.status(403).json({ error: "réservé à l'app : un agent ne peut pas mettre Agentik à jour" });
+  if (req.method !== 'GET' && !ORIGINS.has(req.headers.origin)) return res.status(403).json({ error: "réservé à l'app ouverte sur ce Mac" });
+  next();
+};
+const updateRoute = (fn) => [appOnly, (req, res) => fn().then((r) => res.json(r), (e) => { const d = describeUpdate(e); res.status(d.code === 'unknown' ? 500 : 400).json({ error: d.message, ...d }); })];
+app.get('/api/update/version', ...updateRoute(() => updater.version()));
+app.get('/api/update/check', ...updateRoute(() => updater.check()));
+app.get('/api/update/status', ...updateRoute(async () => updater.status()));
+app.post('/api/update', ...updateRoute(() => updater.start()));
 
 // ---------- GitHub: list repos, clone a repo into a new project, link a project ----------
 const SESSIONS_ROOT = path.join(homedir, 'claude sessions');

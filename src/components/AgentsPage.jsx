@@ -72,7 +72,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
         <input autoFocus={!agent} value={form.label} onChange={(e) => set('label', e.target.value)} placeholder="ex. Relecteur Brand DS" />
       </label>
       <label>Quand l'utiliser <span className="muted">— aide Claude à l'appeler en renfort pendant une session</span>
-        <input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="ex. Vérifie les écrans Figma contre les tokens du Brand DS Pennylane" />
+        <input value={form.description} onChange={(e) => set('description', e.target.value)} placeholder="ex. Relit les changements git et signale les bugs" />
       </label>
       <label>Instructions <span className="muted">— son rôle, ses règles, son ton</span>
         <textarea className="agent-prompt" value={form.prompt} onChange={(e) => set('prompt', e.target.value)} placeholder="Tu es… Ta mission… Règles…" />
