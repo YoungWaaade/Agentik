@@ -301,14 +301,17 @@ function spawnTurn(a, agent, conv, st, text, format) {
   if (a.model) args.push('--model', a.model);
   if (a.effort) args.push('--effort', a.effort);
   args.push(...(st.started ? ['--resume', st.session_id] : ['--session-id', st.session_id]));
-  args.push(text);
   const env = ctx.env();
   env.PATH = `${bin}:${env.PATH}`;
   env.SUPERSEPT_URL = `http://127.0.0.1:${ctx.port}`;
   env.SUPERSEPT_AGENT = agent;
   env.SUPERSEPT_CONV = String(conv);
   fs.mkdirSync(path.join(HUB_DIR, 'attachments'), { recursive: true });
-  return spawn(ctx.claude, args, { cwd: dir, env, stdio: ['ignore', 'pipe', 'pipe'] });
+  // The prompt goes through stdin: as an argument, a message starting with "-" was read as an unknown option.
+  const child = spawn(ctx.claude, args, { cwd: dir, env, stdio: ['pipe', 'pipe', 'pipe'] });
+  child.stdin.on('error', () => {});
+  child.stdin.end(text);
+  return child;
 }
 
 // Context full: the conversation keeps its number (so managers, sessions it launched and the chat UI don't

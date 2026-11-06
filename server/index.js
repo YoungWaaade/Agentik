@@ -198,7 +198,8 @@ function startAgent(wsId) {
   else {
     args.push('--session-id', ws.session_id);
     const first = ws.initial_prompt || agent?.initialPrompt;
-    if (first) args.push(first.length > PROMPT_INLINE_MAX
+    // "--" ends the options: a prompt starting with "-" would otherwise be read as one.
+    if (first) args.push('--', first.length > PROMPT_INLINE_MAX
       ? `${first.slice(0, 300).trim()}…\n\nCe message est long : il est en entier dans ${promptFile(ws.id, first)}. Lis ce fichier en entier avec Read avant toute action, puis suis-le.`
       : first);
   }
@@ -293,7 +294,7 @@ function startAgentTab(wsId, tabId) {
     args.push('--resume', tab.session_id);
   } else {
     args.push('--session-id', tab.session_id);
-    if (agent.initialPrompt) args.push(agent.initialPrompt);
+    if (agent.initialPrompt) args.push('--', agent.initialPrompt);
   }
   const s = spawn(`${wsId}:ag-${tabId}`, CLAUDE, args, ws.cwd, { env: { CLAUDE_HUB_WORKSPACE: ws.id } });
   watchTrustPrompt(s, { ...ws, owner_agent: null, has_conversation: transcriptExists(ws.cwd, tab.session_id) ? 1 : ws.has_conversation }, project);
@@ -554,7 +555,7 @@ app.get('/api/projects/:id/github/:kind', wrap(async (req, res) => {
   const kind = req.params.kind === 'prs' ? 'pr' : 'issue';
   const fields = kind === 'pr' ? 'number,title,url,headRefName,author,updatedAt' : 'number,title,url,body,author,updatedAt';
   const args = [kind, 'list', '--limit', '50', '--json', fields];
-  if (req.query.q) args.push('--search', String(req.query.q));
+  if (req.query.q) args.push(`--search=${req.query.q}`);
   const out = await new Promise((ok, ko) => execFile(GH || 'gh', args, { cwd: p.path, env: { ...process.env, PATH: process.env.PATH + ':/opt/homebrew/bin' }, maxBuffer: 10 * 1024 * 1024 },
     (e, stdout, stderr) => (e ? ko(new Error(stderr.trim().split('\n')[0] || 'gh a échoué')) : ok(stdout))));
   res.json(JSON.parse(out || '[]'));
