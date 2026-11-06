@@ -916,7 +916,7 @@ app.put('/api/agents/:slug', wrap(async (req, res) => {
   if (!isSlug(req.params.slug) && req.params.slug !== 'new') throw new Error('agent invalide');
   if (req.params.slug !== 'new') checkAgentAdmin(req, req.params.slug);
   if (slug !== req.params.slug && getAgent(slug)) throw new Error(`un agent « ${slug} » existe déjà`);
-  const a = saveAgent(slug, req.body);
+  const a = saveAgent(slug, req.body, req.params.slug === 'new' ? slug : req.params.slug);
   if (req.params.slug !== 'new' && slug !== req.params.slug) {
     deleteAgent(req.params.slug);
     db.prepare('UPDATE workspaces SET agent = ? WHERE agent = ?').run(slug, req.params.slug);

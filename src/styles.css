@@ -1086,6 +1086,8 @@ body.resizing { user-select: none; cursor: col-resize; }
 .bot-option:hover { background: var(--fill-hover); }
 .bot-option.on { border-color: var(--primary); background: rgba(var(--primary-rgb), 0.1); }
 .bot-option.bot-color { width: 30px; height: 30px; border-radius: 999px; }
+.bot-option:disabled { cursor: not-allowed; opacity: 0.25; }
+.bot-option.taken .bot-swatch { background-image: linear-gradient(135deg, transparent 45%, rgba(0, 0, 0, 0.7) 45%, rgba(0, 0, 0, 0.7) 55%, transparent 55%); }
 .bot-swatch { width: 18px; height: 18px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(var(--swatch-ring-rgb), 0.12); }
 
 /* ---------- agent chat ---------- */

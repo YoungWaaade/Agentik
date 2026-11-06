@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { assignAvatars, savedAvatar, takenAvatars, freeAvatar, avatarSpec } from '../src/avatarSlots.js';
 
 // SUPERSEPT_AGENTS_DIR points a test instance at a throwaway folder (Claude Code itself still reads ~/.claude/agents).
 export const AGENTS_DIR = process.env.SUPERSEPT_AGENTS_DIR || path.join(os.homedir(), '.claude', 'agents');
@@ -32,23 +33,51 @@ function parse(text) {
 // Values are written as JSON strings when needed, so multi-line or ':'-containing text survives.
 const yamlValue = (v) => (/^[\w .,/()@#&+'’éèêàùçôîÉÀ-]*$/.test(v) && !/^\s|\s$/.test(v) ? v : JSON.stringify(v));
 
+// Writes just the avatar line of an agent's frontmatter, leaving the rest of the file untouched.
+function writeAvatar(file, spec) {
+  const text = fs.readFileSync(file, 'utf8');
+  const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
+  if (!m) return;
+  const head = /^avatar:.*$/m.test(m[1]) ? m[1].replace(/^avatar:.*$/m, `avatar: ${spec}`) : `${m[1]}\navatar: ${spec}`;
+  fs.writeFileSync(file, text.replace(m[1], () => head));
+}
+
 export function listAgents() {
   if (!fs.existsSync(AGENTS_DIR)) return [];
-  return fs.readdirSync(AGENTS_DIR).filter((f) => f.endsWith('.md')).map((f) => {
+  const agents = fs.readdirSync(AGENTS_DIR).filter((f) => f.endsWith('.md')).map((f) => {
     const slug = f.slice(0, -3);
     try {
-      const a = parse(fs.readFileSync(path.join(AGENTS_DIR, f), 'utf8'));
-      return { slug, ...a, label: a.label || a.name || slug };
+      const file = path.join(AGENTS_DIR, f);
+      const st = fs.statSync(file);
+      const a = parse(fs.readFileSync(file, 'utf8'));
+      return { slug, ...a, label: a.label || a.name || slug, file, created: st.birthtimeMs || st.mtimeMs };
     } catch {
       return null;
     }
-  }).filter(Boolean).sort((a, b) => a.label.localeCompare(b.label));
+  }).filter(Boolean);
+  // Every agent gets its own shape + colour. A look that had to be given (none saved yet, or the
+  // same as an older agent's) is saved in the file, so it stays put when agents are added later.
+  const looks = assignAvatars(agents);
+  for (const a of agents) {
+    const spec = looks.get(a.slug);
+    if (a.avatar !== spec) { try { writeAvatar(a.file, spec); } catch {} }
+    a.avatar = spec;
+    delete a.file;
+    delete a.created;
+  }
+  return agents.sort((a, b) => a.label.localeCompare(b.label));
 }
 
 export const getAgent = (slug) => (isSlug(slug) ? listAgents().find((a) => a.slug === slug) || null : null);
 
-export function saveAgent(slug, data) {
+// `previous` is the agent's slug before a rename: its own look doesn't count as taken.
+export function saveAgent(slug, data, previous = slug) {
   if (!isSlug(slug)) throw new Error("identifiant d'agent invalide (minuscules, chiffres et tirets)");
+  const others = listAgents().filter((a) => a.slug !== slug && a.slug !== previous);
+  const taken = takenAvatars(others);
+  const look = savedAvatar(data.avatar);
+  if (look && taken.has(avatarSpec(look))) throw new Error(`cet avatar (forme et couleur) est déjà pris par ${taken.get(avatarSpec(look))} : choisis une autre couleur ou une autre forme`);
+  data = { ...data, avatar: avatarSpec(look || freeAvatar(slug, new Set(taken.keys()))) };
   const meta = { ...data, name: slug };
   if (!String(data.description || '').trim()) throw new Error('ajoute une description : elle dit à Claude quand utiliser cet agent');
   if (!String(data.prompt || '').trim()) throw new Error("ajoute des instructions à l'agent");

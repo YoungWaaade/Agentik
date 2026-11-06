@@ -2,6 +2,7 @@
 // currentColor) in a colour from the palette, with two little black eyes that blink, glance around, follow the mouse and squint while the
 // agent works. Every avatar goes through this component.
 import { useEffect, useRef } from 'react';
+import { SHAPE_COLORS, SHAPE_KEYS, COLOR_KEYS, savedAvatar, naturalAvatar, freeAvatar, avatarSpec } from '../avatarSlots.js';
 import { useTheme } from '../theme.js';
 import lunes from '../assets/bots/lunes.svg?raw';
 import etoile from '../assets/bots/etoile.svg?raw';
@@ -21,13 +22,13 @@ const parse = (raw) => {
 const EYES = { x: 140, y: 140, gap: 40, rx: 15, ry: 27, reach: 22 };
 // `color` is the shape's original colour, used until the agent picks another one.
 export const BOT_SHAPES = {
-  fleur: { label: 'Fleur', color: 'blanc', ...parse(fleur), eyes: { ...EYES } },
-  sceau: { label: 'Sceau', color: 'vert', ...parse(sceau), eyes: { ...EYES } },
-  trio: { label: 'Trio', color: 'emeraude', ...parse(trio), eyes: { ...EYES, gap: 44 } },
-  lunes: { label: 'Lunes', color: 'ecume', ...parse(lunes), eyes: { ...EYES, y: 196, gap: 38, rx: 14, ry: 24 } },
-  pile: { label: 'Pile', color: 'menthe', ...parse(pile), eyes: { ...EYES, gap: 44, ry: 25 } },
-  etoile: { label: 'Étoile', color: 'sapin', ...parse(etoile), eyes: { ...EYES, gap: 36 } },
-  soleil: { label: 'Soleil', color: 'canard', ...parse(soleil), eyes: { ...EYES, gap: 24, rx: 12, ry: 22, reach: 10 } },
+  fleur: { label: 'Fleur', color: SHAPE_COLORS.fleur, ...parse(fleur), eyes: { ...EYES } },
+  sceau: { label: 'Sceau', color: SHAPE_COLORS.sceau, ...parse(sceau), eyes: { ...EYES } },
+  trio: { label: 'Trio', color: SHAPE_COLORS.trio, ...parse(trio), eyes: { ...EYES, gap: 44 } },
+  lunes: { label: 'Lunes', color: SHAPE_COLORS.lunes, ...parse(lunes), eyes: { ...EYES, y: 196, gap: 38, rx: 14, ry: 24 } },
+  pile: { label: 'Pile', color: SHAPE_COLORS.pile, ...parse(pile), eyes: { ...EYES, gap: 44, ry: 25 } },
+  etoile: { label: 'Étoile', color: SHAPE_COLORS.etoile, ...parse(etoile), eyes: { ...EYES, gap: 36 } },
+  soleil: { label: 'Soleil', color: SHAPE_COLORS.soleil, ...parse(soleil), eyes: { ...EYES, gap: 24, rx: 12, ry: 22, reach: 10 } },
 };
 // The shapes' own colours, then brighter ones that stand out on the dark UI and keep the black eyes readable.
 // `light` is the same colour for the light theme: pale ones get deeper so the shape still shows on paper.
@@ -46,23 +47,19 @@ export const BOT_COLORS = {
   lilas: { label: 'Lilas', hex: '#C3A6FF', light: '#A887FF' },
   ciel: { label: 'Ciel', hex: '#7CC4FF', light: '#4FAEFF' },
 };
-const KEYS = Object.keys(BOT_SHAPES);
-const COLOR_KEYS = Object.keys(BOT_COLORS);
 export const botHex = (c, theme) => (theme === 'light' ? c.light : c.hex);
-// An agent without a saved shape gets one derived from its name.
-const hash = (s) => [...String(s)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
-// `spec` is the agent's saved avatar, "shape,colour" (e.g. "fleur,ciel"). A missing colour means the
-// shape's own; a missing shape (empty, or an older pixel-bot spec) means the agent's stable shape.
-export function parseAvatar(spec, seed = '') {
-  const [s, c] = String(spec || '').split(',').map((x) => x.trim());
-  if (BOT_SHAPES[s]) return { shape: s, color: BOT_COLORS[c] ? c : BOT_SHAPES[s].color };
-  const key = String(seed || spec || 'bot').toLowerCase();
-  const shape = KEYS[hash(key) % KEYS.length];
-  return { shape, color: BOT_SHAPES[shape].color };
-}
-export const avatarSpec = ({ shape, color }) => `${shape},${color}`;
+// `spec` is the agent's saved avatar, "shape,colour" (e.g. "fleur,ciel"); the server gives every
+// agent a unique one (src/avatarSlots.js). Without one, the look comes from the name.
+export const parseAvatar = (spec, seed = '') => savedAvatar(spec) || naturalAvatar(seed || spec);
+export { avatarSpec };
 const pick = (l) => l[Math.floor(Math.random() * l.length)];
-export const randomAvatar = () => ({ shape: pick(KEYS), color: pick(COLOR_KEYS) });
+// A random look among those nobody has (`taken`: Set or Map of specs).
+export function randomAvatar(taken = new Set()) {
+  const free = SHAPE_KEYS.flatMap((shape) => COLOR_KEYS.map((color) => ({ shape, color }))).filter((a) => !taken.has(avatarSpec(a)));
+  return free.length ? pick(free) : { shape: pick(SHAPE_KEYS), color: pick(COLOR_KEYS) };
+}
+// The look a new agent would get: its own if free, else the closest free one.
+export const newAvatar = (seed, taken = new Set()) => freeAvatar(seed, taken);
 
 // One scheduler for all avatars: a single pointer listener + one rAF for mouse follow, and a
 // single timer for blinks and glances. It writes transforms straight to the DOM (no React render).

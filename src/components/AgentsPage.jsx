@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuPlus, LuTrash2, LuDices } from 'react-icons/lu';
-import BotAvatar, { BOT_SHAPES, BOT_COLORS, botHex, parseAvatar, avatarSpec, randomAvatar } from './BotAvatar.jsx';
+import BotAvatar, { BOT_SHAPES, BOT_COLORS, botHex, avatarSpec, randomAvatar, newAvatar } from './BotAvatar.jsx';
+import { savedAvatar, takenAvatars } from '../avatarSlots.js';
 import { api } from '../api.js';
 import { PageHeader } from './Pages.jsx';
 import { useTheme } from '../theme.js';
@@ -34,14 +35,16 @@ export default function AgentsPage({ agents, initial }) {
           {!agents.length && sel !== 'new' && <p className="empty-note">Aucun agent.</p>}
         </nav>
         <div className="split-body">
-          <AgentEditor key={`${sel}:${current ? 'loaded' : 'empty'}`} agent={current} onSaved={(a) => setSel(a.slug)} onDeleted={() => setSel(agents.find((a) => a.slug !== sel)?.slug || 'new')} />
+          <AgentEditor key={`${sel}:${current ? 'loaded' : 'empty'}`} agent={current} agents={agents} onSaved={(a) => setSel(a.slug)} onDeleted={() => setSel(agents.find((a) => a.slug !== sel)?.slug || 'new')} />
         </div>
       </div>
     </div>
   );
 }
 
-function AgentEditor({ agent, onSaved, onDeleted }) {
+function AgentEditor({ agent, agents = [], onSaved, onDeleted }) {
+  // Looks other agents already have: each agent keeps its own shape + colour pair.
+  const taken = takenAvatars(agents, agent?.slug);
   const [form, setForm] = useState(() => (agent ? { ...EMPTY, ...agent } : EMPTY));
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
@@ -53,7 +56,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
     setError(null);
     try {
       // A new agent keeps the avatar shown in the preview, even if it was never touched.
-      const avatar = agent || form.avatar ? form.avatar : avatarSpec(parseAvatar('', form.label || 'nouveau'));
+      const avatar = agent || form.avatar ? form.avatar : avatarSpec(newAvatar(form.label || 'nouveau', taken));
       const a = await api.put(`/api/agents/${agent?.slug || 'new'}`, { ...form, avatar, slug: form.label || agent?.slug });
       setSaved(true);
       onSaved(a);
@@ -67,7 +70,7 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
 
   return (
     <form className="form agent-form" onSubmit={save}>
-      <BotBuilder spec={form.avatar} seed={agent?.slug || form.label || 'nouveau'} onChange={(v) => set('avatar', v)} />
+      <BotBuilder spec={form.avatar} seed={agent?.slug || form.label || 'nouveau'} taken={taken} onChange={(v) => set('avatar', v)} />
       <label>Nom
         <input autoFocus={!agent} value={form.label} onChange={(e) => set('label', e.target.value)} placeholder="ex. Relecteur Brand DS" />
       </label>
@@ -105,36 +108,48 @@ function AgentEditor({ agent, onSaved, onDeleted }) {
   );
 }
 
-// Shape and colour are picked separately; the preview is the live, animated avatar.
-export function BotBuilder({ spec, seed, onChange }) {
-  const a = parseAvatar(spec, seed);
-  const set = (part) => onChange(avatarSpec({ ...a, ...part }));
+// Shape and colour are picked separately; the preview is the live, animated avatar. `taken` (spec →
+// who) holds the other agents' looks: those pairs can't be picked, so no two agents look alike.
+export function BotBuilder({ spec, seed, onChange, taken = new Map() }) {
+  const a = savedAvatar(spec) || newAvatar(seed, taken);
+  const free = (shape, color) => !taken.has(avatarSpec({ shape, color }));
+  // Changing shape keeps the colour when that pair is free, else takes the first free colour.
+  const pickShape = (shape) => {
+    const color = free(shape, a.color) ? a.color : Object.keys(BOT_COLORS).find((c) => free(shape, c));
+    if (color) onChange(avatarSpec({ shape, color }));
+  };
   const theme = useTheme();
   return (
     <div className="bot-builder">
       <div className="bot-preview">
         <BotAvatar spec={a} size={96} />
-        <button type="button" className="btn-ghost" onClick={() => onChange(avatarSpec(randomAvatar()))}><LuDices size={14} /> Aléatoire</button>
+        <button type="button" className="btn-ghost" onClick={() => onChange(avatarSpec(randomAvatar(taken)))}><LuDices size={14} /> Aléatoire</button>
       </div>
       <div className="bot-parts">
         <div className="bot-row">
           <span className="bot-row-label">Forme</span>
           <div className="bot-options">
-            {Object.entries(BOT_SHAPES).map(([key, s]) => (
-              <button key={key} type="button" className={`bot-option ${a.shape === key ? 'on' : ''}`} title={s.label} onClick={() => set({ shape: key })}>
-                <BotAvatar spec={{ ...a, shape: key }} size={28} />
-              </button>
-            ))}
+            {Object.entries(BOT_SHAPES).map(([key, s]) => {
+              const full = !Object.keys(BOT_COLORS).some((c) => free(key, c));
+              return (
+                <button key={key} type="button" className={`bot-option ${a.shape === key ? 'on' : ''}`} title={full ? `${s.label} : toutes les couleurs sont prises` : s.label} disabled={full} onClick={() => pickShape(key)}>
+                  <BotAvatar spec={{ shape: key, color: free(key, a.color) ? a.color : BOT_SHAPES[key].color }} size={28} />
+                </button>
+              );
+            })}
           </div>
         </div>
         <div className="bot-row">
           <span className="bot-row-label">Couleur</span>
           <div className="bot-options">
-            {Object.entries(BOT_COLORS).map(([key, c]) => (
-              <button key={key} type="button" className={`bot-option bot-color ${a.color === key ? 'on' : ''}`} title={c.label} onClick={() => set({ color: key })}>
-                <span className="bot-swatch" style={{ background: botHex(c, theme) }} />
-              </button>
-            ))}
+            {Object.entries(BOT_COLORS).map(([key, c]) => {
+              const who = taken.get(avatarSpec({ shape: a.shape, color: key }));
+              return (
+                <button key={key} type="button" className={`bot-option bot-color ${a.color === key ? 'on' : ''} ${who ? 'taken' : ''}`} title={who ? `${c.label} : déjà pris par ${who} avec cette forme` : c.label} disabled={!!who} onClick={() => onChange(avatarSpec({ shape: a.shape, color: key }))}>
+                  <span className="bot-swatch" style={{ background: botHex(c, theme) }} />
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
