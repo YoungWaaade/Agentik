@@ -8,6 +8,7 @@ import AgentsPage from './components/AgentsPage.jsx';
 import AgentChat from './components/AgentChat.jsx';
 import { onChatEvent, missionsChanged } from './chatStore.js';
 import { MemoryPage, HistoryPage, SettingsPage } from './components/Pages.jsx';
+import TasksPage, { SCHEDULES_EVENT } from './components/TasksPage.jsx';
 import NewWorkspacePage from './components/NewWorkspacePage.jsx';
 import AddProject from './components/AddProject.jsx';
 import CommandPalette from './components/CommandPalette.jsx';
@@ -73,6 +74,8 @@ export default function App() {
       sock.onmessage = (e) => {
         const m = JSON.parse(e.data);
         if (m.type === 'reload') load();
+        // Tasks page: a task ran / changed, or an agent started or finished working.
+        if (m.type === 'schedules' || m.type === 'chat-busy') dispatchEvent(new Event(SCHEDULES_EVENT));
         if (m.type === 'chat' || m.type === 'chat-busy' || m.type === 'chat-reset' || m.type === 'chat-convs') onChatEvent(m);
         if (m.type === 'relay') {
           const size = m.tokens && m.window ? ` (${Math.round(m.tokens / 1000)}k / ${Math.round(m.window / 1000)}k tokens)` : '';
@@ -162,7 +165,8 @@ export default function App() {
     main = <AgentChat key={route.id} agent={data.agents.find((a) => a.slug === route.id)} go={go} />;
   } else if (route.kind === 'agents') {
     main = <AgentsPage key={route.id || 'agents'} agents={data.agents || []} initial={route.id} />;
-  } else if (route.kind === 'memory') main = <MemoryPage key={route.id || 'memory'} projects={data.projects} initial={route.id} />;
+  } else if (route.kind === 'tasks') main = <TasksPage agents={data.agents || []} />;
+  else if (route.kind === 'memory') main = <MemoryPage key={route.id || 'memory'} projects={data.projects} initial={route.id} />;
   else if (route.kind === 'history') main = <HistoryPage key={route.id || 'history'} projects={data.projects} go={go} routeId={route.id} />;
   else if (route.kind === 'settings') main = <SettingsPage me={me} />;
   else if (loaded && !data.projects.length && !data.workspaces.length) main = <Empty onAdd={() => setModal({ type: 'add-project' })} onSession={() => newWorkspace(null)} />;

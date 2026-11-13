@@ -13,7 +13,8 @@ import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } fr
 import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
 import * as onboarding from './onboarding.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
-import { initChat, sendToAgent, chatHistory, isBusy, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions } from './chat.js';
+import { createSchedule, listSchedules, deleteSchedule, setActive, updateSchedule, runNow, forUi, onSchedulesChange, startScheduler } from './schedules.js';
+import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions } from './chat.js';
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
@@ -806,7 +807,7 @@ app.get('/api/agents', (req, res) => res.json(listAgents()));
 const convNum = (v) => (v !== undefined && v !== null && v !== '' && Number.isInteger(Number(v)) ? Number(v) : null);
 app.get('/api/agents/:slug/chat', (req, res) => {
   const conv = convNum(req.query.conversation);
-  res.json({ messages: chatHistory(req.params.slug, conv), busy: isBusy(req.params.slug, conv) });
+  res.json({ messages: chatHistory(req.params.slug, conv), busy: isBusy(req.params.slug, conv), since: busySince(req.params.slug, conv), now: Date.now() });
 });
 app.get('/api/agents/:slug/conversations', (req, res) => res.json(conversations(req.params.slug)));
 app.post('/api/agents/:slug/conversations', (req, res) => res.json({ conversation: newConversation(req.params.slug) }));
@@ -831,6 +832,23 @@ app.post('/api/agents/:slug/chat', wrap(async (req, res) => {
   const conv = sendToAgent(req.params.slug, text, { from: sender, fromConv: sender ? convNum(req.get('X-Supersept-Conv')) : null, conversation, images });
   res.json({ ok: true, conversation: conv });
 }));
+// Scheduled tasks (Tâches tab, `agentik create-task / list-tasks / …`): the calling agent comes from the CLI headers.
+const callerOf = (req) => { const by = req.get('X-Supersept-Agent') || null; return { by: by && getAgent(by) ? by : null, conv: convNum(req.get('X-Supersept-Conv')) }; };
+app.get('/api/schedules', (req, res) => res.json(listSchedules({ agent: req.query.agent || null, all: req.query.all === '1' }, callerOf(req))));
+app.post('/api/schedules', wrap(async (req, res) => {
+  const { agent, prompt, cron, every, until, conversation } = req.body || {};
+  res.json(createSchedule({ agent, prompt, cron, every, until, conversation: convNum(conversation) }, callerOf(req)));
+}));
+// Tasks page: every task with its raw dates. PATCH: { active } pauses/resumes, other fields edit the task.
+app.get('/api/schedules/all', (req, res) => res.json(db.prepare('SELECT * FROM schedules ORDER BY active DESC, next_run, created_at').all().map(forUi)));
+app.patch('/api/schedules/:id', wrap(async (req, res) => {
+  const { active, prompt, cron, every, until } = req.body || {};
+  if ([prompt, cron, every, until].some((v) => v !== undefined)) updateSchedule(req.params.id, { prompt, cron, every, until }, callerOf(req));
+  if (active !== undefined) setActive(req.params.id, !!active, callerOf(req));
+  res.json(forUi(db.prepare('SELECT * FROM schedules WHERE id = ?').get(req.params.id)));
+}));
+app.post('/api/schedules/:id/run', wrap(async (req, res) => res.json(runNow(req.params.id, callerOf(req)))));
+app.delete('/api/schedules/:id', wrap(async (req, res) => res.json(deleteSchedule(req.params.id, callerOf(req)))));
 app.post('/api/agents/:slug/chat/stop', (req, res) => { stopTurn(req.params.slug, convNum(req.body?.conversation)); res.json({ ok: true }); });
 app.post('/api/agents/:slug/chat/reset', (req, res) => res.json({ conversation: resetChat(req.params.slug) }));
 
@@ -1389,6 +1407,9 @@ server.listen(PORT, remote.listenHost(), () => {
   console.log(`Agentik → http://localhost:${PORT}${remote.enabled() ? ' (accès téléphone activé)' : ''}`);
   // Chat agents whose turn was cut by the restart pick up where they were.
   resumeInterrupted();
+  // Agents' scheduled tasks (stored in hub.db) start ticking again; the Tasks tab follows them live.
+  onSchedulesChange(() => broadcast({ type: 'schedules' }));
+  startScheduler();
   // Bring back the agents that were running when the hub stopped.
   for (const { id, name } of db.prepare('SELECT id, name FROM workspaces WHERE autostart = 1 AND archived = 0').all()) {
     try { startAgent(id); console.log(`  reprise : ${name}`); }

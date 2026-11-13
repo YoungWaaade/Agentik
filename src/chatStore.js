@@ -2,8 +2,9 @@
 // An agent has several conversations, open side by side; each one has its messages and busy state.
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
+import { noteServerNow } from './clock.js';
 
-const chats = new Map(); // "agent:conversation" → { messages, busy, loaded }
+const chats = new Map(); // "agent:conversation" → { messages, busy, since, loaded } (since = start of the turn, server ms)
 const convs = new Map(); // agent → { list, loaded }
 const unread = new Map(); // "agent:conversation" → count of agent messages not seen yet
 const subs = new Set();
@@ -18,13 +19,17 @@ const get = (agent, conv) => {
 
 export async function loadChat(agent, conv) {
   const r = await api.get(`/api/agents/${agent}/chat?conversation=${conv}`);
-  chats.set(k(agent, conv), { messages: r.messages, busy: r.busy, loaded: true });
+  noteServerNow(r.now);
+  chats.set(k(agent, conv), { messages: r.messages, busy: r.busy, since: r.since ?? null, loaded: true });
   emit();
 }
 export async function loadConvs(agent) {
   const list = await api.get(`/api/agents/${agent}/conversations`);
   convs.set(agent, { list, loaded: true });
-  for (const c of list) if (c.busy) get(agent, c.conversation).busy = true;
+  for (const c of list) {
+    noteServerNow(c.now);
+    if (c.busy) Object.assign(get(agent, c.conversation), { busy: true, since: c.since ?? get(agent, c.conversation).since ?? null });
+  }
   emit();
 }
 
@@ -43,7 +48,11 @@ export function onChatEvent(m) {
     // A message in a conversation we don't list yet (new mission, reopened): refresh the tabs.
     const list = convs.get(m.agent)?.list;
     if (list && !list.some((x) => x.conversation === conv && x.open)) loadConvs(m.agent).catch(() => {});
-  } else if (m.type === 'chat-busy') c.busy = m.busy;
+  } else if (m.type === 'chat-busy') {
+    noteServerNow(m.now);
+    c.busy = m.busy;
+    c.since = m.busy ? m.since ?? null : null;
+  }
   emit();
 }
 

@@ -1,13 +1,14 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage } from 'react-icons/lu';
+import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage, LuClock } from 'react-icons/lu';
 import { api, ago, uploadFile, imageFiles } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
 import { AttachmentChip, Lightbox } from './Attachments.jsx';
 import MissionStrip from './MissionStrip.jsx';
+import TakenPill from './TakenPill.jsx';
 import { safeHref, trimUrl, isPath } from '../links.js';
 
-const ICONS = { folder: LuFolder, 'folder-plus': LuFolderPlus, play: LuPlay, layers: LuLayers, eye: LuEye, send: LuSend, archive: LuArchive, brain: LuBrain, search: LuSearch, globe: LuGlobe, tool: LuWrench, users: LuUsers, bot: LuBot, image: LuImage };
+const ICONS = { folder: LuFolder, 'folder-plus': LuFolderPlus, play: LuPlay, layers: LuLayers, eye: LuEye, send: LuSend, archive: LuArchive, brain: LuBrain, search: LuSearch, globe: LuGlobe, tool: LuWrench, users: LuUsers, bot: LuBot, image: LuImage, clock: LuClock };
 const SUGGESTIONS = [
   'Qu\'est-ce que tu peux faire pour moi ?',
   'Fais le point sur mes sessions en cours',
@@ -281,9 +282,11 @@ export default function AgentChat({ agent, go }) {
             </div>
           )}
           {messages.map((m) => <Message key={m.id} m={m} agent={agent} go={go} onOpen={setViewingFile} />)}
-          {chat?.busy && messages[messages.length - 1]?.role !== 'assistant' && (
-            <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} running className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
-          )}
+          {chat?.busy && (chat.since
+            ? <div className="msg-taken"><TakenPill since={chat.since} /></div>
+            : messages[messages.length - 1]?.role !== 'assistant' && (
+              <div className="msg agent"><BotAvatar spec={agent.avatar} seed={agent.slug} size={24} running className="msg-bot" /><div className="msg-typing"><span /><span /><span /></div></div>
+            ))}
         </div>
       </div>
 

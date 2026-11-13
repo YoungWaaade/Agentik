@@ -16,6 +16,11 @@ const HELP = `agentik — piloter Agentik (alias : agentic et supersept, mêmes 
   agentik create-agent --name "Nom" --description "quand l'utiliser" --prompt "instructions" [--model sonnet]
   agentik update-agent AGENT_ID [--name "Nom"] [--description "…"] [--prompt "…"] [--model sonnet]   (agent chef ; seuls ces champs changent)
   agentik delete-agent AGENT_ID   (agent chef ; l'agent chef lui-même ne peut pas être supprimé)
+  agentik create-task [--agent SLUG] (--every 2h | --cron "0 9,16 * * *") --prompt "message de réveil" [--until AAAA-MM-JJ]
+                                            (tâche planifiée persistante : l'agent est réveillé avec ce message à chaque échéance,
+                                             heure locale du serveur ; agent courant par défaut ; reportée si l'agent est occupé)
+  agentik list-tasks [--agent SLUG] [--all]
+  agentik pause-task ID / resume-task ID / run-task ID (lancer maintenant) / delete-task ID
   agentik memory PROJECT_ID
   agentik set-memory PROJECT_ID --content "texte"   (ou le texte sur l'entrée standard)
 
@@ -54,6 +59,15 @@ const run = {
   'create-agent': () => ops.createAgent({ name: flags.name, description: flags.description, prompt: flags.prompt, model: flags.model, avatar: flags.avatar }),
   'update-agent': () => ops.updateAgent(pos[0], { name: flags.name, description: flags.description, prompt: flags.prompt, model: flags.model }),
   'delete-agent': () => ops.deleteAgent(pos[0]),
+  'create-task': () => ops.createTask({ agent: flags.agent, cron: flags.cron, every: flags.every, prompt: flags.prompt ?? (pos.join(' ') || undefined), until: flags.until }),
+  'list-tasks': () => ops.listTasks({ agent: flags.agent, all: !!flags.all }),
+  'pause-task': () => ops.setTaskActive(pos[0], false),
+  'resume-task': () => ops.setTaskActive(pos[0], true),
+  'run-task': () => ops.runTask(pos[0]),
+  'delete-task': () => ops.deleteTask(pos[0]),
+  schedule: (...a) => run['create-task'](...a),
+  schedules: (...a) => run['list-tasks'](...a),
+  unschedule: (...a) => run['delete-task'](...a),
   'set-memory': async () => ops.writeMemory(pos[0], flags.content ?? await stdin()),
 };
 

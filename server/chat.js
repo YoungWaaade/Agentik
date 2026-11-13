@@ -65,7 +65,17 @@ export function conversations(agent) {
       (SELECT COUNT(*) FROM chat_messages m WHERE m.agent = c.agent AND m.conversation = c.conversation) AS count,
       (SELECT text FROM chat_messages f WHERE f.agent = c.agent AND f.conversation = c.conversation AND f.role = 'user' ORDER BY id LIMIT 1) AS first
     FROM agent_convs c WHERE c.agent = ? ORDER BY c.updated_at DESC`).all(agent)
-    .map((c) => ({ ...c, open: !!c.open, busy: running.has(key(agent, c.conversation)) }));
+    .map((c) => ({ ...c, open: !!c.open, busy: running.has(key(agent, c.conversation)), since: busySince(agent, c.conversation), now: now() }));
+}
+// When the turn being handled started (server clock, ms): the chat's « Pris en charge depuis » pill.
+const since = new Map(); // "agent:conversation" → ms
+export function busySince(agent, conv) {
+  return running.has(key(agent, conv)) ? since.get(key(agent, conv)) ?? null : null;
+}
+function setBusy(agent, conv, busy) {
+  const k = key(agent, conv);
+  if (busy) since.set(k, now()); else since.delete(k);
+  ctx.broadcast({ type: 'chat-busy', agent, conversation: conv, busy, since: busy ? since.get(k) : null, now: now() });
 }
 export const isBusy = (agent, conv = null) => (conv === null ? [...running.keys()].some((k) => k.startsWith(`${agent}:`)) : running.has(key(agent, conv)));
 
@@ -165,8 +175,12 @@ function systemPrompt(a) {
     '    supersept send ID "message"                → répondre ou donner une consigne à une session',
     '    supersept archive ID',
     '    supersept memory PROJECT_ID   /   supersept set-memory PROJECT_ID --content "…"',
+    '    supersept create-task --every 2h|30m|1d --prompt "ce que tu dois faire à chaque réveil" [--until AAAA-MM-JJ]   (ou --cron "0 9,16 * * *" = tous les jours à 9 h et 16 h) → tâche planifiée : Agentik te réveille dans cette conversation avec ce message, même après un redémarrage (--agent SLUG pour un autre agent)',
+    '    supersept list-tasks [--all]               → tes tâches planifiées (id, prochaine exécution, dernier statut)',
+    '    supersept pause-task ID / resume-task ID / run-task ID / delete-task ID   (supprime une tâche dès qu\'elle est accomplie)',
     "- Le travail concret est fait par les sessions que tu lances : donne-leur une mission complète, précise et autonome.",
     "- Avant de créer un projet, regarde les projets existants (supersept projects) et réutilise le plus pertinent. Crée un projet seulement si rien ne convient.",
+    "- Pour une surveillance ou un rappel récurrent (« deux fois par jour, vérifie… »), ne fais pas de boucle : crée une tâche planifiée (supersept create-task). À chaque réveil tu reçois un message « [Supersept] Tâche planifiée … » : fais le travail, écris le résultat à l'utilisateur (ou seulement « RAS » si rien à signaler) et supprime la tâche (supersept delete-task ID) quand elle est accomplie.",
     "- Ne fais jamais de boucle d'attente. Tu recevras automatiquement un message « [Supersept] » quand une de tes sessions se termine ou attend une réponse. Alors regarde-la (supersept session ID) et fais un point d'une phrase.",
     "- Si une session te pose une question que tu peux trancher sans risque, réponds-lui toi-même (supersept send). Demande à l'utilisateur seulement pour les décisions importantes : supprimer, publier, payer, envoyer quelque chose à l'extérieur.",
     '',
@@ -241,6 +255,12 @@ function describeTool(name, input = {}) {
         const label = listAgents().find((x) => x.slug === who)?.label || who;
         return { icon: 'send', label: `Confie une mission à ${label}`, agent: who };
       }
+      case 'create-task': case 'schedule': return { icon: 'clock', label: `Planifie une tâche${q(flag(cmd, 'cron') || flag(cmd, 'every'))}` };
+      case 'list-tasks': case 'schedules': return { icon: 'clock', label: 'Regarde les tâches planifiées' };
+      case 'pause-task': return { icon: 'clock', label: 'Met en pause une tâche planifiée' };
+      case 'resume-task': return { icon: 'clock', label: 'Reprend une tâche planifiée' };
+      case 'run-task': return { icon: 'clock', label: 'Lance une tâche planifiée' };
+      case 'delete-task': case 'unschedule': return { icon: 'clock', label: 'Supprime une tâche planifiée' };
       case 'create-agent': return { icon: 'bot', label: `Crée l'agent${q(flag(cmd, 'name'))}` };
       default: return { icon: 'tool', label: 'Commande Agentik' };
     }
@@ -351,7 +371,7 @@ function relayConv(agent, conv, m, reason) {
       .run('chat', k, k, st.session_id, sessionId, m?.tokens ?? null, m?.window ?? null, source, now());
     addMessage(agent, conv, 'system', `Session relayée : contexte plein (${m ? `${Math.round(m.tokens / 1000)}k / ${Math.round(m.window / 1000)}k tokens` : reason}), la conversation continue sur une nouvelle session à partir d'un résumé.`, { relay: true });
     ctx.broadcast({ type: 'relay', kind: 'chat', agent, conversation: conv, label: a.label, tokens: m?.tokens, window: m?.window });
-    ctx.broadcast({ type: 'chat-busy', agent, conversation: conv, busy: false });
+    setBusy(agent, conv, false);
     runNext(agent, conv);
   });
 }
@@ -370,7 +390,7 @@ function runNext(agent, conv) {
   const child = spawnTurn(a, agent, conv, st, prompt, 'stream-json');
   running.set(k, child);
   db.prepare('UPDATE agent_convs SET running = 1, started = 1 WHERE agent = ? AND conversation = ?').run(agent, conv);
-  ctx.broadcast({ type: 'chat-busy', agent, conversation: conv, busy: true });
+  setBusy(agent, conv, true);
 
   const tools = new Map(); // tool_use id → activity message
   let reply = null;
@@ -436,7 +456,7 @@ function runNext(agent, conv) {
     if (m) db.prepare('UPDATE agent_convs SET context_tokens = ?, context_window = ? WHERE agent = ? AND conversation = ?').run(m.tokens, m.window, agent, conv);
     // Checked once the turn is over, never in the middle of one.
     if (!shuttingDown && code === 0 && !firstAfterRelay && (m?.over || (compacted && relay.config().enabled))) return relayConv(agent, conv, m, 'auto-compact');
-    ctx.broadcast({ type: 'chat-busy', agent, conversation: conv, busy: false });
+    setBusy(agent, conv, false);
     runNext(agent, conv);
   });
 }

@@ -211,3 +211,24 @@ export function resolveWorkspaceId(id) {
     cur = next;
   }
 }
+
+// Scheduled tasks for chat agents (Tâches tab, `agentik create-task`): at each due time the server sends
+// `prompt` to the agent's conversation (a new turn, like the automatic "[Supersept]" messages). `cron`
+// (5 fields, server local time) or `every_min`; `until` = end (ms) after which the task turns inactive.
+db.exec(`CREATE TABLE IF NOT EXISTS schedules (
+  id TEXT PRIMARY KEY,
+  agent TEXT NOT NULL,
+  conversation INTEGER,
+  prompt TEXT NOT NULL,
+  cron TEXT,
+  every_min INTEGER,
+  until INTEGER,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_by TEXT,
+  created_at INTEGER NOT NULL,
+  next_run INTEGER,
+  last_run INTEGER,
+  last_status TEXT,
+  runs INTEGER NOT NULL DEFAULT 0,
+  skipped INTEGER NOT NULL DEFAULT 0
+)`);

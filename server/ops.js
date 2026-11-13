@@ -103,3 +103,17 @@ export async function createAgent({ name, description, prompt, model, avatar }) 
   const a = await call('PUT', '/api/agents/new', { label: name, slug: name, description, prompt, model, avatar });
   return { id: a.slug, nom: a.label, statut: 'agent créé' };
 }
+
+// Scheduled tasks: the server wakes the agent up with `prompt` at each due time (cron or interval).
+export function createTask({ agent, cron, every, prompt, until }) {
+  if (!prompt) throw new Error('il faut le message de réveil (--prompt "…")');
+  return call('POST', '/api/schedules', { agent: agent || AGENT(), cron, every, prompt, until });
+}
+export const listTasks = ({ agent, all }) => call('GET', `/api/schedules?${new URLSearchParams({ ...(agent ? { agent } : {}), ...(all ? { all: '1' } : {}) })}`);
+const taskId = (id, usage) => {
+  if (!id) throw new Error(`usage : agentik ${usage} ID`);
+  return encodeURIComponent(id);
+};
+export const deleteTask = (id) => call('DELETE', `/api/schedules/${taskId(id, 'delete-task')}`);
+export const setTaskActive = (id, active) => call('PATCH', `/api/schedules/${taskId(id, active ? 'resume-task' : 'pause-task')}`, { active });
+export const runTask = (id) => call('POST', `/api/schedules/${taskId(id, 'run-task')}/run`);

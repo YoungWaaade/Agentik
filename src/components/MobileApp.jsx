@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuMoon, LuSun, LuSunMoon } from 'react-icons/lu';
+import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuMoon, LuSun, LuSunMoon, LuCalendarClock } from 'react-icons/lu';
 import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
 import { api, ago, STATUS } from '../api.js';
+import { TasksScreen } from './TasksPage.jsx';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
 import { StatusIndicator, ProjectThumbnail, AsciiSpinner, DiffStats } from './ui.jsx';
 
@@ -43,6 +44,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
   for (let i = 0; current?.successor && i < 50; i++) current = data.workspaces.find((w) => w.id === current.successor) || null;
   let screen;
   if (current) screen = <WorkspaceScreen key={current.id} ws={current} project={projectsById[current.project_id]} go={go} />;
+  else if (route.kind === 'tasks') screen = <TasksScreen agents={data.agents || []} connected={connected} go={go} />;
   else if (route.kind === 'new') screen = <NewScreen projects={data.projects} go={go} load={load} />;
   else screen = <ListScreen data={data} projectsById={projectsById} go={go} connected={connected} />;
   return <div className="m-app" style={{ height: vv.height, transform: `translateY(${vv.top}px)` }}>{screen}</div>;
@@ -61,6 +63,7 @@ function ListScreen({ data, projectsById, go, connected }) {
         <h1><img className="m-logo" src="/icon-192.png" alt="" />Agentik</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
         <ThemeButton />
+        <button className="m-iconbtn" onClick={() => go({ kind: 'tasks' })} aria-label="Tâches"><LuCalendarClock size={19} /></button>
         <button className="m-iconbtn" onClick={() => go({ kind: 'new' })} aria-label="Nouvel espace"><LuPlus size={20} /></button>
       </header>
       <div className="m-scroll">
