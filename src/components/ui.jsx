@@ -3,31 +3,23 @@ import { RxDot } from 'react-icons/rx';
 import { CgLaptop } from 'react-icons/cg';
 import { HiMiniXMark } from 'react-icons/hi2';
 import { STATUS } from '../api.js';
-
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-
-export function AsciiSpinner({ className = '' }) {
-  const [i, setI] = useState(0);
-  useEffect(() => {
-    const t = setInterval(() => setI((n) => (n + 1) % SPINNER_FRAMES.length), 80);
-    return () => clearInterval(t);
-  }, []);
-  return <span className={`ascii-spinner ${className}`} aria-hidden="true">{SPINNER_FRAMES[i]}</span>;
-}
+import { SpinCircle } from './TakenPill.jsx';
 
 // Superset's StatusIndicator: waiting = yellow ping, review = static green, error = static red.
+// A session at work shows the spinning circle of « Pris en charge depuis », in the accent colour.
 export function StatusIndicator({ status, className = '' }) {
-  if (!['waiting', 'review', 'working', 'error'].includes(status)) return null;
+  if (status === 'working') return <SpinCircle size={14} title={STATUS.working.label} />;
+  if (!['waiting', 'review', 'error'].includes(status)) return null;
   return (
     <span className={`status-ind ${status} ${className}`} title={STATUS[status]?.label}>
-      {status !== 'review' && status !== 'error' && <span className="status-ind-ping" />}
+      {status === 'waiting' && <span className="status-ind-ping" />}
       <span className="status-ind-dot" />
     </span>
   );
 }
 
 export function WorkspaceIcon({ ws, active }) {
-  if (ws.status === 'working') return <AsciiSpinner />;
+  if (ws.status === 'working') return <SpinCircle size={14} title={STATUS.working.label} />;
   return (
     <span className={`ws-icon ${active ? 'active' : ''}`}>
       {ws.is_worktree || !ws.project_id ? <RxDot size={16} /> : <CgLaptop size={16} />}

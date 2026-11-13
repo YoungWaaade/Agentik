@@ -11,6 +11,19 @@ export function chrono(ms) {
   return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
+// The spinning circle of the pill, in the user's accent colour; also marks a session at work (sidebar,
+// iPhone list, session header).
+export function SpinCircle({ size, title }) {
+  return (
+    <svg className="taken-spin" viewBox="0 0 24 24" style={size ? { width: size, height: size } : undefined} role={title ? 'img' : undefined} aria-label={title} aria-hidden={title ? undefined : 'true'}>
+      {title && <title>{title}</title>}
+      <circle className="taken-track" cx="12" cy="12" r="9.5" />
+      <circle className="taken-arc" cx="12" cy="12" r="9.5" pathLength="360" strokeDasharray="115 245" />
+      <circle className="taken-dot" cx="12" cy="12" r="3.6" />
+    </svg>
+  );
+}
+
 export default function TakenPill({ since, className = '' }) {
   const [, tick] = useState(0);
   useEffect(() => {
@@ -21,11 +34,7 @@ export default function TakenPill({ since, className = '' }) {
   const took = chrono(serverNow() - since);
   return (
     <div className={`taken-pill ${className}`} role="status" aria-label={`Pris en charge depuis ${clockTime(since)}, ${took}`}>
-      <svg className="taken-spin" viewBox="0 0 24 24" aria-hidden="true">
-        <circle className="taken-track" cx="12" cy="12" r="9.5" />
-        <circle className="taken-arc" cx="12" cy="12" r="9.5" pathLength="360" strokeDasharray="115 245" />
-        <circle className="taken-dot" cx="12" cy="12" r="3.6" />
-      </svg>
+      <SpinCircle />
       <span className="taken-text"><b>Pris</b> en charge depuis {clockTime(since)}</span>
       <span className="taken-time">{took}</span>
     </div>

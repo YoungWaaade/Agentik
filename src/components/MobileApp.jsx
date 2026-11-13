@@ -5,7 +5,8 @@ import { api, ago, STATUS } from '../api.js';
 import { TasksScreen } from './TasksPage.jsx';
 import AccentPicker from './AccentPicker.jsx';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
-import { StatusIndicator, ProjectThumbnail, AsciiSpinner, DiffStats } from './ui.jsx';
+import { StatusIndicator, ProjectThumbnail, DiffStats } from './ui.jsx';
+import { SpinCircle } from './TakenPill.jsx';
 
 // No settings page on the phone (and the installed app keeps its own storage): one button cycles
 // Sombre → Clair → Système.
@@ -87,7 +88,7 @@ function ListScreen({ data, projectsById, go, connected }) {
 function Row({ ws, project, onClick }) {
   return (
     <button className="m-row" onClick={onClick}>
-      <span className="m-row-icon">{ws.status === 'working' ? <AsciiSpinner /> : project ? <ProjectThumbnail project={project} size={20} /> : <span className="thumb" style={{ width: 20, height: 20 }}>·</span>}</span>
+      <span className="m-row-icon">{project ? <ProjectThumbnail project={project} size={20} /> : <span className="thumb" style={{ width: 20, height: 20 }}>·</span>}</span>
       <span className="m-row-body">
         <span className="m-row-top">
           <span className="m-row-name">{ws.name}</span>
@@ -126,7 +127,7 @@ function WorkspaceScreen({ ws, project, go }) {
       <header className="m-head">
         <button className="m-iconbtn" onClick={() => go({ kind: 'board' })} aria-label="Retour"><LuChevronLeft size={22} /></button>
         <div className="m-head-title">
-          <span className="m-head-name">{ws.name}</span>
+          <span className="m-head-name">{ws.status === 'working' && <SpinCircle size={14} />}{ws.name}</span>
           <span className="m-head-sub">{STATUS[ws.status]?.label}{project ? ` · ${project.name}` : ''}{ws.branch ? <> · <LuGitBranch size={10} /> {ws.branch}</> : null}</span>
         </div>
         <button className="m-iconbtn" onClick={() => confirm(ws.running ? 'Relancer Claude ?' : 'Lancer Claude ?') && restartTerminal(key)} aria-label="Relancer Claude"><LuZap size={18} /></button>

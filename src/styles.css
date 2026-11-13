@@ -288,7 +288,6 @@ input, select, textarea { font: inherit; color: var(--foreground); }
 .context-menu { position: fixed; width: 230px; }
 
 /* ---------- workspace + project icons ---------- */
-.ascii-spinner { color: var(--status-working); font-family: var(--font-mono); font-size: var(--spinner-size); line-height: 20px; user-select: none; }
 .ws-icon { position: relative; display: inline-flex; color: var(--muted-foreground); opacity: 0.8; }
 .ws-icon.active { opacity: 1; }
 .status-ind { position: relative; display: inline-flex; width: 8px; height: 8px; flex: none; }
@@ -1019,6 +1018,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-conn { width: 8px; height: 8px; border-radius: 50%; background: var(--red-400); }
 .m-conn.on { background: var(--green-500); }
 .m-head-title { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.m-head-name .taken-spin { margin-right: 6px; vertical-align: -2px; }
 .m-head-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .m-head-sub { display: flex; align-items: center; gap: 3px; font-size: 12px; color: var(--muted-foreground); overflow: hidden; white-space: nowrap; }
 .m-scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
