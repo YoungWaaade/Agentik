@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuMoon, LuSun, LuSunMoon, LuCalendarClock } from 'react-icons/lu';
+import { LuChevronLeft, LuPlus, LuArrowUp, LuZap, LuGitBranch, LuMoon, LuSun, LuSunMoon, LuCalendarClock, LuPalette } from 'react-icons/lu';
 import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
 import { api, ago, STATUS } from '../api.js';
 import { TasksScreen } from './TasksPage.jsx';
+import AccentPicker from './AccentPicker.jsx';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
 import { StatusIndicator, ProjectThumbnail, AsciiSpinner, DiffStats } from './ui.jsx';
 
@@ -51,6 +52,7 @@ export default function MobileApp({ data, projectsById, route, go, connected, lo
 }
 
 function ListScreen({ data, projectsById, go, connected }) {
+  const [colors, setColors] = useState(false);
   const live = data.workspaces.filter((w) => !w.archived);
   const groups = [
     ['À traiter', live.filter((w) => ['waiting', 'review', 'error'].includes(w.status))],
@@ -62,10 +64,12 @@ function ListScreen({ data, projectsById, go, connected }) {
       <header className="m-head">
         <h1><img className="m-logo" src="/icon-192.png" alt="" />Agentik</h1>
         <span className={`m-conn ${connected ? 'on' : ''}`} title={connected ? 'Connecté au Mac' : 'Mac injoignable'} />
+        <button className={`m-iconbtn ${colors ? 'on' : ''}`} onClick={() => setColors((v) => !v)} aria-label="Couleur d'accent" aria-expanded={colors}><LuPalette size={19} /></button>
         <ThemeButton />
         <button className="m-iconbtn" onClick={() => go({ kind: 'tasks' })} aria-label="Tâches"><LuCalendarClock size={19} /></button>
         <button className="m-iconbtn" onClick={() => go({ kind: 'new' })} aria-label="Nouvel espace"><LuPlus size={20} /></button>
       </header>
+      {colors && <div className="m-accent"><span>Couleur d'accent</span><AccentPicker /></div>}
       <div className="m-scroll">
         {!connected && <p className="m-note">Connexion au Mac… Vérifie qu'il est allumé et sur le même réseau (ou Tailscale).</p>}
         {groups.map(([title, list]) => list.length > 0 && (

@@ -27,6 +27,12 @@
           document.querySelector('meta[name="theme-color"]').setAttribute('content', '#f2f2f7');
           document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]').setAttribute('content', 'default');
         }
+        // Accent colour chosen in the Settings (src/accent.js caches its tokens per theme).
+        try {
+          var a = JSON.parse(localStorage.getItem('agentik-accent'));
+          var v = a && a.vars && a.vars[t];
+          for (var k in v) document.documentElement.style.setProperty(k, v[k]);
+        } catch (e) {}
       })();
     </script>
   </head>

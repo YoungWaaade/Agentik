@@ -6,6 +6,8 @@ import { WebglAddon } from '@xterm/addon-webgl';
 import { Unicode11Addon } from '@xterm/addon-unicode11';
 import { wsUrl, uploadFile } from '../api.js';
 import { activeTheme, onThemeChange } from '../theme.js';
+import { accentNow, onAccentChange } from '../accent.js';
+import { accentVars } from '../accentColors.js';
 
 // Superset's built-in "ember" dark theme, and a light one on white (lavender-indigo blue for paths
 // and links, every colour above 4.5:1; ANSI "white" stays light-ish: TUIs use it as a background tint).
@@ -39,7 +41,14 @@ const pool = new Map();
 // Claude Code paints its own truecolor UI for a dark terminal: in light mode xterm darkens any
 // colour that would fall under 4.5:1 against its background.
 const CONTRAST = { dark: 1, light: 4.5 };
-onThemeChange((t) => pool.forEach((e) => { e.term.options.theme = THEMES[t]; e.term.options.minimumContrastRatio = CONTRAST[t]; }));
+// In dark mode the cursor and selection follow the accent colour chosen in the Settings.
+function themeFor(t) {
+  const a = t === 'dark' && accentVars(accentNow(), 'dark');
+  return a ? { ...THEMES.dark, cursor: a['--primary'], selectionBackground: `rgba(${a['--primary-rgb']},0.25)` } : THEMES[t];
+}
+const retheme = () => { const t = activeTheme(); pool.forEach((e) => { e.term.options.theme = themeFor(t); e.term.options.minimumContrastRatio = CONTRAST[t]; }); };
+onThemeChange(retheme);
+onAccentChange(retheme);
 
 function create(key) {
   const el = document.createElement('div');
@@ -57,7 +66,7 @@ function create(key) {
     allowProposedApi: true,
     scrollback: 10000,
     macOptionIsMeta: false,
-    theme: THEMES[activeTheme()],
+    theme: themeFor(activeTheme()),
   });
   const fit = new FitAddon();
   term.loadAddon(fit);

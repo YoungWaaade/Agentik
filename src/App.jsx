@@ -17,6 +17,7 @@ import Empty from './components/Empty.jsx';
 import MobileApp from './components/MobileApp.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import { isPhone } from './components/Terminal.jsx';
+import { syncAccent } from './accent.js';
 
 // After a hub update the socket reconnects but the page keeps the old bundle: reload if stale.
 async function reloadIfOutdated() {
@@ -57,6 +58,7 @@ export default function App() {
   useEffect(() => localStorage.setItem('rp-open', rightOpen ? '1' : '0'), [rightOpen]);
   const load = useCallback(() => api.get('/api/state').then((d) => { setData(d); setLoaded(true); }), []);
   useEffect(() => { api.get('/api/me').then(setMe).catch(() => {}); }, []);
+  useEffect(() => { api.get('/api/appearance').then((r) => syncAccent(r.accent)).catch(() => {}); }, []);
   useEffect(() => { api.get('/api/onboarding').then(setOnboarding).catch(() => setOnboarding({ done: true })); }, []);
 
   useEffect(() => {
@@ -74,6 +76,7 @@ export default function App() {
       sock.onmessage = (e) => {
         const m = JSON.parse(e.data);
         if (m.type === 'reload') load();
+        if (m.type === 'appearance') syncAccent(m.accent);
         // Tasks page: a task ran / changed, or an agent started or finished working.
         if (m.type === 'schedules' || m.type === 'chat-busy') dispatchEvent(new Event(SCHEDULES_EVENT));
         if (m.type === 'chat' || m.type === 'chat-busy' || m.type === 'chat-reset' || m.type === 'chat-convs') onChatEvent(m);

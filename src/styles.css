@@ -1171,7 +1171,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .sb-agent .sb-ws-icon { width: 22px; margin-right: 6px; }
 .sb-agent-busy { display: inline-flex; gap: 3px; }
 .sb-agent-busy span { width: 4px; height: 4px; background: var(--primary); }
-.sb-agent-unread { min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: var(--primary); color: var(--background); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
+.sb-agent-unread { min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: var(--primary); color: var(--on-accent, var(--background)); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
 
 /* agents as tiles in the sidebar */
 .sb-agents { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 0 8px 4px; }
@@ -1183,7 +1183,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .sb-agent-tile .bot-avatar { transition: transform 150ms var(--ease); }
 .sb-agent-name { width: 100%; font-size: 11.5px; font-weight: 500; line-height: 14px; color: var(--fg-80); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sb-agent-tile.active .sb-agent-name { color: var(--foreground); }
-.sb-agent-badge { position: absolute; top: -4px; right: -6px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--primary); color: var(--background); font-size: 10px; font-weight: 600; box-shadow: 0 0 0 2px var(--sidebar-bg); }
+.sb-agent-badge { position: absolute; top: -4px; right: -6px; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--primary); color: var(--on-accent, var(--background)); font-size: 10px; font-weight: 600; box-shadow: 0 0 0 2px var(--sidebar-bg); }
 .sb-agent-badge.busy { background: var(--badge-busy-bg); }
 .sb-agent-badge.busy span { width: 3px; height: 3px; border-radius: 50%; background: var(--primary); animation: typing 1.2s infinite ease-in-out; }
 .sb-agent-badge.busy span:nth-child(2) { animation-delay: 0.15s; }
@@ -1221,7 +1221,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .chat-tabs .tab.active { height: 33px; border-color: transparent; }
 .chat-tabs .tab-add { width: 24px; height: 24px; border-color: transparent; }
 .chat-tab-busy { color: var(--primary); flex: none; }
-.chat-tab-unread { flex: none; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: var(--primary); color: var(--background); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
+.chat-tab-unread { flex: none; min-width: 16px; height: 16px; padding: 0 5px; border-radius: 999px; background: var(--primary); color: var(--on-accent, var(--background)); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center; }
 .chat-tab-rename { flex: 1; min-width: 0; height: 22px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--ring); background: var(--background); color: var(--foreground); font-size: 12px; outline: none; }
 .chat-input { flex-direction: column; align-items: stretch; padding: 8px 10px 8px 8px; }
 .chat-input-row { display: flex; align-items: flex-end; gap: 6px; }
@@ -1318,7 +1318,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .onb-steps li.done { border-color: rgba(var(--primary-rgb), 0.5); color: var(--muted-foreground); }
 .onb-steps li.on { border-color: var(--primary); color: var(--foreground); }
 .onb-dot { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 999px; font-size: 10px; font-weight: 600; box-shadow: inset 0 0 0 1px currentColor; }
-.onb-steps li.on .onb-dot, .onb-steps li.done .onb-dot { background: var(--primary); color: var(--background); box-shadow: none; }
+.onb-steps li.on .onb-dot, .onb-steps li.done .onb-dot { background: var(--primary); color: var(--on-accent, var(--background)); box-shadow: none; }
 .onb-body { display: flex; flex-direction: column; gap: 10px; min-height: 250px; animation: onb-in 220ms var(--ease); }
 @keyframes onb-in { from { opacity: 0; transform: translateY(6px); } }
 @media (prefers-reduced-motion: reduce) { .onb-body { animation: none; } }
@@ -1399,3 +1399,16 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-tasks .task-actions .btn-ghost { height: 34px; font-size: 13px; }
 .m-app .task-form { padding: 14px 16px 24px; }
 .m-app .task-form input, .m-app .task-form select, .m-app .task-form textarea { font-size: 16px; }
+
+/* Accent colour picker (Réglages → Apparence, phone list header). Each swatch shows its own colour inline. */
+.accent-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.accent-swatch { position: relative; width: 22px; height: 22px; flex: none; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(var(--fg-rgb), 0.15); cursor: pointer; }
+.accent-swatch.on { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--foreground); }
+.accent-custom { background: conic-gradient(rgb(var(--red-rgb)), rgb(var(--amber-rgb)), rgb(var(--green-rgb)), rgb(var(--blue-rgb)), rgb(var(--red-rgb))); overflow: hidden; }
+.accent-custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.accent-reset { height: 26px; padding: 0 10px; border-radius: 6px; font-size: 12px; color: var(--muted-foreground); background: var(--surface-hover); }
+.accent-reset:hover { color: var(--foreground); }
+.m-iconbtn.on { background: var(--fill-hover); }
+.m-accent { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted-foreground); }
+.m-accent .accent-swatch { width: 30px; height: 30px; }
+.settings-row .accent-picker { flex-wrap: nowrap; flex: none; }

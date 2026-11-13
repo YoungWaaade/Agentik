@@ -5,6 +5,7 @@ import { ProjectThumbnail } from './ui.jsx';
 import { UsageSection } from './UsagePage.jsx';
 import { UpdateSection } from './UpdateSection.jsx';
 import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
+import AccentPicker from './AccentPicker.jsx';
 
 export function PageHeader({ title, children }) {
   return (
@@ -191,7 +192,7 @@ export function SettingsPage({ me }) {
   );
 }
 
-// Light, dark, or whatever the system uses (followed live). Kept in this browser only.
+// Light, dark, or whatever the system uses (followed live), kept in this browser only; the accent colour is saved on the Mac.
 function Appearance() {
   const pref = useThemePref();
   return (
@@ -202,6 +203,10 @@ function Appearance() {
         <div className="wsp-segmented">
           {THEME_PREFS.map(([k, label]) => <button key={k} className={pref === k ? 'on' : ''} onClick={() => setThemePref(k)}>{label}</button>)}
         </div>
+      </div>
+      <div className="settings-row">
+        <span>Couleur d'accent<span className="muted"> — liens, sélections, pastilles et indicateurs ; partagée avec le téléphone</span></span>
+        <AccentPicker />
       </div>
     </section>
   );

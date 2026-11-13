@@ -12,6 +12,7 @@ import * as git from './git.js';
 import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } from './history.js';
 import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
 import * as onboarding from './onboarding.js';
+import { appearance, setAppearance } from './appearance.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
 import { createSchedule, listSchedules, deleteSchedule, setActive, updateSchedule, runNow, forUi, onSchedulesChange, startScheduler } from './schedules.js';
 import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions } from './chat.js';
@@ -954,6 +955,12 @@ app.put('/api/agents/:slug', wrap(async (req, res) => {
 }));
 
 app.get('/api/onboarding', (req, res) => res.json(onboarding.status()));
+app.get('/api/appearance', (req, res) => res.json(appearance()));
+app.put('/api/appearance', wrap(async (req, res) => {
+  const s = setAppearance(req.body || {});
+  broadcast({ type: 'appearance', ...s });
+  res.json(s);
+}));
 app.get('/api/lead-settings', (req, res) => res.json(onboarding.leadSettings()));
 app.put('/api/lead-settings', wrap(async (req, res) => res.json(onboarding.setLeadSettings(req.body || {}))));
 app.post('/api/onboarding', wrap(async (req, res) => {
