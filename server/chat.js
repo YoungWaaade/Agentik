@@ -8,8 +8,8 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR } from './db.js';
-import { getAgent, listAgents } from './agents.js';
-import { leadSettings } from './onboarding.js';
+import { getAgent, listAgents, saveAgent, deleteAgent, AGENTS_DIR } from './agents.js';
+import { leadSettings, unnamedLeadPrompt, renamed } from './onboarding.js';
 import * as relay from './relay.js';
 
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cli.mjs');
@@ -56,8 +56,56 @@ function updateMessage(msg, patch) {
 // Whole conversation (the last active one by default), oldest first.
 export function chatHistory(agent, conversation = null) {
   const conv = conversation ?? latestConv(agent);
+  const labels = new Map(listAgents().map((a) => [a.slug, a.label]));
   return db.prepare('SELECT * FROM chat_messages WHERE agent = ? AND conversation = ? ORDER BY id').all(agent, conv)
-    .map((m) => ({ ...m, meta: m.meta ? JSON.parse(m.meta) : null }));
+    .map((m) => {
+      const meta = m.meta ? JSON.parse(m.meta) : null;
+      // « de Nova » on a delegated message follows the sender's current name.
+      if (meta?.from && labels.has(meta.from)) meta.fromLabel = labels.get(meta.from);
+      return { ...m, meta };
+    });
+}
+
+// Saves an agent edited in the app or by `agentik update-agent`. A new name renames it: its slug goes
+// from `from` to `slug` ('new' = creation), and everything stored under the old slug or name follows.
+export function saveAgentAs(from, slug, data) {
+  const before = from !== 'new' ? getAgent(from) : null;
+  if (before?.manager) data = { ...data, prompt: unnamedLeadPrompt(data.prompt) };
+  // The old file goes first: while both exist, the renamed agent's avatar would look taken and be changed.
+  const file = path.join(AGENTS_DIR, `${from}.md`);
+  const old = before && slug !== from ? fs.readFileSync(file, 'utf8') : null;
+  if (old !== null) deleteAgent(from);
+  let a;
+  try { a = saveAgent(slug, data, before ? from : slug); } catch (e) { if (old !== null) fs.writeFileSync(file, old); throw e; }
+  if (before) {
+    if (old !== null) renamed(from, slug);
+    renameAgentData(from, slug, before.label, a.label);
+  }
+  return a;
+}
+
+// An agent renamed: its slug changes from `from` to `to` (or stays the same) and its name from `oldLabel`
+// to `label`. Everything stored under the old slug or showing the old name follows.
+function renameAgentData(from, to, oldLabel, label) {
+  if (from !== to) {
+    db.prepare('UPDATE workspaces SET agent = ? WHERE agent = ?').run(to, from);
+    db.prepare('UPDATE agent_tabs SET agent = ? WHERE agent = ?').run(to, from);
+    // Keep its chat and the sessions it launched attached to the renamed agent.
+    db.prepare('UPDATE workspaces SET owner_agent = ? WHERE owner_agent = ?').run(to, from);
+    db.prepare('UPDATE agent_chats SET manager = ? WHERE manager = ?').run(to, from);
+    db.prepare('UPDATE agent_convs SET manager = ? WHERE manager = ?').run(to, from);
+    if (!db.prepare('SELECT 1 FROM agent_convs WHERE agent = ?').get(to)) db.prepare('UPDATE agent_convs SET agent = ? WHERE agent = ?').run(to, from);
+    if (!db.prepare('SELECT 1 FROM agent_chats WHERE agent = ?').get(to)) {
+      db.prepare('UPDATE agent_chats SET agent = ? WHERE agent = ?').run(to, from);
+      db.prepare('UPDATE chat_messages SET agent = ? WHERE agent = ?').run(to, from);
+    }
+    db.prepare("UPDATE chat_messages SET meta = json_set(meta, '$.from', ?) WHERE meta IS NOT NULL AND json_valid(meta) AND json_extract(meta, '$.from') = ?").run(to, from);
+    db.prepare('UPDATE schedules SET agent = ? WHERE agent = ?').run(to, from);
+    db.prepare('UPDATE schedules SET created_by = ? WHERE created_by = ?').run(to, from);
+  }
+  if (oldLabel && label && oldLabel !== label) {
+    db.prepare('UPDATE agent_convs SET title = ? WHERE manager = ? AND title = ?').run(`Mission de ${label}`, to, `Mission de ${oldLabel}`);
+  }
 }
 
 export function conversations(agent) {
@@ -159,6 +207,7 @@ export function stopTurn(agent, conv = null) {
 function systemPrompt(a) {
   return [
     `Tu es « ${a.label} », un agent de Supersept. Tu parles avec ${ctx.userName} dans un chat.`,
+    `Ton nom est « ${a.label} » : présente-toi et signe toujours sous ce nom, même si un autre nom (un ancien nom) apparaît plus bas.`,
     '',
     'Style — très important :',
     '- Réponds très simplement et efficacement : 1 à 3 phrases courtes, en français, comme un collègue.',

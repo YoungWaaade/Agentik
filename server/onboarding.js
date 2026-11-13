@@ -46,13 +46,15 @@ const WORDS = {
   m: { role: "le chef d'équipe", Role: "Chef d'équipe", traits: 'organisé, direct et efficace', ready: 'prêt' },
 };
 
-export function leadAgent({ gender, name, firstName: user }) {
+// The lead's name is not written in its instructions: Agentik gives it in the system prompt from the
+// agent's current name, so a rename (Nova → Dali) is picked up everywhere at once.
+export function leadAgent({ gender, firstName: user }) {
   const w = WORDS[gender] || WORDS.f;
   const who = user || "l'utilisateur";
   return {
     description: `${w.Role} : reçoit toutes les missions, les confie à l'agent le plus adapté (ou lance une session), suit l'avancement et fait la synthèse.`,
     prompt: [
-      `Tu es ${name}, ${w.role} des agents de ${who}. Tu es son point d'entrée unique : c'est à toi que ${who} confie ce qu'il faut faire, et tu t'occupes de tout.`,
+      `Tu es ${w.role} des agents de ${who}. Tu es son point d'entrée unique : c'est à toi que ${who} confie ce qu'il faut faire, et tu t'occupes de tout.`,
       '',
       'Ta façon de faire :',
       '1. Comprends la demande. S\'il manque une information vraiment indispensable, pose une seule question courte ; sinon, avance.',
@@ -78,8 +80,28 @@ export function complete({ gender, name, avatar, firstName: user }) {
     throw new Error(`un agent « ${existing.label} » existe déjà : choisis un autre nom`);
   }
   const { slug: _, prompt, description, ...kept } = existing || {};
-  const agent = saveAgent(slug, { ...kept, ...leadAgent({ gender, name, firstName: user }), label: name, avatar, gender, manager: 'true' });
+  const agent = saveAgent(slug, { ...kept, ...leadAgent({ gender, firstName: user }), label: name, avatar, gender, manager: 'true' });
   fs.mkdirSync(HUB_DIR, { recursive: true });
   fs.writeFileSync(FILE, JSON.stringify({ done: true, at: new Date().toISOString(), agent: slug, firstName: user }, null, 2) + '\n');
   return agent;
+}
+
+// Leads set up before this fix have their onboarding name in the first sentence (« Tu es Nova, la cheffe
+// d'équipe… »): once renamed, the model kept introducing itself as Nova. That name is taken out.
+const NAMED = /^Tu es [^,\n]{1,80}, ((?:la cheffe|le chef) d'équipe )/;
+export const unnamedLeadPrompt = (prompt) => String(prompt || '').replace(NAMED, 'Tu es $1');
+
+// At boot: rewrites the lead agents whose instructions still carry a name.
+export function fixLeadPrompts() {
+  for (const a of listAgents().filter((x) => x.manager)) {
+    const prompt = unnamedLeadPrompt(a.prompt);
+    if (prompt !== a.prompt) { try { saveAgent(a.slug, { ...a, prompt }); } catch {} }
+  }
+}
+
+// An agent renamed (new slug): onboarding.json points at the new one.
+export function renamed(from, to) {
+  const saved = read();
+  if (!saved || saved.agent !== from) return;
+  fs.writeFileSync(FILE, JSON.stringify({ ...saved, agent: to }, null, 2) + '\n');
 }

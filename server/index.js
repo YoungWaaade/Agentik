@@ -10,12 +10,12 @@ import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR, HOOKS_DIR, WORKTREES_DIR, MEMORY_DIR, memoryFile, resolveWorkspaceId } from './db.js';
 import * as git from './git.js';
 import { listSessions, lastAssistantText, recentAssistantTexts, firstPrompt } from './history.js';
-import { listAgents, getAgent, saveAgent, deleteAgent, isSlug, slugify } from './agents.js';
+import { listAgents, getAgent, deleteAgent, isSlug, slugify } from './agents.js';
 import * as onboarding from './onboarding.js';
 import { appearance, setAppearance } from './appearance.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
 import { createSchedule, listSchedules, deleteSchedule, setActive, updateSchedule, runNow, forUi, onSchedulesChange, startScheduler } from './schedules.js';
-import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions } from './chat.js';
+import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions, saveAgentAs } from './chat.js';
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
@@ -935,21 +935,7 @@ app.put('/api/agents/:slug', wrap(async (req, res) => {
   if (!isSlug(req.params.slug) && req.params.slug !== 'new') throw new Error('agent invalide');
   if (req.params.slug !== 'new') checkAgentAdmin(req, req.params.slug);
   if (slug !== req.params.slug && getAgent(slug)) throw new Error(`un agent « ${slug} » existe déjà`);
-  const a = saveAgent(slug, req.body, req.params.slug === 'new' ? slug : req.params.slug);
-  if (req.params.slug !== 'new' && slug !== req.params.slug) {
-    deleteAgent(req.params.slug);
-    db.prepare('UPDATE workspaces SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
-    db.prepare('UPDATE agent_tabs SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
-    // Keep its chat and the sessions it launched attached to the renamed agent.
-    db.prepare('UPDATE workspaces SET owner_agent = ? WHERE owner_agent = ?').run(slug, req.params.slug);
-    db.prepare('UPDATE agent_chats SET manager = ? WHERE manager = ?').run(slug, req.params.slug);
-    db.prepare('UPDATE agent_convs SET manager = ? WHERE manager = ?').run(slug, req.params.slug);
-    if (!db.prepare('SELECT 1 FROM agent_convs WHERE agent = ?').get(slug)) db.prepare('UPDATE agent_convs SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
-    if (!db.prepare('SELECT 1 FROM agent_chats WHERE agent = ?').get(slug)) {
-      db.prepare('UPDATE agent_chats SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
-      db.prepare('UPDATE chat_messages SET agent = ? WHERE agent = ?').run(slug, req.params.slug);
-    }
-  }
+  const a = saveAgentAs(req.params.slug, slug, req.body);
   broadcast({ type: 'reload' });
   res.json(a);
 }));
@@ -1407,6 +1393,8 @@ setInterval(() => {
 db.prepare("UPDATE workspaces SET status = 'idle' WHERE status IN ('working', 'waiting')").run();
 for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').all()) refreshStats(id);
 
+// Leads named in their instructions by an older onboarding lose that name (it comes from the agent's name now).
+onboarding.fixLeadPrompts();
 // The first name given at onboarding, once there is one, is how agents address the user.
 initChat({ claude: CLAUDE, port: PORT, get userName() { return onboarding.firstName() || fullName || os.userInfo().username; }, broadcast, env: () => childEnv({}) });
 
