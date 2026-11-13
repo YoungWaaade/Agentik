@@ -8,8 +8,8 @@ import os from 'node:os';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { db, HUB_DIR } from './db.js';
-import { getAgent, listAgents, saveAgent, deleteAgent, AGENTS_DIR } from './agents.js';
-import { leadSettings, unnamedLeadPrompt, renamed } from './onboarding.js';
+import { getAgent, listAgents, saveAgent, deleteAgent, slugify, AGENTS_DIR } from './agents.js';
+import { leadSettings, unnamedLeadPrompt, renamed, complete } from './onboarding.js';
 import * as relay from './relay.js';
 
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cli.mjs');
@@ -82,6 +82,19 @@ export function saveAgentAs(from, slug, data) {
     renameAgentData(from, slug, before.label, a.label);
   }
   return a;
+}
+
+// Onboarding, first run or redone: the team lead already there (found by its manager flag, whatever
+// its name now is) is renamed to the chosen name and updated; a second lead is never created.
+export function onboard(body = {}) {
+  const lead = listAgents().find((a) => a.manager);
+  const slug = slugify(String(body.name || '').trim());
+  if (lead && String(body.name || '').trim() && slug !== lead.slug) {
+    const other = getAgent(slug);
+    if (other) throw new Error(`un agent « ${other.label} » existe déjà : choisis un autre nom`);
+    saveAgentAs(lead.slug, slug, { ...lead, label: String(body.name).trim() });
+  }
+  return complete(body);
 }
 
 // An agent renamed: its slug changes from `from` to `to` (or stays the same) and its name from `oldLabel`

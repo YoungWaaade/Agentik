@@ -15,7 +15,7 @@ import * as onboarding from './onboarding.js';
 import { appearance, setAppearance } from './appearance.js';
 import { sessions, spawn, spawnShell, killWorkspace, which, homedir, childEnv } from './pty.js';
 import { createSchedule, listSchedules, deleteSchedule, setActive, updateSchedule, runNow, forUi, onSchedulesChange, startScheduler } from './schedules.js';
-import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions, saveAgentAs } from './chat.js';
+import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopTurn, conversations, resumeInterrupted, newConversation, updateConversation, missions, saveAgentAs, onboard } from './chat.js';
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
@@ -950,7 +950,7 @@ app.put('/api/appearance', wrap(async (req, res) => {
 app.get('/api/lead-settings', (req, res) => res.json(onboarding.leadSettings()));
 app.put('/api/lead-settings', wrap(async (req, res) => res.json(onboarding.setLeadSettings(req.body || {}))));
 app.post('/api/onboarding', wrap(async (req, res) => {
-  const a = onboarding.complete(req.body || {});
+  const a = onboard(req.body || {});
   broadcast({ type: 'reload' });
   res.json(a);
 }));

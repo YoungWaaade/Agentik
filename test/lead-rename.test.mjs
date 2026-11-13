@@ -78,3 +78,24 @@ test('a lead set up by an older onboarding loses the name written in its instruc
   assert.match(reply, /je suis Luna/);
   assert.doesNotMatch(system, /Iris/);
 });
+
+test('redoing the onboarding after a rename updates the lead, never adds a second one', async () => {
+  for (const f of fs.readdirSync(process.env.SUPERSEPT_AGENTS_DIR)) fs.rmSync(path.join(process.env.SUPERSEPT_AGENTS_DIR, f));
+  chat.onboard({ gender: 'f', name: 'Nova', avatar: '', firstName: 'Alessandra' });
+  rename('nova', 'Dali');
+  db.prepare("INSERT INTO agent_convs (agent, conversation, session_id, created_at, updated_at) VALUES ('dali', 99, 's', 0, 0)").run();
+  const a = chat.onboard({ gender: 'm', name: 'Atlas', avatar: '', firstName: 'Alessandra' });
+  assert.equal(a.slug, 'atlas');
+  assert.deepEqual(agents.listAgents().filter((x) => x.manager).map((x) => x.slug), ['atlas']);
+  assert.equal(agents.getAgent('dali'), null);
+  assert.equal(a.gender, 'm');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM agent_convs WHERE agent = 'atlas' AND conversation = 99").get().n, 1);
+  assert.match((await greet('atlas')).reply, /je suis Atlas/);
+  // Same name again: updated in place.
+  chat.onboard({ gender: 'm', name: 'Atlas', avatar: '', firstName: 'Ale' });
+  assert.equal(agents.listAgents().filter((x) => x.manager).length, 1);
+  // A name taken by another agent is refused, the lead stays as it is.
+  agents.saveAgent('git', { label: 'Git', description: 'd', prompt: 'p' });
+  assert.throws(() => chat.onboard({ gender: 'f', name: 'Git', avatar: '' }), /existe déjà/);
+  assert.ok(agents.getAgent('atlas')?.manager);
+});
