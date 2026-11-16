@@ -105,6 +105,7 @@ function renameAgentData(from, to, oldLabel, label) {
     db.prepare('UPDATE agent_tabs SET agent = ? WHERE agent = ?').run(to, from);
     // Keep its chat and the sessions it launched attached to the renamed agent.
     db.prepare('UPDATE workspaces SET owner_agent = ? WHERE owner_agent = ?').run(to, from);
+    db.prepare('UPDATE workspaces SET sender_agent = ? WHERE sender_agent = ?').run(to, from);
     db.prepare('UPDATE agent_chats SET manager = ? WHERE manager = ?').run(to, from);
     db.prepare('UPDATE agent_convs SET manager = ? WHERE manager = ?').run(to, from);
     if (!db.prepare('SELECT 1 FROM agent_convs WHERE agent = ?').get(to)) db.prepare('UPDATE agent_convs SET agent = ? WHERE agent = ?').run(to, from);

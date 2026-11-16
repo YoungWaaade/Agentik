@@ -168,6 +168,9 @@ if (!db.prepare('SELECT 1 FROM agent_convs LIMIT 1').get()) {
 }
 // Sessions launched from a given conversation report back to that conversation.
 addColumn('workspaces', 'owner_conv', 'INTEGER');
+// The agent conversation that sent the last message through `send`: it hears back too (see reports.js).
+addColumn('workspaces', 'sender_agent', 'TEXT');
+addColumn('workspaces', 'sender_conv', 'INTEGER');
 // Extra agent tabs inside a workspace: each one is its own Claude conversation.
 db.exec(`CREATE TABLE IF NOT EXISTS agent_tabs (
   id TEXT PRIMARY KEY,

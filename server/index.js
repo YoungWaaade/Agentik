@@ -19,6 +19,7 @@ import { initChat, sendToAgent, chatHistory, isBusy, busySince, resetChat, stopT
 import * as remote from './remote.js';
 import * as relay from './relay.js';
 import * as usage from './usage.js';
+import { promptTracker, reportTargets, typedByUser } from './reports.js';
 import { makeUpdater, describe as describeUpdate, BOOT_ID } from './update.js';
 
 const PORT = Number(process.env.PORT || 4317);
@@ -887,7 +888,9 @@ function ready(wsId) {
   queued.forEach((t, i) => setTimeout(() => (s.alive ? deliver(s, t) : typeInto(wsId, t)), i * 2500));
 }
 
-function typeInto(wsId, text) {
+const typedPrompts = promptTracker(); // prompts typed by Agentik, until their UserPromptSubmit
+
+function typeInto(wsId, text, { logged = false } = {}) {
   let s = sessions.get(`${wsId}:agent`);
   const fresh = !s?.alive;
   // Long messages: Claude reads them from a file, with their formatting (the PTY flattens line breaks).
@@ -895,6 +898,7 @@ function typeInto(wsId, text) {
     const file = promptFile(`${wsId}-${Date.now()}`, text);
     text = `${text.slice(0, 300).replace(/\s+/g, ' ').trim()}… [Message long : lis le fichier ${file} en entier avec Read avant d'agir, il contient toutes les consignes.]`;
   }
+  typedPrompts.typed(wsId, text, { logged });
   if (fresh) s = startAgent(wsId);
   if (booting.has(wsId)) {
     inbox.set(wsId, [...(inbox.get(wsId) || []), text]);
@@ -908,6 +912,11 @@ app.post('/api/workspaces/:id/send', wrap(async (req, res) => {
   if (!ws) throw new Error('session introuvable');
   const text = String(req.body.text || '').trim();
   if (!text) throw new Error('message vide');
+  // The last sender hears back from the session, even if it did not launch it; the app or the user's own CLI
+  // (no agent header) clears it.
+  const caller = req.get('X-Supersept-Agent');
+  const sender = caller && getAgent(caller) ? caller : null;
+  db.prepare('UPDATE workspaces SET sender_agent = ?, sender_conv = ? WHERE id = ?').run(sender, sender ? convNum(req.get('X-Supersept-Conv')) : null, ws.id);
   const r = relaying.get(ws.id);
   if (r) {
     // Mid-relay: the old session is writing its handoff, the message goes to the new one.
@@ -915,7 +924,8 @@ app.post('/api/workspaces/:id/send', wrap(async (req, res) => {
     logEvent(ws.id, 'prompt', text);
     return res.json({ ok: true, relais: 'en cours : le message sera remis à la nouvelle session' });
   }
-  const fresh = typeInto(ws.id, text);
+  // Logged here in full (a long message reaches Claude as a pointer to a file): its UserPromptSubmit is not.
+  const fresh = typeInto(ws.id, text, { logged: true });
   logEvent(ws.id, 'prompt', text);
   res.json({ ok: true, demarree: fresh, ...(ws.id !== req.params.id ? { relayee_vers: ws.id } : {}) });
 }));
@@ -1060,12 +1070,17 @@ app.post('/api/workspaces/:id/open', wrap(async (req, res) => {
   res.json({ ok: true });
 }));
 
-// Tell the chat agent that launched a session what happened, so it can follow up on its own.
+// Tell the chat agent that launched a session, and the one that sent it the last message, what happened,
+// so they can follow up on their own.
 function reportToOwner(wsId, what, text, { label = 'Son dernier message' } = {}) {
   const ws = getWorkspace(wsId);
-  if (!ws?.owner_agent || !getAgent(ws.owner_agent) || ws.successor || relaying.has(wsId)) return;
-  const msg = `[Supersept] La session « ${ws.name} » (id ${ws.id}) ${what}.${text ? ` ${label} : ${String(text).slice(0, 1500)}` : ''}`;
-  try { sendToAgent(ws.owner_agent, msg, { internal: true, conversation: ws.owner_conv ?? null }); } catch {}
+  if (!ws || ws.successor || relaying.has(wsId)) return;
+  const t = text ? String(text) : '';
+  const cut = t.length > 1500 ? `… (tronqué : agentik session ${ws.id} pour le texte complet)` : '';
+  const msg = `[Supersept] La session « ${ws.name} » (id ${ws.id}) ${what}.${t ? ` ${label} : ${t.slice(0, 1500)}${cut}` : ''}`;
+  for (const to of reportTargets(ws, getAgent)) {
+    try { sendToAgent(to.agent, msg, { internal: true, conversation: to.conv }); } catch {}
+  }
 }
 
 // ---------- automatic relay (context full) ----------
@@ -1126,7 +1141,7 @@ function chainOf(ws) {
 }
 
 // Everything the user and agents sent along the chain, word for word: a handoff summary tends to drop the
-// instructions given along the way. Each message is logged twice (send + UserPromptSubmit): keep one.
+// instructions given along the way. Messages sent before 2026-11 were logged twice (send + UserPromptSubmit): keep one.
 function instructionsOf(ws) {
   const out = [];
   for (const w of chainOf(ws)) {
@@ -1181,10 +1196,10 @@ function finishRelay(id, summary, source) {
   db.exec('BEGIN');
   try {
     db.prepare(`INSERT INTO workspaces (id, project_id, name, cwd, branch, base_branch, is_worktree, session_id, has_conversation, initial_prompt, status, status_since,
-                created_at, updated_at, model, effort, permission_mode, agent, owner_agent, owner_conv, predecessor)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'idle', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                created_at, updated_at, model, effort, permission_mode, agent, owner_agent, owner_conv, sender_agent, sender_conv, predecessor)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, 'idle', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(newId, ws.project_id, ws.name, ws.cwd, ws.branch, ws.base_branch, ws.is_worktree, sessionId, intro, now(), now(), now(),
-        ws.model, ws.effort, ws.permission_mode, ws.agent, ws.owner_agent, ws.owner_conv, ws.id);
+        ws.model, ws.effort, ws.permission_mode, ws.agent, ws.owner_agent, ws.owner_conv, ws.sender_agent, ws.sender_conv, ws.id);
     db.prepare('UPDATE workspaces SET successor = ?, archived = 1, autostart = 0, updated_at = ? WHERE id = ?').run(newId, now(), ws.id);
     db.prepare('UPDATE agent_tabs SET workspace_id = ? WHERE workspace_id = ?').run(newId, ws.id);
     db.prepare('INSERT INTO relays (kind, from_ref, to_ref, old_session, new_session, tokens, window, summary_source, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
@@ -1261,12 +1276,20 @@ app.post('/api/hook/:id/:event', (req, res) => {
     db.prepare('UPDATE workspaces SET session_id = ? WHERE id = ?').run(body.session_id, id);
   }
   switch (event) {
-    case 'UserPromptSubmit':
+    case 'UserPromptSubmit': {
+      const prompt = String(body.prompt || '');
+      const typed = typedPrompts.submitted(id, prompt);
       db.prepare('UPDATE workspaces SET has_conversation = 1 WHERE id = ?').run(id);
-      logEvent(id, 'prompt', String(body.prompt || '').slice(0, 2000));
+      // Sent through /send: already logged there (logging it again showed every message twice).
+      if (!typed.some((p) => p.logged)) logEvent(id, 'prompt', prompt.slice(0, 2000));
+      // The user took over in the app: the agent that sent the last message no longer gets the reports.
+      if (!typed.length && ws.sender_agent && typedByUser(prompt, ws.initial_prompt)) {
+        db.prepare('UPDATE workspaces SET sender_agent = NULL, sender_conv = NULL WHERE id = ?').run(id);
+      }
       setStatus(id, 'working', null);
       ready(id); // took its first prompt: messages typed now are queued by Claude Code
       break;
+    }
     case 'PreToolUse':
       if (ws.status !== 'working') setStatus(id, 'working');
       break;
@@ -1287,7 +1310,7 @@ app.post('/api/hook/:id/:event', (req, res) => {
       if (relaying.get(id)?.phase === 'asking') { finishRelay(id, text, 'session'); break; }
       measureWorkspace(id, body.transcript_path);
       logEvent(id, 'stop', text?.slice(0, 4000));
-      setStatus(id, 'review', text?.slice(0, 600) ?? null);
+      setStatus(id, 'review', text ?? null);
       refreshStats(id);
       reportToOwner(id, 'vient de terminer', text);
       const o = overload(ws, body.transcript_path, { firstTurn: !!ws.predecessor && stopsOf(id) < 2 });

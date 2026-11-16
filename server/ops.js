@@ -15,13 +15,14 @@ async function call(method, path, body) {
 }
 
 const STATUS = { working: 'en cours', waiting: 'attend une réponse', review: 'terminée, à revoir', error: 'en erreur (voir dernier_message)', idle: 'inactive', done: 'terminée' };
-const brief = (w, projects = []) => ({
+// The list cuts the last message; `session ID` gives it in full.
+const brief = (w, projects = [], { full = false } = {}) => ({
   id: w.id,
   nom: w.name,
   projet: projects.find((p) => p.id === w.project_id)?.name ?? null,
   statut: STATUS[w.status] || w.status,
   tourne: w.running,
-  dernier_message: w.last_message ? w.last_message.slice(0, 600) : null,
+  dernier_message: w.last_message ? (full ? w.last_message : w.last_message.slice(0, 600)) : null,
   branche: w.branch,
   dossier: w.cwd,
   modifications: w.stats ? `+${w.stats.add} −${w.stats.del} (${w.stats.files} fichiers)` : null,
@@ -61,7 +62,7 @@ export async function getSession(id) {
   const [s, w] = await Promise.all([call('GET', '/api/state'), call('GET', `/api/workspaces/${id}?follow=1`)]);
   const events = await call('GET', `/api/workspaces/${w.id}/events`);
   return {
-    ...brief(w, s.projects),
+    ...brief(w, s.projects, { full: true }),
     ...(w.id !== id ? { relayee: `l'id ${id} a été relayé vers ${w.id} (contexte plein), même dossier et même branche` } : {}),
     activite: events.slice(0, 8).map((e) => ({ type: e.kind, texte: (e.text || '').slice(0, 400) })),
   };
