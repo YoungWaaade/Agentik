@@ -6,7 +6,7 @@ import { api } from '../api.js';
 import Terminal, { restartTerminal, killTerminal, focusTerminal, useTerminalTitle, sendInput, attachToTerminal } from './Terminal.jsx';
 import DiffView, { FileViewer } from './DiffView.jsx';
 import RightPanel from './RightPanel.jsx';
-import { StatusIndicator } from './ui.jsx';
+import { StatusIndicator, TrustAsk } from './ui.jsx';
 import BotAvatar from './BotAvatar.jsx';
 import { AgentIcon } from './AgentsPage.jsx';
 
@@ -316,6 +316,7 @@ function Pane({ ws, pane, termKey, visible, split, focused, onFocus, onSplit, on
           </div>
         </div>
       </div>
+      <TrustAsk ws={ws} pane={pane} />
       <div className="pane-content">
         <div className="term-wrap">
           <Terminal termKey={termKey} active={visible && focused} />

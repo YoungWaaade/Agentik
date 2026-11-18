@@ -1412,3 +1412,9 @@ body.resizing { user-select: none; cursor: col-resize; }
 .m-accent { display: flex; flex-direction: column; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--muted-foreground); }
 .m-accent .accent-swatch { width: 30px; height: 30px; }
 .settings-row .accent-picker { flex-wrap: nowrap; flex: none; }
+
+/* Claude's "trust this folder?" question, answered above the terminal */
+.trust-ask { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 8px 12px; background: rgba(var(--yellow-rgb), 0.08); border-bottom: 1px solid rgba(var(--yellow-rgb), 0.25); font-size: 12px; color: var(--foreground); flex: none; }
+.trust-ask-text { flex: 1; min-width: 200px; }
+.trust-ask-actions { display: flex; gap: 6px; margin-left: auto; }
+.m-app .trust-ask .btn-ghost, .m-app .trust-ask .btn-primary { height: 34px; font-size: 13px; }

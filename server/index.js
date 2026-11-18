@@ -21,6 +21,7 @@ import * as relay from './relay.js';
 import * as usage from './usage.js';
 import { promptTracker, reportTargets, typedByUser } from './reports.js';
 import { makeUpdater, describe as describeUpdate, BOOT_ID } from './update.js';
+import { keyedQueue } from './queue.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -54,6 +55,8 @@ function decorate(ws) {
     running: !!sessions.get(`${ws.id}:agent`)?.alive,
     run_running: !!sessions.get(`${ws.id}:run`)?.alive,
     stats: statsCache.get(ws.id) || null,
+    // Panes ('agent', 'ag-…') whose Claude waits for "Yes, I trust this folder".
+    trust_asks: trustPanes(ws.id),
   };
 }
 
@@ -89,7 +92,11 @@ function logEvent(id, kind, text) {
   db.prepare('INSERT INTO events (workspace_id, kind, text, at) VALUES (?, ?, ?, ?)').run(id, kind, text ?? null, now());
 }
 
-async function refreshStats(id) {
+// Each refresh spawns several git processes: they go through one queue, two at a time.
+const statsQueue = keyedQueue(computeStats, 2);
+function refreshStats(id) { statsQueue.push(id); }
+
+async function computeStats(id) {
   const ws = getWorkspace(id);
   if (!ws || !fs.existsSync(ws.cwd)) return;
   try {
@@ -242,10 +249,31 @@ function trustedByUser(dir) {
 // Claude Code asks "Do you trust this folder?" at launch, and never remembers the answer for the home
 // folder, so every hub restart blocked all sessions running in ~. Answer it for the user when trusting is
 // already their choice: home folder, a conversation they already worked on there, or a folder/project they
-// approved before. A brand-new session in an unknown folder still asks (that's when the check matters);
-// if an agent launched it, the agent tells the user.
+// approved before, or a project they added to the app (its folder, subfolders and the app's worktrees for it).
+// A brand-new session in an unknown folder still asks (that's when the check matters): the app shows the
+// question above the terminal, and the agent that launched it is told.
+const inside = (dir, root) => { const d = real(dir), r = real(root); return d === r || d.startsWith(r.endsWith(path.sep) ? r : r + path.sep); };
 function trustIsKnown(ws, project) {
-  return real(ws.cwd) === real(homedir) || !!ws.has_conversation || !!ws.predecessor || trustedByUser(ws.cwd) || (project && trustedByUser(project.path));
+  return real(ws.cwd) === real(homedir) || !!ws.has_conversation || !!ws.predecessor || trustedByUser(ws.cwd)
+    || (project && (trustedByUser(project.path) || inside(ws.cwd, project.path) || inside(ws.cwd, WORKTREES_DIR)));
+}
+
+// Sessions (PTY key) whose Claude shows the trust question nobody answered yet. In Claude Code 2.1 "No, exit" comes
+// first and is selected: any message pasted there followed by Enter quits Claude. So messages wait while it is shown.
+const trustAsks = new Map(); // session key → workspace id
+const trustPanes = (wsId) => [...trustAsks.keys()].filter((k) => k.startsWith(wsId + ':')).map((k) => k.slice(wsId.length + 1));
+const acceptTrust = (s) => setTimeout(() => { s.write('\x1b[B'); setTimeout(() => s.write('\r'), 150); }, 300);
+
+// The question is gone (answered in the app or in the terminal, or Claude quit): messages waiting for the session go on.
+function trustAnswered(key) {
+  const wsId = trustAsks.get(key);
+  if (!wsId || !trustAsks.delete(key)) return;
+  if (key.endsWith(':agent') && sessions.get(key)?.alive) {
+    if (getWorkspace(wsId)?.status === 'waiting') setStatus(wsId, 'idle', null);
+    clearTimeout(booting.get(wsId));
+    booting.set(wsId, setTimeout(() => ready(wsId), BOOT_TIMEOUT));
+  }
+  pushWorkspace(wsId);
 }
 
 function watchTrustPrompt(s, ws, project) {
@@ -255,14 +283,21 @@ function watchTrustPrompt(s, ws, project) {
     if (!/trust\s*this\s*folder/i.test(seen)) return;
     sub.dispose();
     if (trustIsKnown(ws, project)) {
-      setTimeout(() => { s.write('\x1b[B'); setTimeout(() => s.write('\r'), 150); }, 300);
+      acceptTrust(s);
       logEvent(ws.id, 'trust', `Dossier ${ws.cwd.replace(homedir, '~')} accepté automatiquement`);
-    } else if (ws.owner_agent) {
-      const msg = `Claude demande si tu fais confiance au dossier ${ws.cwd.replace(homedir, '~')} : ouvre la session et choisis « Yes, I trust this folder ».`;
+      return;
+    }
+    trustAsks.set(s.key, ws.id);
+    s.proc.onExit(() => trustAnswered(s.key));
+    const msg = `Claude demande si tu fais confiance au dossier ${ws.cwd.replace(homedir, '~')} : ouvre la session et choisis « Faire confiance ».`;
+    if (s.key.endsWith(':agent')) {
+      // Held until the question is answered (the boot timeout would paste them into it).
+      clearTimeout(booting.get(ws.id));
+      booting.set(ws.id, null);
       logEvent(ws.id, 'waiting', msg);
       setStatus(ws.id, 'waiting', msg);
-      reportToOwner(ws.id, 'attend une réponse', msg);
-    }
+      if (ws.owner_agent) reportToOwner(ws.id, 'attend une réponse', msg);
+    } else pushWorkspace(ws.id);
   });
   setTimeout(() => sub.dispose(), 60000);
 }
@@ -878,7 +913,7 @@ function deliver(s, text) {
 
 // The session is up (SessionStart, first prompt taken, or timeout): hand it what was waiting, one by one.
 function ready(wsId) {
-  if (!booting.has(wsId)) return;
+  if (!booting.has(wsId) || trustAsks.has(`${wsId}:agent`)) return;
   clearTimeout(booting.get(wsId));
   booting.delete(wsId);
   const s = sessions.get(`${wsId}:agent`);
@@ -900,7 +935,7 @@ function typeInto(wsId, text, { logged = false } = {}) {
   }
   typedPrompts.typed(wsId, text, { logged });
   if (fresh) s = startAgent(wsId);
-  if (booting.has(wsId)) {
+  if (booting.has(wsId) || trustAsks.has(`${wsId}:agent`)) {
     inbox.set(wsId, [...(inbox.get(wsId) || []), text]);
   } else setTimeout(() => deliver(s, text), 50);
   return fresh;
@@ -928,6 +963,25 @@ app.post('/api/workspaces/:id/send', wrap(async (req, res) => {
   const fresh = typeInto(ws.id, text, { logged: true });
   logEvent(ws.id, 'prompt', text);
   res.json({ ok: true, demarree: fresh, ...(ws.id !== req.params.id ? { relayee_vers: ws.id } : {}) });
+}));
+
+// The user answers Claude's "Do you trust this folder?" from the app: trust (Claude goes on) or refuse (Claude stops).
+app.post('/api/workspaces/:id/trust', wrap(async (req, res) => {
+  const ws = getWorkspace(req.params.id);
+  if (!ws) throw new Error('session introuvable');
+  const pane = String(req.body.pane || 'agent');
+  const key = `${ws.id}:${pane}`;
+  const s = sessions.get(key);
+  if (!trustAsks.has(key) || !s?.alive) throw new Error("Claude ne demande plus de confiance pour ce dossier");
+  if (req.body.accept) {
+    acceptTrust(s);
+    logEvent(ws.id, 'trust', `Dossier ${ws.cwd.replace(homedir, '~')} accepté depuis l'app`);
+    trustAnswered(key);
+  } else {
+    logEvent(ws.id, 'trust', `Dossier ${ws.cwd.replace(homedir, '~')} refusé : Claude arrêté`);
+    s.kill();
+  }
+  res.json({ ok: true });
 }));
 
 // Requests from a chat agent (the CLI sets X-Supersept-Agent) may edit or delete agents only when it is
@@ -1326,6 +1380,7 @@ app.post('/api/hook/:id/:event', (req, res) => {
       if (body.trigger !== 'manual') { compactPending.add(id); logEvent(id, 'compact', 'Contexte plein : compaction automatique, relais à la fin du tour'); }
       break;
     case 'SessionStart':
+      trustAnswered(`${id}:agent`);
       pushWorkspace(id);
       setTimeout(() => ready(id), 1500);
       break;
@@ -1394,7 +1449,10 @@ wss.on('connection', (ws, req) => {
   ws.on('message', (raw) => {
     let m;
     try { m = JSON.parse(raw); } catch { return; }
-    if (m.type === 'input') s.write(m.data);
+    if (m.type === 'input') {
+      s.write(m.data);
+      if (trustAsks.has(key) && /\r/.test(m.data)) trustAnswered(key);
+    }
     else if (m.type === 'resize') s.resize(m.cols, m.rows);
     else if (m.type === 'kill') { s.kill(); sessions.delete(key); }
     else if (m.type === 'restart') {
@@ -1407,9 +1465,13 @@ wss.on('connection', (ws, req) => {
   ws.on('close', () => s.clients.delete(ws));
 });
 
-// Keep diff counters fresh for live agents.
+// Keep diff counters fresh for agents at work (an idle one changes nothing; its Stop already refreshed them).
 setInterval(() => {
-  for (const [key, s] of sessions) if (s.alive && key.endsWith(':agent')) refreshStats(key.split(':')[0]);
+  for (const [key, s] of sessions) {
+    if (!s.alive || !key.endsWith(':agent')) continue;
+    const id = key.split(':')[0];
+    if (getWorkspace(id)?.status === 'working') refreshStats(id);
+  }
 }, 15000);
 
 // On boot nothing is running anymore: reset stale "working" states.

@@ -5,7 +5,7 @@ import { api, ago, STATUS } from '../api.js';
 import { TasksScreen } from './TasksPage.jsx';
 import AccentPicker from './AccentPicker.jsx';
 import Terminal, { sendInput, restartTerminal } from './Terminal.jsx';
-import { StatusIndicator, ProjectThumbnail, DiffStats } from './ui.jsx';
+import { StatusIndicator, ProjectThumbnail, DiffStats, TrustAsk } from './ui.jsx';
 import { SpinCircle } from './TakenPill.jsx';
 
 // No settings page on the phone (and the installed app keeps its own storage): one button cycles
@@ -132,6 +132,7 @@ function WorkspaceScreen({ ws, project, go }) {
         </div>
         <button className="m-iconbtn" onClick={() => confirm(ws.running ? 'Relancer Claude ?' : 'Lancer Claude ?') && restartTerminal(key)} aria-label="Relancer Claude"><LuZap size={18} /></button>
       </header>
+      <TrustAsk ws={ws} />
       <div className="m-term"><Terminal termKey={key} active={false} keyboard={false} /></div>
       <div className="m-keys">
         {KEYS.map(([label, seq]) => (

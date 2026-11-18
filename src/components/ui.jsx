@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { RxDot } from 'react-icons/rx';
 import { CgLaptop } from 'react-icons/cg';
 import { HiMiniXMark } from 'react-icons/hi2';
-import { STATUS } from '../api.js';
+import { api, STATUS } from '../api.js';
 import { SpinCircle } from './TakenPill.jsx';
 
 // Superset's StatusIndicator: waiting = yellow ping, review = static green, error = static red.
@@ -75,6 +75,26 @@ export function Modal({ title, onClose, children, className = '' }) {
         )}
         {children}
       </div>
+    </div>
+  );
+}
+
+// Claude asks "Do you trust this folder?" before starting in an unknown folder: answered here, so nobody has to
+// find the question in the terminal (where "No, exit" is the option selected by default).
+export function TrustAsk({ ws, pane = 'agent' }) {
+  const [busy, setBusy] = useState(false);
+  if (!ws.trust_asks?.includes(pane)) return null;
+  const answer = (accept) => {
+    setBusy(true);
+    api.post(`/api/workspaces/${ws.id}/trust`, { pane, accept }).catch((e) => alert(e.message)).finally(() => setBusy(false));
+  };
+  return (
+    <div className="trust-ask" role="alert">
+      <span className="trust-ask-text">Claude demande si tu fais confiance au dossier <b title={ws.cwd}>{ws.cwd.split('/').pop()}</b> avant de démarrer.</span>
+      <span className="trust-ask-actions">
+        <button className="btn-ghost" disabled={busy} onClick={() => answer(false)}>Refuser</button>
+        <button className="btn-primary" disabled={busy} onClick={() => answer(true)}>Faire confiance</button>
+      </span>
     </div>
   );
 }
