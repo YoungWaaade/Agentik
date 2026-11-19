@@ -34,6 +34,8 @@ class Session {
     this.buffer = '';
     this.clients = new Set();
     this.alive = true;
+    // Activity for the automatic close: start, then anything typed in (by the user or the hub).
+    this.startedAt = this.lastInput = Date.now();
     this.proc = pty.spawn(file, args, { name: 'xterm-256color', cols: 120, rows: 36, cwd, env: childEnv(env) });
     this.proc.onData((d) => {
       this.buffer += d;
@@ -53,7 +55,7 @@ class Session {
     const s = JSON.stringify(msg);
     for (const ws of this.clients) ws.send(s);
   }
-  write(d) { if (this.alive) this.proc.write(d); }
+  write(d) { if (this.alive) { this.lastInput = Date.now(); this.proc.write(d); } }
   resize(c, r) { if (this.alive && c > 0 && r > 0) try { this.proc.resize(c, r); } catch {} }
   kill() { if (this.alive) try { this.proc.kill(); } catch {} }
 }

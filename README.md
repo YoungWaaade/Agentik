@@ -60,7 +60,7 @@ Agentik tourne tant que le terminal reste ouvert.
    - **Cloner depuis GitHub** : choisis un de tes repos (ou colle son URL), il est cloné dans `~/claude sessions/<repo>` et devient un projet (nécessite `gh`) ;
    - **Nouveau projet vide** dans `~/claude sessions/`, que tu pourras relier à GitHub plus tard (clic droit sur le projet → Relier à un repo GitHub).
 2. **Nouvel espace de travail** (⌘N) : décris la tâche, choisis le projet, **Worktree** (branche isolée) ou **Local** (ton dossier), puis le modèle et l'effort.
-3. La première fois dans un nouveau dossier, Claude Code demande si tu fais confiance au dossier : réponds dans le terminal.
+3. La première fois dans un nouveau dossier, Claude Code demande si tu fais confiance au dossier : un bandeau au-dessus du terminal te le demande (sur le Mac comme sur l'iPhone). Les dossiers de tes projets, leurs sous-dossiers et les worktrees d'Agentik sont approuvés automatiquement.
 4. Suis tes agents dans la sidebar ou dans **Espaces de travail** (kanban). Clic droit sur un espace pour l'ouvrir dans VS Code ou Cursor, le forker, l'archiver, etc.
 
 ### Agents
@@ -76,6 +76,19 @@ La commande `agentik` est faite pour les agents, pas pour toi : Agentik la met d
 Le **+** de la section crée un agent (rôle, instructions, modèle, robot). Les agents sont enregistrés au format natif de Claude Code (`~/.claude/agents/<nom>.md`).
 
 Raccourcis : ⌘N nouvel espace · ⌘K rechercher · ⌘T terminal · ⌘D diviser · ⌘⌥1…9 aller à l'espace n · ⇧↵ nouvelle ligne dans Claude.
+
+### Sessions ouvertes et mémoire
+
+Chaque session ouverte fait tourner un Claude Code (environ 150 Mo, plus sa barre d'état). Pour que des dizaines de sessions terminées ne ralentissent pas le Mac, Agentik fait le ménage tout seul (**Réglages → Sessions ouvertes**, ou `~/.claude-hub/lifecycle.json`) :
+
+| Réglage | Défaut | Effet |
+|---|---|---|
+| `closeAfterHours` | `2` | Claude est arrêté dans une session terminée et inactive depuis 2 h. La conversation reprend quand tu rouvres la session. |
+| `archiveAfterDays` | `7` | Une session fermée et inactive depuis 7 jours est archivée (rien n'est supprimé : worktree, branche et conversation restent, et l'archivage se défait). |
+| `maxOpen` | `20` | Au-delà de 20 sessions ouvertes, les plus anciennes inactives sont fermées. |
+| `statuslineRefresh` | `false` | Ta barre d'état Claude Code (`statusLine` de `~/.claude/settings.json`) n'est plus relancée toutes les quelques secondes dans les sessions Agentik, seulement à chaque événement. Ton réglage global n'est pas modifié. |
+
+`0` désactive une règle. Une session n'est jamais fermée ni archivée si elle est au travail, attend ta réponse, est en erreur depuis moins de 48 h, est ouverte à l'écran ou vient d'être utilisée. Elle n'est jamais archivée si son dossier a des modifications non commitées ou des commits ni poussés ni mergés. Au démarrage, Agentik ne relance que les sessions au travail ou en attente, et les plus récentes dans la limite.
 
 ## Depuis ton iPhone
 
@@ -100,6 +113,7 @@ Tout est dans `~/.claude-hub/` :
 | `worktrees/` | les git worktrees créés par Agentik |
 | `attachments/` | les pièces jointes envoyées à Claude |
 | `remote.json` | l'accès téléphone (activé ou non, jeton d'appairage) |
+| `lifecycle.json` | la fermeture et l'archivage automatiques des sessions |
 
 Les conversations elles-mêmes restent celles de Claude Code (`~/.claude/projects`).
 

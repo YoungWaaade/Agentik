@@ -172,6 +172,7 @@ export function SettingsPage({ me }) {
             <LeadManagesAgents />
           </section>
           <ContextRelay />
+          <SessionsLifecycle />
           <RemoteAccess />
           <section>
             <h2>Emplacements</h2>
@@ -254,6 +255,39 @@ function ContextRelay() {
       <div className="settings-row">
         <span>Fenêtres connues (apprises des agents ; 200k par défaut, 1M si le modèle finit par [1m])</span>
         <code>{learned.length ? learned.map(([m, w]) => `${m} : ${w >= 1e6 ? `${w / 1e6}M` : `${Math.round(w / 1000)}k`}`).join(' · ') : 'aucune encore'}</code>
+      </div>
+    </section>
+  );
+}
+
+// Finished sessions close after a while (Claude stops, the conversation resumes when opened), then get archived.
+function SessionsLifecycle() {
+  const [cfg, setCfg] = useState(null);
+  useEffect(() => { api.get('/api/sessions-lifecycle').then(setCfg).catch(() => {}); }, []);
+  const save = (patch) => api.put('/api/sessions-lifecycle', patch).then(setCfg).catch((e) => alert(e.message));
+  if (!cfg) return null;
+  const num = (key, props) => (
+    <input type="number" min="0" {...props} defaultValue={cfg[key]} key={`${key}${cfg[key]}`}
+      onBlur={(e) => Number(e.target.value) !== cfg[key] && save({ [key]: Number(e.target.value) || 0 })} />
+  );
+  return (
+    <section>
+      <h2>Sessions ouvertes</h2>
+      <div className="settings-row">
+        <span>Arrêter Claude dans une session terminée et inactive depuis (heures, 0 = jamais). La conversation reprend quand on ouvre la session.</span>
+        {num('closeAfterHours', { max: 720 })}
+      </div>
+      <div className="settings-row">
+        <span>Archiver une session fermée inactive depuis (jours, 0 = jamais). Jamais si son dossier a des modifications non commitées ou des commits ni poussés ni mergés.</span>
+        {num('archiveAfterDays', { max: 365 })}
+      </div>
+      <div className="settings-row">
+        <span>Sessions ouvertes en même temps, au plus (0 = sans limite). Au-delà, les plus anciennes inactives sont fermées, jamais une session au travail ou en attente.</span>
+        {num('maxOpen', { max: 500 })}
+      </div>
+      <div className="settings-row">
+        <span>Rafraîchir la barre d'état de Claude toutes les quelques secondes dans les sessions (refreshInterval de ta statusline ; désactivé, elle se met à jour à chaque événement)</span>
+        <button className="btn-ghost" onClick={() => save({ statuslineRefresh: !cfg.statuslineRefresh })}>{cfg.statuslineRefresh ? 'Désactiver' : 'Activer'}</button>
       </div>
     </section>
   );

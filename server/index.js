@@ -22,6 +22,7 @@ import * as usage from './usage.js';
 import { promptTracker, reportTargets, typedByUser } from './reports.js';
 import { makeUpdater, describe as describeUpdate, BOOT_ID } from './update.js';
 import { keyedQueue } from './queue.js';
+import * as lifecycle from './lifecycle.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -119,8 +120,17 @@ function hookSettings(wsId) {
     hooks[e] = [{ ...(e === 'PreToolUse' ? { matcher: '*' } : {}), hooks: [cmd(e)] }];
   }
   const file = path.join(HOOKS_DIR, `${wsId}.json`);
-  fs.writeFileSync(file, JSON.stringify({ hooks }, null, 2));
+  fs.writeFileSync(file, JSON.stringify({ hooks, ...statusLineSettings() }, null, 2));
   return file;
+}
+
+// ---------- session lifecycle (lifecycle.js) ----------
+const sessionsCfg = lifecycle.makeConfig(path.join(HUB_DIR, 'lifecycle.json'));
+function statusLineSettings() {
+  let user = null;
+  try { user = JSON.parse(fs.readFileSync(path.join(homedir, '.claude', 'settings.json'), 'utf8')).statusLine; } catch {}
+  const statusLine = lifecycle.statusLineOverride(user, sessionsCfg.get());
+  return statusLine ? { statusLine } : {};
 }
 
 // Sessions outside any project share one memory file.
@@ -233,6 +243,7 @@ function startAgent(wsId) {
   booting.set(ws.id, setTimeout(() => ready(ws.id), BOOT_TIMEOUT));
   watchTrustPrompt(s, ws, project);
   settle(ws.id);
+  checkCap();
   return s;
 }
 
@@ -325,6 +336,12 @@ function startAgentTab(wsId, tabId) {
   if (!agent) throw new Error(`l'agent « ${tab.agent} » n'existe plus`);
   const project = ws.project_id ? getProject(ws.project_id) : null;
   const args = ['--agent', agent.slug, '--add-dir', MEMORY_DIR, '--append-system-prompt', systemPrompt(ws, project), '-n', `${agent.label} · ${ws.name}`];
+  const extra = statusLineSettings();
+  if (extra.statusLine) {
+    const file = path.join(HOOKS_DIR, `${wsId}-tabs.json`);
+    fs.writeFileSync(file, JSON.stringify(extra, null, 2));
+    args.push('--settings', file);
+  }
   if (agent.effort) args.push('--effort', agent.effort);
   if (agent.permissionMode) args.push('--permission-mode', agent.permissionMode);
   if (transcriptExists(ws.cwd, tab.session_id)) {
@@ -748,14 +765,17 @@ app.patch('/api/workspaces/:id', wrap(async (req, res) => {
     .run(req.body.name ?? ws.name, req.body.archived === undefined ? ws.archived : req.body.archived ? 1 : 0, base, projectId, now(), ws.id);
   if (projectId !== ws.project_id) logEvent(ws.id, 'moved', getProject(projectId)?.name ?? 'Sessions');
   if (base !== ws.base_branch) refreshStats(ws.id);
-  if (req.body.archived) {
-    db.prepare('UPDATE workspaces SET autostart = 0 WHERE id = ?').run(ws.id);
-    killWorkspace(ws.id);
-  }
+  if (req.body.archived) archiveWorkspace(ws.id);
   if (status) setStatus(ws.id, status);
   else pushWorkspace(ws.id);
   res.json(decorate(getWorkspace(ws.id)));
 }));
+
+// Archiving only hides the session and stops its processes: folder, branch and conversation stay (it can be unarchived).
+function archiveWorkspace(id) {
+  db.prepare('UPDATE workspaces SET archived = 1, autostart = 0, updated_at = ? WHERE id = ?').run(now(), id);
+  killWorkspace(id);
+}
 
 app.delete('/api/workspaces/:id', wrap(async (req, res) => {
   const ws = getWorkspace(req.params.id);
@@ -1474,6 +1494,63 @@ setInterval(() => {
   }
 }, 15000);
 
+// Finished sessions close after a while and get archived later (lifecycle.js); a cap keeps the number open in check.
+const CLAUDE_PANE = /:(agent|ag-.+)$/;
+const claudeSessions = (wsId) => [...sessions].filter(([k, s]) => s.alive && k.startsWith(wsId + ':') && CLAUDE_PANE.test(k)).map(([, s]) => s);
+function lifecycleView(ws, live = []) {
+  const held = trustPanes(ws.id).length ? 'question de confiance' : relaying.has(ws.id) ? 'relais en cours' : booting.has(ws.id) ? 'démarrage'
+    : inbox.get(ws.id)?.length ? 'messages à remettre' : null;
+  return {
+    id: ws.id, status: ws.status, statusSince: ws.status_since || ws.updated_at, held,
+    viewed: live.some((s) => s.clients.size > 0),
+    lastActive: Math.max(ws.status_since || 0, ws.updated_at || 0, ...live.map((s) => Math.max(s.startedAt, s.lastInput))),
+  };
+}
+let lifecycleBusy = false;
+async function lifecycleTick() {
+  if (lifecycleBusy) return;
+  lifecycleBusy = true;
+  try {
+    const cfg = sessionsCfg.get(), t = now();
+    const all = db.prepare('SELECT * FROM workspaces WHERE archived = 0').all();
+    const open = [], closed = [];
+    for (const ws of all) {
+      const live = claudeSessions(ws.id);
+      (live.length ? open : closed).push(lifecycleView(ws, live));
+    }
+    for (const { id, reason } of lifecycle.planClose(open, cfg, t)) {
+      for (const s of claudeSessions(id)) s.kill();
+      logEvent(id, 'closed', `Claude arrêté automatiquement (${reason}) : la conversation reprend à l'ouverture de la session`);
+    }
+    // A few per pass, one git check at a time.
+    for (const id of lifecycle.planArchive(closed, cfg, t).slice(0, 25)) {
+      const ws = getWorkspace(id);
+      if (!ws || ws.archived || claudeSessions(id).length) continue;
+      const why = await git.pendingWork(ws);
+      if (why.length) continue;
+      archiveWorkspace(id);
+      logEvent(id, 'archived', `Archivée automatiquement après ${cfg.archiveAfterDays} jours d'inactivité`);
+      pushWorkspace(id);
+    }
+  } finally {
+    lifecycleBusy = false;
+  }
+}
+setInterval(() => lifecycleTick().catch(() => {}), 10 * 60_000);
+// Starting a session may go over the cap: the oldest inactive one makes room (never one at work or waiting).
+let capTimer = null;
+const checkCap = () => { clearTimeout(capTimer); capTimer = setTimeout(() => lifecycleTick().catch(() => {}), 5000); };
+
+app.get('/api/sessions-lifecycle', (req, res) => res.json(sessionsCfg.get()));
+app.put('/api/sessions-lifecycle', wrap(async (req, res) => {
+  const c = sessionsCfg.set(req.body || {});
+  checkCap();
+  res.json(c);
+}));
+
+// Sessions to bring back, read before the reset below (a session cut while working always comes back).
+const bootRows = db.prepare('SELECT * FROM workspaces WHERE autostart = 1 AND archived = 0').all().map((ws) => ({ ...lifecycleView(ws), name: ws.name }));
+
 // On boot nothing is running anymore: reset stale "working" states.
 db.prepare("UPDATE workspaces SET status = 'idle' WHERE status IN ('working', 'waiting')").run();
 for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').all()) refreshStats(id);
@@ -1490,11 +1567,17 @@ server.listen(PORT, remote.listenHost(), () => {
   // Agents' scheduled tasks (stored in hub.db) start ticking again; the Tasks tab follows them live.
   onSchedulesChange(() => broadcast({ type: 'schedules' }));
   startScheduler();
-  // Bring back the agents that were running when the hub stopped.
-  for (const { id, name } of db.prepare('SELECT id, name FROM workspaces WHERE autostart = 1 AND archived = 0').all()) {
+  // Bring back the agents that were running when the hub stopped: the recent ones, up to the cap (lifecycle.planBoot).
+  // The others stay closed and resume when opened.
+  const boot = lifecycle.planBoot(bootRows, sessionsCfg.get(), now());
+  for (const id of boot.skip) db.prepare('UPDATE workspaces SET autostart = 0 WHERE id = ?').run(id);
+  if (boot.skip.length) console.log(`  ${boot.skip.length} session(s) inactive(s) non relancée(s) : elles reprendront à l'ouverture`);
+  for (const id of boot.start) {
+    const { name } = bootRows.find((r) => r.id === id);
     try { startAgent(id); console.log(`  reprise : ${name}`); }
     catch (e) { console.log(`  non repris (${name}) : ${e.message.split('\r')[0]}`); }
   }
+  setTimeout(() => lifecycleTick().catch(() => {}), 2 * 60_000);
   // Read the transcripts in the background, so the Usage page opens without waiting for a first scan.
   setTimeout(() => usage.scan().catch(() => {}), 10_000);
 });

@@ -188,3 +188,23 @@ export async function branchList(dir) {
     .map((b) => ({ ...b, isDefault: b.name === def, worktree: worktrees.has(b.name) }))
     .sort((a, b) => (b.isDefault - a.isDefault) || b.at - a.at);
 }
+
+// What archiving would leave behind unnoticed: uncommitted changes, or commits neither pushed nor merged into
+// the base branch. Empty list = nothing at stake (also for a folder that is gone or not a repo).
+export async function pendingWork(ws) {
+  if (!fs.existsSync(ws.cwd) || !(await isRepo(ws.cwd))) return [];
+  const why = [];
+  try {
+    const st = (await git(ws.cwd, 'status', '--porcelain')).trim();
+    if (st) why.push(`modifications non commitées (${st.split('\n').length} fichiers)`);
+  } catch { why.push('état git illisible'); }
+  try {
+    const unpushed = (await git(ws.cwd, 'log', '--oneline', 'HEAD', '--not', '--remotes')).trim();
+    if (unpushed) {
+      let merged = false;
+      if (ws.base_branch) { try { await git(ws.cwd, 'merge-base', '--is-ancestor', 'HEAD', ws.base_branch); merged = true; } catch {} }
+      if (!merged) why.push(`${unpushed.split('\n').length} commit(s) ni poussé(s) ni mergé(s)`);
+    }
+  } catch {}
+  return why;
+}
