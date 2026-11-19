@@ -332,7 +332,7 @@ function describeTool(name, input = {}) {
   switch (t) {
     case 'WebSearch': return { icon: 'search', label: `Cherche sur le web${q(input.query)}` };
     case 'WebFetch': return { icon: 'globe', label: 'Lit une page web' };
-    case 'Read': return String(input.file_path || '').includes(`${path.sep}attachments${path.sep}`) ? { icon: 'image', label: "Regarde l'image" } : { icon: 'eye', label: 'Lit un fichier' };
+    case 'Read': return String(input.file_path || '').includes(`${path.sep}attachments${path.sep}`) ? (/\.(md|markdown)$/i.test(input.file_path) ? { icon: 'eye', label: 'Lit la pièce jointe' } : { icon: 'image', label: "Regarde l'image" }) : { icon: 'eye', label: 'Lit un fichier' };
     default: return { icon: 'tool', label: t.startsWith('mcp__') ? t.split('__').slice(1).join(' · ') : t };
   }
 }
@@ -348,7 +348,7 @@ function recap(agent, conv) {
 
 // from: slug of the agent delegating this message (the team lead), fromConv: its conversation;
 // replies go back there. conversation: where the message goes (default: the last active one).
-// images: [{ path, name }] attached files, read by the agent with the Read tool.
+// images: [{ path, name }] attached files (images, Markdown), read by the agent with the Read tool.
 // Returns the conversation number.
 export function sendToAgent(agent, text, { internal = false, from = null, fromConv = null, conversation = null, images = [] } = {}) {
   const a = getAgent(agent);
@@ -372,7 +372,7 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
   addMessage(agent, conv, internal ? 'system' : 'user', text, Object.keys(meta).length ? meta : null);
   if (!st.open) ctx.broadcast({ type: 'chat-convs', agent });
   if (sender) text = `[Message de ${sender.label}, qui coordonne l'équipe] ${text}`;
-  if (images.length) text += `\n\n[Images jointes, regarde-les avec l'outil Read : ${images.map((i) => i.path).join(' , ')}]`;
+  if (images.length) text += `\n\n[Fichiers joints, lis-les avec l'outil Read : ${images.map((i) => i.path).join(' , ')}]`;
   if (!st.started && !st.handoff) text = recap(agent, conv) + text;
   const k = key(agent, conv);
   const q = queues.get(k) || [];

@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage, LuClock } from 'react-icons/lu';
-import { api, ago, uploadFile, imageFiles } from '../api.js';
+import { api, ago, uploadFile, attachableFiles, ATTACH_ACCEPT } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
 import { AttachmentChip, Lightbox } from './Attachments.jsx';
@@ -181,7 +181,7 @@ export default function AgentChat({ agent, go }) {
   };
 
   const upload = async (files) => {
-    const imgs = imageFiles(files).slice(0, 8 - images.length);
+    const imgs = attachableFiles(files).slice(0, 8 - images.length);
     if (!imgs.length) return false;
     setUploading(true);
     setError(null);
@@ -304,10 +304,10 @@ export default function AgentChat({ agent, go }) {
               </div>
             )}
             <div className="chat-input-row">
-              <button className="chat-attach" title="Ajouter une image (ou colle-la, ou glisse-la ici)" onClick={() => fileInput.current.click()}><LuImagePlus size={16} /></button>
-              <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
+              <button className="chat-attach" title="Ajouter une image ou un fichier Markdown (ou colle-le, ou glisse-le ici)" onClick={() => fileInput.current.click()}><LuImagePlus size={16} /></button>
+              <input ref={fileInput} type="file" accept={ATTACH_ACCEPT} multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
               <textarea ref={input} rows={1} value={text} placeholder={`Écris à ${agent.label}…`} onChange={(e) => setText(e.target.value)}
-                onPaste={(e) => { if (imageFiles(e.clipboardData.files).length) { e.preventDefault(); upload(e.clipboardData.files); } }}
+                onPaste={(e) => { if (attachableFiles(e.clipboardData.files).length) { e.preventDefault(); upload(e.clipboardData.files); } }}
                 onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} />
               {chat?.busy && !text && !images.length ? (
                 <button className="chat-send stop" title="Arrêter" onClick={() => api.post(`/api/agents/${agent.slug}/chat/stop`, { conversation: active })}><LuSquare size={12} /></button>
@@ -320,7 +320,7 @@ export default function AgentChat({ agent, go }) {
         </div>
       </div>
       {viewing && <Lightbox file={viewing} onClose={() => setViewingFile(null)} />}
-      {dragging && <div className="chat-drop">Dépose ton image pour l'envoyer à {agent.label}</div>}
+      {dragging && <div className="chat-drop">Dépose ton image ou ton fichier Markdown pour l'envoyer à {agent.label}</div>}
     </div>
   );
 }

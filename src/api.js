@@ -50,4 +50,7 @@ export const attachmentUrl = (p) => {
   const [id, name] = String(p).split('/').slice(-2);
   return `/api/attachments/${encodeURIComponent(id)}/${encodeURIComponent(name)}`;
 };
-export const imageFiles = (list) => [...(list || [])].filter((f) => f.type?.startsWith('image/'));
+// Files the chat accepts: images and Markdown (type text/markdown, text/x-markdown or empty depending on the browser).
+export const MARKDOWN = /\.(md|markdown)$/i;
+export const ATTACH_ACCEPT = 'image/*,.md,.markdown,text/markdown,text/x-markdown';
+export const attachableFiles = (list) => [...(list || [])].filter((f) => f.type?.startsWith('image/') || /^text\/(x-)?markdown$/.test(f.type || '') || MARKDOWN.test(f.name || ''));
