@@ -18,6 +18,7 @@ import MobileApp from './components/MobileApp.jsx';
 import Onboarding from './components/Onboarding.jsx';
 import { isPhone } from './components/Terminal.jsx';
 import { syncAccent } from './accent.js';
+import { isRAS } from './ras.js';
 
 // After a hub update the socket reconnects but the page keeps the old bundle: reload if stale.
 async function reloadIfOutdated() {
@@ -216,6 +217,7 @@ export default function App() {
 function notify(ws, projects, route) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   if (!['review', 'waiting', 'error'].includes(ws.status)) return;
+  if (isRAS(ws.last_message)) return; // "RAS": nothing to tell
   if (!document.hidden && route.kind === 'ws' && route.id === ws.id) return;
   const project = projects.find((p) => p.id === ws.project_id);
   const title = `${project ? project.name + ' · ' : ''}${ws.name}`;

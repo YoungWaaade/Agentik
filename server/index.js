@@ -23,6 +23,7 @@ import { promptTracker, reportTargets, typedByUser } from './reports.js';
 import { makeUpdater, describe as describeUpdate, BOOT_ID } from './update.js';
 import { keyedQueue } from './queue.js';
 import * as lifecycle from './lifecycle.js';
+import { isRAS } from '../src/ras.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -1152,6 +1153,8 @@ function reportToOwner(wsId, what, text, { label = 'Son dernier message' } = {})
   const ws = getWorkspace(wsId);
   if (!ws || ws.successor || relaying.has(wsId)) return;
   const t = text ? String(text) : '';
+  // "RAS": nothing to report.
+  if (isRAS(t)) return;
   const cut = t.length > 1500 ? `… (tronqué : agentik session ${ws.id} pour le texte complet)` : '';
   const msg = `[Supersept] La session « ${ws.name} » (id ${ws.id}) ${what}.${t ? ` ${label} : ${t.slice(0, 1500)}${cut}` : ''}`;
   for (const to of reportTargets(ws, getAgent)) {

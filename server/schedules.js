@@ -23,7 +23,7 @@ export function describe(t) {
     ...(t.until ? { jusqu_au: fmt(t.until) } : {}),
     active: !!t.active,
     prochaine: t.active ? fmt(t.next_run) : null,
-    derniere: fmt(t.last_run), dernier_statut: t.last_status, executions: t.runs, reportees: t.skipped,
+    derniere: fmt(t.last_run), dernier_statut: t.last_status, dernier_resultat: t.last_result ?? null, executions: t.runs, reportees: t.skipped,
     creee_par: t.created_by || 'utilisateur',
   };
 }
@@ -123,7 +123,9 @@ export function runNow(id, { by = null, now = Date.now() } = {}) {
 
 function fire(t, now, status = 'lancée') {
   try {
-    const conv = sendToAgent(t.agent, wakeText(t), { internal: true, conversation: t.conversation });
+    // Quiet turn: an answer "RAS" is only recorded here, never shown, relayed or notified.
+    const onReply = (text) => changed(db.prepare('UPDATE schedules SET last_result = ? WHERE id = ?').run(text ? String(text).slice(0, 4000) : null, t.id));
+    const conv = sendToAgent(t.agent, wakeText(t), { internal: true, quiet: true, conversation: t.conversation, onReply });
     db.prepare('UPDATE schedules SET runs = runs + 1, last_run = ?, last_status = ?, conversation = COALESCE(conversation, ?) WHERE id = ?').run(now, status, conv, t.id);
   } catch (e) {
     db.prepare('UPDATE schedules SET last_run = ?, last_status = ? WHERE id = ?').run(now, `erreur : ${e.message}`.slice(0, 200), t.id);
@@ -133,7 +135,7 @@ function fire(t, now, status = 'lancée') {
 function wakeText(t) {
   return `[Supersept] Tâche planifiée ${t.id} (${when(t)}${t.until ? `, jusqu'au ${fmt(t.until)}` : ''}) : ${t.prompt}\n\n`
     + `(Réveil automatique. Fais ce qui est demandé avec tes outils. Ta réponse s'affiche dans le chat et notifie l'utilisateur : `
-    + `s'il n'y a rien d'utile à lui dire, réponds seulement « RAS ». Quand cette tâche est accomplie ou n'a plus lieu d'être, `
+    + `s'il n'y a rien d'utile à lui dire, réponds seulement « RAS », sans rien d'autre (rien ne lui sera alors montré). Quand cette tâche est accomplie ou n'a plus lieu d'être, `
     + `supprime-la : supersept delete-task ${t.id}.)`;
 }
 

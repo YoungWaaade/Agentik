@@ -101,6 +101,9 @@ function TaskCard({ task: t, agent, onEdit, onChanged }) {
         <div><dt>Exécutions</dt><dd>{t.executions}{t.reportees > 0 && <span className="muted"> · {t.reportees} reportée{t.reportees > 1 ? 's' : ''}</span>}</dd></div>
         <div><dt>Fin</dt><dd>{t.until ? endDay(t.until) : <span className="muted">aucune</span>}</dd></div>
       </dl>
+      {t.dernier_resultat && (
+        <div className="task-result"><span className="task-result-label">Dernier résultat</span><p title={t.dernier_resultat}>{t.dernier_resultat}</p></div>
+      )}
       {error && <div className="error-bar" onClick={() => setError(null)}>{error}</div>}
       <div className="task-actions">
         {st.key !== 'done' && (

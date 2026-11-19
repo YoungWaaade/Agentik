@@ -235,3 +235,5 @@ db.exec(`CREATE TABLE IF NOT EXISTS schedules (
   runs INTEGER NOT NULL DEFAULT 0,
   skipped INTEGER NOT NULL DEFAULT 0
 )`);
+// Last answer of the agent to a wake-up ("RAS" included: it shows here and nowhere else).
+addColumn('schedules', 'last_result', 'TEXT');

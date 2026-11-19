@@ -11,6 +11,7 @@ import { db, HUB_DIR } from './db.js';
 import { getAgent, listAgents, saveAgent, deleteAgent, slugify, AGENTS_DIR } from './agents.js';
 import { leadSettings, unnamedLeadPrompt, renamed, complete } from './onboarding.js';
 import * as relay from './relay.js';
+import { isRAS } from '../src/ras.js';
 
 const CLI = path.join(path.dirname(fileURLToPath(import.meta.url)), 'cli.mjs');
 // Each conversation runs on its own, so several can work in parallel. Keyed by "agent:conversation".
@@ -349,8 +350,10 @@ function recap(agent, conv) {
 // from: slug of the agent delegating this message (the team lead), fromConv: its conversation;
 // replies go back there. conversation: where the message goes (default: the last active one).
 // images: [{ path, name }] attached files (images, Markdown), read by the agent with the Read tool.
+// quiet (scheduled wake-up): the turn's messages, this one included, only reach the chat once it is over,
+// and not at all when the answer is "RAS". onReply(text | null): called with the turn's last answer.
 // Returns the conversation number.
-export function sendToAgent(agent, text, { internal = false, from = null, fromConv = null, conversation = null, images = [] } = {}) {
+export function sendToAgent(agent, text, { internal = false, from = null, fromConv = null, conversation = null, images = [], quiet = false, onReply = null } = {}) {
   const a = getAgent(agent);
   if (!a) throw new Error('agent introuvable');
   if (from && from === agent) throw new Error('un agent ne peut pas se déléguer une mission à lui-même');
@@ -369,14 +372,15 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
   const meta = {};
   if (sender) Object.assign(meta, { from: sender.slug, fromLabel: sender.label });
   if (images.length) meta.images = images.map((i) => ({ path: i.path, name: i.name }));
-  addMessage(agent, conv, internal ? 'system' : 'user', text, Object.keys(meta).length ? meta : null);
+  const shown = [internal ? 'system' : 'user', text, Object.keys(meta).length ? meta : null];
+  if (!quiet) addMessage(agent, conv, ...shown);
   if (!st.open) ctx.broadcast({ type: 'chat-convs', agent });
   if (sender) text = `[Message de ${sender.label}, qui coordonne l'équipe] ${text}`;
   if (images.length) text += `\n\n[Fichiers joints, lis-les avec l'outil Read : ${images.map((i) => i.path).join(' , ')}]`;
   if (!st.started && !st.handoff) text = recap(agent, conv) + text;
   const k = key(agent, conv);
   const q = queues.get(k) || [];
-  q.push(text);
+  q.push({ text, quiet: quiet ? [shown] : null, onReply });
   queues.set(k, q);
   if (!running.has(k)) runNext(agent, conv);
   return conv;
@@ -443,7 +447,7 @@ function runNext(agent, conv) {
   const k = key(agent, conv);
   const q = queues.get(k);
   if (!q?.length) { queues.delete(k); return; }
-  const text = q.shift();
+  const { text, quiet, onReply } = q.shift();
   const a = getAgent(agent);
   if (!a) return;
   const st = getConv(agent, conv);
@@ -455,8 +459,17 @@ function runNext(agent, conv) {
   db.prepare('UPDATE agent_convs SET running = 1, started = 1 WHERE agent = ? AND conversation = ?').run(agent, conv);
   setBusy(agent, conv, true);
 
+  // A quiet turn keeps its messages aside (same shape, no id yet) until it is over.
+  const held = [];
+  if (quiet) for (const m of quiet) held.push({ role: m[0], text: m[1], meta: m[2] });
+  const show = (role, text, meta = null) => {
+    if (!quiet) return addMessage(agent, conv, role, text, meta);
+    const m = { role, text, meta };
+    held.push(m);
+    return m;
+  };
   const tools = new Map(); // tool_use id → activity message
-  let reply = null;
+  let reply = null; // last answer of the turn: { text, ras }
   let buf = '';
   let errText = '';
   let usage = null; // last main-chain call of the turn → context size
@@ -479,10 +492,12 @@ function runNext(agent, conv) {
       if (ev.type === 'assistant') {
         for (const c of ev.message?.content || []) {
           if (c.type === 'text' && c.text.trim()) {
-            reply = addMessage(agent, conv, 'assistant', c.text.trim());
+            // "RAS": nothing for the user, so nothing in the chat (no unread badge either).
+            const t = c.text.trim();
+            reply = isRAS(t) ? { text: t, ras: true } : { ...show('assistant', t), ras: false };
           } else if (c.type === 'tool_use') {
             const d = describeTool(c.name, c.input);
-            tools.set(c.id, addMessage(agent, conv, 'activity', d.label, { ...d, status: 'running' }));
+            tools.set(c.id, show('activity', d.label, { ...d, status: 'running' }));
           }
         }
       } else if (ev.type === 'user') {
@@ -497,7 +512,7 @@ function runNext(agent, conv) {
             if (j?.id && msg.meta.icon === 'play') meta.workspace = j.id;
             if (j?.id && msg.meta.icon === 'folder-plus') meta.project = j.id;
           } catch {}
-          updateMessage(msg, { meta });
+          if (msg.id) updateMessage(msg, { meta }); else msg.meta = meta;
         }
       } else if (ev.type === 'result' && ev.is_error && !reply) {
         errText = ev.result || 'erreur';
@@ -508,12 +523,19 @@ function runNext(agent, conv) {
   child.on('close', (code) => {
     running.delete(k);
     if (!shuttingDown) db.prepare('UPDATE agent_convs SET running = 0 WHERE agent = ? AND conversation = ?').run(agent, conv);
+    for (const m of tools.values()) {
+      if (m.meta.status !== 'running') continue;
+      const meta = { ...m.meta, status: code ? 'error' : 'done' };
+      if (m.id) updateMessage(m, { meta }); else m.meta = meta;
+    }
+    // A quiet turn that ended on "RAS" leaves no trace in the chat; any other outcome shows it all, in order.
+    if (quiet && !reply?.ras) for (const m of held) Object.assign(m, addMessage(agent, conv, m.role, m.text, m.meta));
+    try { onReply?.(reply?.text ?? null); } catch {}
     // A delegated conversation reports each answer back to the manager's conversation, which sums it up.
     const { manager, manager_conv: managerConv } = getConv(agent, conv) || {};
-    if (reply && manager && manager !== agent && getAgent(manager)) {
+    if (reply && !reply.ras && manager && manager !== agent && getAgent(manager)) {
       try { sendToAgent(manager, `[Supersept] ${a.label} a répondu : ${reply.text.slice(0, 2000)}`, { internal: true, conversation: managerConv }); } catch {}
     }
-    for (const m of tools.values()) if (m.meta.status === 'running') updateMessage(m, { meta: { ...m.meta, status: code ? 'error' : 'done' } });
     if (code && !reply && code !== 143 && code !== null) addMessage(agent, conv, 'error', `Je n'ai pas pu répondre (${String(errText).trim().split('\n').pop()?.slice(0, 200) || `code ${code}`}).`);
     const m = usage && relay.measure(usage);
     if (m) db.prepare('UPDATE agent_convs SET context_tokens = ?, context_window = ? WHERE agent = ? AND conversation = ?').run(m.tokens, m.window, agent, conv);
