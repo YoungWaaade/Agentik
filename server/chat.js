@@ -192,8 +192,10 @@ export function newConversation(agent) { return createConv(agent); }
 // Close (hide the tab, the conversation stays in the history) or reopen, rename.
 export function updateConversation(agent, conv, { open, title } = {}) {
   if (!getConv(agent, conv)) throw new Error('conversation introuvable');
+  const name = title === undefined ? undefined : String(title ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (name === '') throw new Error('nom de conversation vide');
   if (open !== undefined) db.prepare('UPDATE agent_convs SET open = ? WHERE agent = ? AND conversation = ?').run(open ? 1 : 0, agent, conv);
-  if (title !== undefined) db.prepare('UPDATE agent_convs SET title = ? WHERE agent = ? AND conversation = ?').run(String(title).trim().slice(0, 80) || null, agent, conv);
+  if (name !== undefined) db.prepare('UPDATE agent_convs SET title = ? WHERE agent = ? AND conversation = ?').run(name, agent, conv);
   ctx.broadcast({ type: 'chat-convs', agent });
 }
 

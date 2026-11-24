@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage, LuClock } from 'react-icons/lu';
+import { LuArrowUp, LuSquare, LuSettings2, LuFolder, LuFolderPlus, LuPlay, LuLayers, LuEye, LuSend, LuArchive, LuBrain, LuSearch, LuGlobe, LuWrench, LuCheck, LuX, LuLoaderCircle, LuMegaphone, LuUsers, LuBot, LuHistory, LuChevronDown, LuPlus, LuMessageSquare, LuImagePlus, LuImage, LuClock, LuPencil } from 'react-icons/lu';
 import { api, ago, uploadFile, attachableFiles, ATTACH_ACCEPT } from '../api.js';
 import { useChat, useConvs, loadConvs, setViewing, useChatBadges } from '../chatStore.js';
 import BotAvatar from './BotAvatar.jsx';
@@ -67,6 +67,36 @@ function systemLabel(text) {
 
 const convTitle = (c) => c.title || (c.first ? c.first.replace(/\s+/g, ' ').slice(0, 60) : 'Nouvelle conversation');
 const lastKey = (slug) => `supersept.conv.${slug}`;
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
+// Inline rename: Enter saves, Escape cancels, an empty name is refused (the field stays open, in red);
+// leaving the field saves a non-empty name and cancels an empty one.
+function RenameField({ initial, onSave, onCancel, className = '' }) {
+  const [value, setValue] = useState(initial);
+  const [invalid, setInvalid] = useState(false);
+  const done = useRef(false);
+  const finish = (save) => {
+    if (done.current) return;
+    const v = value.replace(/\s+/g, ' ').trim();
+    if (save && !v) { setInvalid(true); return false; }
+    done.current = true;
+    if (save && v !== initial) onSave(v); else onCancel();
+    return true;
+  };
+  return (
+    <input className={`chat-rename ${className} ${invalid ? 'invalid' : ''}`} autoFocus value={value} maxLength={80}
+      aria-label="Nom de la conversation" title={invalid ? 'Le nom ne peut pas être vide' : undefined}
+      onFocus={(e) => e.target.select()}
+      onChange={(e) => { setValue(e.target.value); setInvalid(false); }}
+      onClick={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+        else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+      }}
+      onBlur={() => { if (finish(true) === false) finish(false); }} />
+  );
+}
 // Where the user left a conversation they had scrolled up in (absent = stuck to the bottom).
 const scrollPos = new Map();
 
@@ -88,7 +118,7 @@ export default function AgentChat({ agent, go }) {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState(null);
   const [histOpen, setHistOpen] = useState(false);
-  const [renaming, setRenaming] = useState(null);
+  const [renaming, setRenaming] = useState(null); // { conversation, where: 'tab' | 'head' | 'history' }
   const list_ = useRef(null);
   const input = useRef(null);
   const fileInput = useRef(null);
@@ -177,8 +207,30 @@ export default function AgentChat({ agent, go }) {
   };
   const rename = async (c, title) => {
     setRenaming(null);
-    if (title.trim() !== convTitle(c)) await api.patch(`/api/agents/${agent.slug}/conversations/${c.conversation}`, { title });
+    if (title === convTitle(c)) return;
+    try { await api.patch(`/api/agents/${agent.slug}/conversations/${c.conversation}`, { title }); await loadConvs(agent.slug); }
+    catch (e) { setError(e.message); }
   };
+  const renameField = (c, where, className) => renaming?.conversation === c.conversation && renaming.where === where && (
+    <RenameField key={`${where}:${c.conversation}`} className={className} initial={convTitle(c)} onSave={(t) => rename(c, t)} onCancel={() => setRenaming(null)} />
+  );
+  const activeConv = open.find((c) => c.conversation === active) || null;
+
+  // ⌘W (Ctrl+W elsewhere) closes the open conversation instead of the window. Browsers only let a page
+  // take this shortcut in an installed app window (PWA); in a regular tab, Chrome closes the tab anyway.
+  const closeRef = useRef(null);
+  closeRef.current = () => activeConv && closeConv(activeConv);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key?.toLowerCase() !== 'w' || e.shiftKey || e.altKey || !(IS_MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey)) return;
+      if (!closeRef.current || active === null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) closeRef.current();
+    };
+    addEventListener('keydown', onKey, true);
+    return () => removeEventListener('keydown', onKey, true);
+  }, [active]);
 
   const upload = async (files) => {
     const imgs = attachableFiles(files).slice(0, 8 - images.length);
@@ -218,18 +270,32 @@ export default function AgentChat({ agent, go }) {
           <span className="chat-name">{agent.label}</span>
           <span className="chat-status">{chat?.busy ? 'travaille…' : badges.busy(agent.slug) ? 'travaille dans une autre conversation…' : 'disponible'}</span>
         </div>
+        {activeConv && (
+          <div className="chat-conv-head">
+            <span className="chat-conv-sep">/</span>
+            {renameField(activeConv, 'head', 'chat-conv-rename') || (
+              <>
+                <span className="chat-conv-title" title={`${convTitle(activeConv)}\nDouble-clic pour renommer`} onDoubleClick={() => setRenaming({ conversation: activeConv.conversation, where: 'head' })}>{convTitle(activeConv)}</span>
+                <button className="iconbtn size-6 chat-conv-edit" title="Renommer la conversation" aria-label="Renommer la conversation" onClick={() => setRenaming({ conversation: activeConv.conversation, where: 'head' })}><LuPencil size={12} /></button>
+              </>
+            )}
+          </div>
+        )}
         <span className="flex-1" />
         <span className="menu-anchor">
           <button className="btn-ghost" onClick={() => setHistOpen((v) => !v)}><LuHistory size={13} /> Historique <LuChevronDown size={12} /></button>
           {histOpen && (
-            <div className="popover chat-history-menu" onMouseLeave={() => setHistOpen(false)}>
+            <div className="popover chat-history-menu" onMouseLeave={() => renaming?.where !== 'history' && setHistOpen(false)}>
               {list.map((c) => (
-                <button key={c.conversation} className={`popover-item conv-item ${c.conversation === active ? 'checked' : ''}`} onClick={() => select(c)}>
+                <div key={c.conversation} role="button" tabIndex={0} className={`popover-item conv-item ${c.conversation === active ? 'checked' : ''}`}
+                  onClick={() => renaming?.conversation !== c.conversation && select(c)}
+                  onDoubleClick={() => setRenaming({ conversation: c.conversation, where: 'history' })}>
                   <span className="conv-main">
-                    <span className="fade-r">{convTitle(c)}</span>
+                    {renameField(c, 'history', 'chat-history-rename') || <span className="fade-r">{convTitle(c)}</span>}
                     <small>{new Date(c.started).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })} · {c.count} messages · {ago(c.last)}{c.open ? ' · ouverte' : ''}</small>
                   </span>
-                </button>
+                  <button className="iconbtn size-6 conv-edit" title="Renommer" aria-label="Renommer" onClick={(e) => { e.stopPropagation(); setRenaming({ conversation: c.conversation, where: 'history' }); }}><LuPencil size={12} /></button>
+                </div>
               ))}
               {loaded && !list.length && <div className="empty-note">Aucune conversation pour l'instant.</div>}
             </div>
@@ -246,18 +312,16 @@ export default function AgentChat({ agent, go }) {
               const unreadN = badges.unreadConv(agent.slug, c.conversation);
               return (
                 <div className="tab-cell" key={c.conversation}>
-                  <div className={`tab ${c.conversation === active ? 'active' : ''}`} onClick={() => setActive(c.conversation)} onDoubleClick={() => setRenaming(c.conversation)} title={`${convTitle(c)}\nDouble-clic pour renommer`}>
+                  <div className={`tab ${c.conversation === active ? 'active' : ''}`} onClick={() => setActive(c.conversation)} onDoubleClick={() => setRenaming({ conversation: c.conversation, where: 'tab' })}
+                    onContextMenu={(e) => { e.preventDefault(); setRenaming({ conversation: c.conversation, where: 'tab' }); }}
+                    title={`${convTitle(c)}\nDouble-clic ou clic droit pour renommer`}>
                     <div className="tab-title">
                       {busy ? <LuLoaderCircle size={12} className="spin chat-tab-busy" /> : <LuMessageSquare size={12} />}
-                      {renaming === c.conversation ? (
-                        <input className="chat-tab-rename" autoFocus defaultValue={convTitle(c)} onClick={(e) => e.stopPropagation()}
-                          onBlur={(e) => rename(c, e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') setRenaming(null); }} />
-                      ) : <span className="tab-label fade-r">{convTitle(c)}</span>}
+                      {renameField(c, 'tab', 'chat-tab-rename') || <span className="tab-label fade-r">{convTitle(c)}</span>}
                       {unreadN > 0 && <span className="chat-tab-unread">{unreadN}</span>}
                     </div>
                     <div className="tab-close-slot">
-                      <button className="tab-close" title="Fermer (elle reste dans l'historique)" onClick={(e) => { e.stopPropagation(); closeConv(c); }}><LuX size={14} /></button>
+                      <button className="tab-close" title={`Fermer (elle reste dans l'historique) · ${IS_MAC ? '⌘W' : 'Ctrl+W'}`} onClick={(e) => { e.stopPropagation(); closeConv(c); }}><LuX size={14} /></button>
                     </div>
                   </div>
                 </div>
