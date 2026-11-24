@@ -1247,6 +1247,7 @@ body.resizing { user-select: none; cursor: col-resize; }
 .att-open { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 4px 10px 4px 4px; border-radius: 10px; color: var(--foreground); text-align: left; cursor: zoom-in; }
 .att-open:hover:not(:disabled) { background: var(--fill-hover); }
 .att-open:disabled { cursor: default; opacity: 1; }
+a.att-open { cursor: pointer; text-decoration: none; }
 .att-thumb { display: flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; border-radius: 7px; overflow: hidden; color: var(--muted-foreground);
   background: repeating-conic-gradient(var(--checker-a) 0 25%, var(--checker-b) 0 50%) 0 0 / 10px 10px; }
 .att-chip.no-preview .att-thumb, .att-chip.loading .att-thumb { background: var(--muted); }

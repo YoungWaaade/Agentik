@@ -306,7 +306,7 @@ function Pane({ ws, pane, termKey, visible, split, focused, onFocus, onSplit, on
             {isAgent && (
               <button className="pane-action" title={ws.running ? 'Relancer Claude' : ws.has_conversation ? 'Reprendre la conversation' : 'Lancer Claude'} onClick={() => restartTerminal(termKey)}><LuZap size={14} /></button>
             )}
-            <button className="pane-action" title="Joindre une image ou un fichier Markdown (ou colle-le / glisse-le dans le terminal)" onClick={() => fileInput.current.click()}><LuImagePlus size={14} /></button>
+            <button className="pane-action" title="Joindre une image, un fichier Markdown ou une archive zip (ou colle-le / glisse-le dans le terminal)" onClick={() => fileInput.current.click()}><LuImagePlus size={14} /></button>
             <input ref={fileInput} type="file" accept={ATTACH_ACCEPT} multiple hidden onChange={(e) => { attachToTerminal(termKey, e.target.files).catch((err) => alert(err.message)); e.target.value = ''; }} />
             <button className="pane-action" title={copied ? 'Copié !' : 'Copier le chemin'} onClick={copyPath}>{copied ? <LuCheck size={14} /> : <LuCopy size={14} />}</button>
             {isAgent && <button className="pane-action" title="Forker la conversation dans un nouvel espace" onClick={() => onFork(ws)}><LuGitFork size={14} /></button>}

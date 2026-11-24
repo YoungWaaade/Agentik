@@ -39,7 +39,9 @@ export const STATUS = {
 // Upload a file to ~/.claude-hub/attachments; returns { path, name, size }.
 export async function uploadFile(f) {
   if (f.size > 10 * 1024 * 1024) throw new Error(`${f.name || 'Le fichier'} dépasse 10 Mo`);
-  const name = f.name || `image-${Date.now()}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`;
+  let name = f.name || `image-${Date.now()}.${(f.type.split('/')[1] || 'png').replace('jpeg', 'jpg')}`;
+  // A zip typed as such but without the extension still has to be served and described as a zip.
+  if (/^application\/(x-)?zip(-compressed)?$/.test(f.type || '') && !/\.zip$/i.test(name)) name = `${name.replace(/\.[^.]*$/, '') || 'archive'}.zip`;
   const res = await fetch(`/api/attachments?name=${encodeURIComponent(name)}`, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: f });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "l'envoi du fichier a échoué");
@@ -50,7 +52,11 @@ export const attachmentUrl = (p) => {
   const [id, name] = String(p).split('/').slice(-2);
   return `/api/attachments/${encodeURIComponent(id)}/${encodeURIComponent(name)}`;
 };
-// Files the chat accepts: images and Markdown (type text/markdown, text/x-markdown or empty depending on the browser).
+// Files the chat accepts: images, Markdown (type text/markdown, text/x-markdown or empty depending on the
+// browser) and zip archives (application/zip, application/x-zip-compressed or empty: then by extension).
 export const MARKDOWN = /\.(md|markdown)$/i;
-export const ATTACH_ACCEPT = 'image/*,.md,.markdown,text/markdown,text/x-markdown';
-export const attachableFiles = (list) => [...(list || [])].filter((f) => f.type?.startsWith('image/') || /^text\/(x-)?markdown$/.test(f.type || '') || MARKDOWN.test(f.name || ''));
+export const ZIP = /\.zip$/i;
+const ZIP_TYPES = ['application/zip', 'application/x-zip-compressed'];
+export const ATTACH_ACCEPT = 'image/*,.md,.markdown,text/markdown,text/x-markdown,.zip,application/zip,application/x-zip-compressed';
+export const attachableFiles = (list) => [...(list || [])].filter((f) => f.type?.startsWith('image/') || /^text\/(x-)?markdown$/.test(f.type || '') || MARKDOWN.test(f.name || '')
+  || ZIP_TYPES.includes(f.type || '') || (ZIP.test(f.name || '') && (!f.type || f.type === 'application/octet-stream' || ZIP_TYPES.includes(f.type))));

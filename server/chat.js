@@ -304,6 +304,8 @@ function describeTool(name, input = {}) {
   const q = (s) => (s ? ` « ${String(s).slice(0, 70)} »` : '');
   if (name === 'Bash') {
     const cmd = String(input.command || '');
+    if (/^\s*unzip\s+-l\b/.test(cmd)) return { icon: 'archive', label: "Regarde le contenu de l'archive" };
+    if (/^\s*unzip\s+-p\b/.test(cmd)) return { icon: 'eye', label: "Lit un fichier de l'archive" };
     const verb = (/(?:agentik|agentic|supersept)\s+([\w-]+)/.exec(cmd) || [])[1];
     switch (verb) {
       case 'projects': return { icon: 'folder', label: 'Regarde tes projets' };
@@ -378,7 +380,7 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
   if (!quiet) addMessage(agent, conv, ...shown);
   if (!st.open) ctx.broadcast({ type: 'chat-convs', agent });
   if (sender) text = `[Message de ${sender.label}, qui coordonne l'équipe] ${text}`;
-  if (images.length) text += `\n\n[Fichiers joints, lis-les avec l'outil Read : ${images.map((i) => i.path).join(' , ')}]`;
+  if (images.length) text += attachmentNote(images);
   if (!st.started && !st.handoff) text = recap(agent, conv) + text;
   const k = key(agent, conv);
   const q = queues.get(k) || [];
@@ -388,11 +390,33 @@ export function sendToAgent(agent, text, { internal = false, from = null, fromCo
   return conv;
 }
 
+// How the agent is told about attached files: paths it reads with Read. A zip archive is read without
+// extracting it: listed with unzip -l, its files printed with unzip -p. Extraction is not allowed in the
+// chat: Claude Code's Bash rules cannot pin `unzip -d` to a folder (a rule naming a path never matches,
+// `unzip -d:*` lets it write anywhere), and chat agents have no write access by design.
+const ZIP = /\.zip$/i;
+const sh = (p) => (/[^\w./-]/.test(p) ? `'${p.replace(/'/g, "'\\''")}'` : p);
+export function attachmentNote(files) {
+  const zips = files.filter((f) => ZIP.test(f.name || f.path));
+  const others = files.filter((f) => !zips.includes(f));
+  let note = '';
+  if (others.length) note += `\n\n[Fichiers joints, lis-les avec l'outil Read : ${others.map((i) => i.path).join(' , ')}]`;
+  for (const z of zips) {
+    note += `\n\n[Archive zip jointe : ${z.path}. C'est une archive zip : liste son contenu avec « unzip -l ${sh(z.path)} », `
+      + `puis lis les fichiers texte dont tu as besoin avec « unzip -p ${sh(z.path)} <chemin dans l'archive> ». `
+      + `L'extraction (unzip -d) n'est pas autorisée dans ce chat : s'il faut tout extraire ou regarder une image ou un PDF de l'archive, `
+      + `lance une session avec agentik start-session en lui donnant ce chemin.]`;
+  }
+  return note;
+}
+// Read-only: unzip -l lists, unzip -p prints to stdout; neither writes anything.
+export const UNZIP_TOOLS = ['Bash(unzip -l:*)', 'Bash(unzip -p:*)'];
+
 // One headless Claude Code turn on the conversation's session.
 function spawnTurn(a, agent, conv, st, text, format) {
   const { dir, bin } = agentHome(agent);
   const args = ['-p', '--output-format', format, ...(format === 'stream-json' ? ['--verbose'] : []),
-    '--allowedTools', 'Bash(agentik:*)', 'Bash(agentic:*)', 'Bash(supersept:*)', ...userMcpTools(), 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
+    '--allowedTools', 'Bash(agentik:*)', 'Bash(agentic:*)', 'Bash(supersept:*)', ...UNZIP_TOOLS, ...userMcpTools(), 'WebSearch', 'WebFetch', 'Read', 'Glob', 'Grep',
     '--disallowedTools', 'Edit', 'Write', 'NotebookEdit',
     '--add-dir', path.join(HUB_DIR, 'attachments'),
     '--append-system-prompt', systemPrompt(a)];

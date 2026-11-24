@@ -874,7 +874,7 @@ app.patch('/api/agents/:slug/conversations/:n', wrap(async (req, res) => {
   updateConversation(req.params.slug, Number(req.params.n), req.body);
   res.json({ ok: true });
 }));
-// Images and Markdown files attached in the chat: only files saved by /api/attachments.
+// Images, Markdown files and zip archives attached in the chat: only files saved by /api/attachments.
 const attachmentList = (list) => (Array.isArray(list) ? list : []).slice(0, 8).map((a) => {
   const file = path.resolve(String(a.path || ''));
   if (!file.startsWith(path.join(HUB_DIR, 'attachments') + path.sep) || !fs.existsSync(file)) throw new Error('pièce jointe introuvable');
@@ -882,7 +882,7 @@ const attachmentList = (list) => (Array.isArray(list) ? list : []).slice(0, 8).m
 });
 app.post('/api/agents/:slug/chat', wrap(async (req, res) => {
   const images = attachmentList(req.body.images);
-  const text = String(req.body.text || '').trim() || (images.length ? (images.every((i) => /\.(md|markdown)$/i.test(i.name)) ? 'Lis ce fichier.' : 'Regarde cette image.') : '');
+  const text = String(req.body.text || '').trim() || (images.length ? (images.every((i) => /\.zip$/i.test(i.name)) ? 'Regarde cette archive.' : images.every((i) => /\.(md|markdown|zip)$/i.test(i.name)) ? 'Lis ce fichier.' : 'Regarde cette image.') : '');
   if (!text) throw new Error('message vide');
   const from = req.get('X-Supersept-Agent') || null;
   const sender = from && getAgent(from) ? from : null;
@@ -1093,6 +1093,8 @@ app.get('/api/attachments/:id/:name', (req, res) => {
   if (/\.svg$/i.test(file)) res.type('image/svg+xml');
   // Markdown is shown as plain text, never rendered or downloaded under a guessed type.
   else if (/\.(md|markdown)$/i.test(file)) res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  // A zip archive is only ever downloaded, never opened by the browser.
+  else if (/\.zip$/i.test(file)) { res.setHeader('Content-Type', 'application/zip'); res.attachment(path.basename(file)); }
   // HUB_DIR sits in ~/.claude-hub: send refuses any path with a dot segment unless told otherwise.
   res.sendFile(file, { dotfiles: 'allow' });
 });

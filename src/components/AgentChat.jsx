@@ -368,7 +368,7 @@ export default function AgentChat({ agent, go }) {
               </div>
             )}
             <div className="chat-input-row">
-              <button className="chat-attach" title="Ajouter une image ou un fichier Markdown (ou colle-le, ou glisse-le ici)" onClick={() => fileInput.current.click()}><LuImagePlus size={16} /></button>
+              <button className="chat-attach" title="Ajouter une image, un fichier Markdown ou une archive zip (ou colle-le, ou glisse-le ici)" onClick={() => fileInput.current.click()}><LuImagePlus size={16} /></button>
               <input ref={fileInput} type="file" accept={ATTACH_ACCEPT} multiple hidden onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
               <textarea ref={input} rows={1} value={text} placeholder={`Écris à ${agent.label}…`} onChange={(e) => setText(e.target.value)}
                 onPaste={(e) => { if (attachableFiles(e.clipboardData.files).length) { e.preventDefault(); upload(e.clipboardData.files); } }}

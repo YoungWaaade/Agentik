@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LuFile, LuX } from 'react-icons/lu';
+import { LuFile, LuFileArchive, LuX } from 'react-icons/lu';
 import { attachmentUrl } from '../api.js';
 
 const IMAGE = /\.(png|jpe?g|gif|webp|avif|bmp|svg)$/i;
@@ -10,6 +10,16 @@ export const isImageName = (name) => IMAGE.test(String(name || ''));
 export function AttachmentChip({ file, onOpen, onRemove }) {
   const [broken, setBroken] = useState(false);
   const preview = isImageName(file.name) && !broken;
+  // A zip archive is never shown: its chip downloads it.
+  if (/\.zip$/i.test(file.name || '')) return (
+    <span className="att-chip no-preview">
+      <a className="att-open" href={attachmentUrl(file.path)} download={file.name} title={`Télécharger ${file.name}`}>
+        <span className="att-thumb"><LuFileArchive size={16} /></span>
+        <span className="att-name">{file.name}</span>
+      </a>
+      {onRemove && <button type="button" className="att-remove" title="Retirer" onClick={onRemove}><LuX size={10} /></button>}
+    </span>
+  );
   return (
     <span className={`att-chip ${preview ? '' : 'no-preview'}`}>
       <button type="button" className="att-open" title={file.name} onClick={() => onOpen(file)} disabled={!preview}>
