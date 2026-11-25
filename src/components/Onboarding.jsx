@@ -1,12 +1,15 @@
-// First-run onboarding: five short steps to set up the team lead agent, then straight into its chat.
+// First-run onboarding: short steps to set up the team lead agent (and, optionally, the company's
+// Cloudflare MCP Portal), then straight into its chat.
 // Also reachable from the settings (« Refaire l'onboarding »), prefilled with the current lead.
 import { useEffect, useRef, useState } from 'react';
 import { LuArrowLeft, LuArrowRight, LuX, LuCheck } from 'react-icons/lu';
 import BotAvatar, { BOT_SHAPES, avatarSpec, randomAvatar } from './BotAvatar.jsx';
 import { BotBuilder } from './AgentsPage.jsx';
+import CloudflareMcp from './CloudflareMcp.jsx';
 import { api } from '../api.js';
 
-const STEPS = ['Bienvenue', 'Genre', 'Nom', 'Avatar', 'Toi'];
+const STEPS = ['Bienvenue', 'Genre', 'Nom', 'Avatar', 'Cloudflare', 'Toi'];
+const CF = STEPS.indexOf('Cloudflare');
 const NAMES = { f: ['Nova', 'Iris', 'Luna', 'Maya', 'Alba'], m: ['Atlas', 'Hugo', 'Milo', 'Oscar', 'Léo'] };
 const WORDS = {
   f: { il: 'elle', the: 'ta cheffe' },
@@ -23,6 +26,7 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const input = useRef(null);
+  const cfSave = useRef(null);
   const w = WORDS[gender];
 
   // Re-running it starts from the current lead, so finishing updates that agent.
@@ -47,6 +51,7 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
   const last = step === STEPS.length - 1;
   const next = async () => {
     if (!canNext || busy) return;
+    if (step === CF && cfSave.current && !(await cfSave.current())) return; // typed URL saved first, error shown
     if (!last) return setStep(step + 1);
     setBusy(true);
     setError(null);
@@ -76,7 +81,7 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
               </div>
               <h1>{redo ? "On reconfigure ton agent chef d'équipe" : 'Bienvenue dans Agentik'}</h1>
               <p>Agentik réunit tes sessions Claude Code et une équipe d'agents. Commençons par {w.the} d'équipe : {w.il} reçoit toutes tes demandes, les confie à l'agent le plus adapté ou lance une session, puis te fait la synthèse.</p>
-              <p className="muted small">Cinq étapes, une minute. Tout reste modifiable ensuite dans Agents.</p>
+              <p className="muted small">Six étapes, une minute. Tout reste modifiable ensuite dans Agents.</p>
             </>
           )}
 
@@ -117,7 +122,15 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
             </>
           )}
 
-          {step === 4 && (
+          {step === CF && (
+            <>
+              <h1>Les outils de ton entreprise</h1>
+              <p>Si ton entreprise a un portail MCP Cloudflare, connecte-le : {name.trim()}, tes agents et tes sessions pourront utiliser ses outils. Facultatif, tu pourras le faire plus tard dans Réglages &gt; Intégrations.</p>
+              <CloudflareMcp saveRef={cfSave} />
+            </>
+          )}
+
+          {step === STEPS.length - 1 && (
             <>
               <div className="onb-hero"><BotAvatar spec={avatar} size={64} /></div>
               <h1>Et toi, comment t'appelles-tu ?</h1>
@@ -131,6 +144,7 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
         <div className="onb-foot">
           <button type="button" className="btn-ghost" onClick={() => setStep(step - 1)} disabled={step === 0 || busy}><LuArrowLeft size={14} /> Retour</button>
           <span className="flex-1" />
+          {step === CF && <button type="button" className="btn-ghost onb-skip" onClick={() => setStep(step + 1)} disabled={busy}>Passer</button>}
           <button type="button" className="btn-primary" onClick={next} disabled={!canNext || busy}>
             {last ? <>{busy ? 'Création…' : redo ? `Enregistrer ${name.trim()}` : `Rencontrer ${name.trim()}`} <LuCheck size={14} /></> : <>{step === 0 ? 'Commencer' : 'Suivant'} <LuArrowRight size={14} /></>}
           </button>

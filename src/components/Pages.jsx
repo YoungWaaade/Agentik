@@ -6,6 +6,7 @@ import { UsageSection } from './UsagePage.jsx';
 import { UpdateSection } from './UpdateSection.jsx';
 import { THEME_PREFS, setThemePref, useThemePref } from '../theme.js';
 import AccentPicker from './AccentPicker.jsx';
+import CloudflareMcp from './CloudflareMcp.jsx';
 
 export function PageHeader({ title, children }) {
   return (
@@ -148,9 +149,10 @@ export function SettingsPage({ me }) {
       <div className="chips settings-tabs">
         <button className={`chip ${tab === 'general' ? 'on' : ''}`} onClick={() => setTab('general')}>Général</button>
         <button className={`chip ${tab === 'usage' ? 'on' : ''}`} onClick={() => setTab('usage')}>Utilisation</button>
+        <button className={`chip ${tab === 'integrations' ? 'on' : ''}`} onClick={() => setTab('integrations')}>Intégrations</button>
       </div>
       <div className="page-scroll">
-        {tab === 'usage' ? <div className="settings wide"><UsageSection /></div> : (
+        {tab === 'usage' ? <div className="settings wide"><UsageSection /></div> : tab === 'integrations' ? <Integrations /> : (
         <div className="settings">
           <Appearance />
           <UpdateSection />
@@ -189,6 +191,19 @@ export function SettingsPage({ me }) {
         </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// MCP servers set up from Agentik, for every session and agent (user scope of Claude Code).
+function Integrations() {
+  return (
+    <div className="settings">
+      <section>
+        <h2>Portail MCP Cloudflare</h2>
+        <p className="settings-intro">Les outils internes de ton entreprise, publiés par Cloudflare. Une fois connecté, toutes les sessions et tous les agents peuvent les utiliser (serveur MCP « cloudflare » de Claude Code).</p>
+        <CloudflareMcp />
+      </section>
     </div>
   );
 }

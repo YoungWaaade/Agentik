@@ -23,6 +23,7 @@ import { promptTracker, reportTargets, typedByUser } from './reports.js';
 import { makeUpdater, describe as describeUpdate, BOOT_ID } from './update.js';
 import { keyedQueue } from './queue.js';
 import * as lifecycle from './lifecycle.js';
+import * as integrations from './integrations.js';
 import { isRAS } from '../src/ras.js';
 
 const PORT = Number(process.env.PORT || 4317);
@@ -1040,6 +1041,12 @@ app.post('/api/onboarding', wrap(async (req, res) => {
   res.json(a);
 }));
 
+// Cloudflare MCP Portal (user-scope server "cloudflare" in ~/.claude.json), from the onboarding or the settings.
+app.get('/api/integrations/cloudflare', (req, res) => res.json(integrations.status()));
+app.put('/api/integrations/cloudflare', wrap(async (req, res) => res.json(integrations.save(req.body || {}))));
+app.delete('/api/integrations/cloudflare', wrap(async (req, res) => res.json(integrations.disconnect())));
+app.post('/api/integrations/cloudflare/test', wrap(async (req, res) => res.json(await integrations.test(req.body || {}))));
+
 app.delete('/api/agents/:slug', wrap(async (req, res) => {
   checkAgentAdmin(req, req.params.slug);
   if (req.get('X-Supersept-Agent') && getAgent(req.params.slug)?.manager) throw new Error("l'agent chef ne peut pas être supprimé");
@@ -1565,6 +1572,7 @@ for (const { id } of db.prepare('SELECT id FROM workspaces WHERE archived = 0').
 // Leads named in their instructions by an older onboarding lose that name (it comes from the agent's name now).
 onboarding.fixLeadPrompts();
 // The first name given at onboarding, once there is one, is how agents address the user.
+integrations.init({ claude: CLAUDE, env: () => childEnv({}) });
 initChat({ claude: CLAUDE, port: PORT, get userName() { return onboarding.firstName() || fullName || os.userInfo().username; }, broadcast, env: () => childEnv({}) });
 
 server.listen(PORT, remote.listenHost(), () => {
