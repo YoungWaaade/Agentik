@@ -9,68 +9,23 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { HUB_DIR } from './db.js';
 import { keyedQueue } from './queue.js';
+import { readConfig, updateConfig } from './claude-config.js';
 
 export const NAME = 'cloudflare';
 const SECRETS = path.join(HUB_DIR, 'secrets');
 const TOKEN_FILE = path.join(SECRETS, 'cloudflare-mcp.token');
 export const HELPER = path.join(HUB_DIR, 'bin', 'cloudflare-mcp-headers.sh');
-const BACKUPS = path.join(HUB_DIR, 'backups');
-const KEEP_BACKUPS = 5;
 
-// Read at call time: tests (and HOME=/tmp copies) point it elsewhere.
-const configFile = () => path.join(os.homedir(), '.claude.json');
-
-// A symlinked ~/.claude.json (dotfiles repo) is written through, never replaced by a plain file.
-function realConfig() {
-  const f = configFile();
-  try { return fs.realpathSync(f); } catch { return f; }
-}
-
-function readConfig() {
-  let raw;
-  try { raw = fs.readFileSync(realConfig(), 'utf8'); } catch (e) {
-    if (e.code === 'ENOENT') return {};
-    throw new Error(`lecture de ~/.claude.json impossible : ${e.code || e.message}`);
-  }
-  try { return JSON.parse(raw); } catch { throw new Error("~/.claude.json n'est pas un JSON valide : rien n'a été modifié"); }
-}
-
-// Copy before every change (chmod 600: the file holds account data), the last few kept.
-function backup(file) {
-  if (!fs.existsSync(file)) return null;
-  fs.mkdirSync(BACKUPS, { recursive: true, mode: 0o700 });
-  const to = path.join(BACKUPS, `claude.json.${new Date().toISOString().replace(/[:.]/g, '-')}.bak`);
-  fs.copyFileSync(file, to);
-  fs.chmodSync(to, 0o600);
-  const old = fs.readdirSync(BACKUPS).filter((n) => n.startsWith('claude.json.')).sort();
-  for (const n of old.slice(0, Math.max(0, old.length - KEEP_BACKUPS))) fs.rmSync(path.join(BACKUPS, n), { force: true });
-  return to;
-}
-
-// Read, change only mcpServers.cloudflare, write a temp file next to it and rename it over (atomic):
-// every other key (Claude Code's own state, other MCP servers) is kept as it was just read.
+// Changes only mcpServers.cloudflare (written atomically, backed up, every other key kept).
 function updateServer(fn) {
-  const file = realConfig();
-  const cfg = readConfig();
-  const servers = { ...(cfg.mcpServers || {}) };
-  const next = fn(servers[NAME]);
-  if (next) servers[NAME] = next;
-  else delete servers[NAME];
-  cfg.mcpServers = servers;
-  backup(file);
-  let mode = 0o600;
-  try { mode = fs.statSync(file).mode & 0o777; } catch {}
-  const tmp = `${file}.agentik-${process.pid}-${Date.now()}.tmp`;
-  try {
-    const fd = fs.openSync(tmp, 'w', mode);
-    fs.writeSync(fd, JSON.stringify(cfg, null, 2));
-    fs.fsyncSync(fd);
-    fs.closeSync(fd);
-    fs.renameSync(tmp, file);
-  } catch (e) {
-    fs.rmSync(tmp, { force: true });
-    throw new Error(`écriture de ~/.claude.json impossible : ${e.code || e.message}`);
-  }
+  let next;
+  updateConfig((cfg) => {
+    const servers = { ...(cfg.mcpServers || {}) };
+    next = fn(servers[NAME]);
+    if (next) servers[NAME] = next;
+    else delete servers[NAME];
+    cfg.mcpServers = servers;
+  });
   return next;
 }
 

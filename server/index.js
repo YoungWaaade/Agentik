@@ -25,6 +25,8 @@ import { keyedQueue } from './queue.js';
 import * as lifecycle from './lifecycle.js';
 import * as integrations from './integrations.js';
 import { isRAS } from '../src/ras.js';
+import { addDirAsked, isFolderTrustAsked, squashScreen } from './trust.js';
+import { trustDirs } from './claude-config.js';
 
 const PORT = Number(process.env.PORT || 4317);
 const HOST = '127.0.0.1';
@@ -226,6 +228,7 @@ function startAgent(wsId) {
       ? `${first.slice(0, 300).trim()}…\n\nCe message est long : il est en entier dans ${promptFile(ws.id, first)}. Lis ce fichier en entier avec Read avant toute action, puis suis-le.`
       : first);
   }
+  trustOwnDirs();
   // autostart marks agents to bring back if the hub restarts (update, crash, reboot).
   db.prepare('UPDATE workspaces SET autostart = 1 WHERE id = ?').run(ws.id);
   const s = spawn(`${ws.id}:agent`, CLAUDE, args, ws.cwd, {
@@ -289,28 +292,100 @@ function trustAnswered(key) {
   pushWorkspace(wsId);
 }
 
+// Agentik's own folders, passed to every Claude it starts with --add-dir.
+// Claude shows the resolved path (/tmp → /private/tmp): both forms are known.
+const ownDirs = () => [...new Set([MEMORY_DIR, PROMPTS_DIR, path.join(HUB_DIR, 'attachments')].flatMap((d) => [d, real(d)]))];
+
+// Marks Agentik's folders as trusted in ~/.claude.json when missing (Claude Code then no longer asks about
+// them). Checked before each launch: a Claude Code saving its config from memory could drop the mark.
+function trustOwnDirs() {
+  try {
+    const added = trustDirs(ownDirs());
+    if (added.length) console.log(`  dossiers Agentik approuvés dans ~/.claude.json : ${added.map((d) => d.replace(homedir, '~')).join(', ')}`);
+  } catch (e) { console.log(`  approbation des dossiers Agentik impossible : ${e.message}`); }
+}
+
+// Fallback when Claude asks anyway: answers "Yes, add it" for Agentik's folders, following what the terminal
+// prints after each key (Claude redraws only what changed: the next question shows just its new path).
+// ↓, check "❯ Yes, add it" is selected (sent again if lost), Enter; then a next question about one of our
+// folders is answered the same way, one about any other folder is left to the user.
+function answerAddDirs(s, ws, first, ask) {
+  let dir = first;
+  let phase = 'down';
+  let mark = s.buffer.length;
+  let tries = 0;
+  let idle = 0;
+  const since = () => squashScreen(s.buffer.slice(mark));
+  const step = () => {
+    if (!s.alive || ++tries > 30) return;
+    const t = since();
+    if (phase === 'down') {
+      mark = s.buffer.length;
+      s.write('\x1b[B');
+      phase = 'check';
+    } else if (phase === 'check') {
+      if (t.includes('❯Yes,addit')) {
+        mark = s.buffer.length;
+        s.write('\r');
+        logEvent(ws.id, 'trust', `Dossier ${dir.replace(homedir, '~')} (Agentik) ajouté automatiquement`);
+        phase = 'after';
+        idle = 0;
+      } else phase = 'down';
+    } else {
+      // After Enter: another question (its choices drawn again), or Claude goes on.
+      if (!/No,exit|Yes,addit/.test(t)) { if (++idle > 5) return; }
+      else {
+        const next = ownDirs().sort((x, y) => y.length - x.length).find((d) => t.includes(squashScreen(d)) && real(d) !== real(dir));
+        if (!next) return ask(t);
+        dir = next;
+        phase = 'down';
+      }
+    }
+    setTimeout(step, 600);
+  };
+  setTimeout(step, 800);
+}
+
+// Holds the session on a question for the user (banner in the app); messages wait until it is answered.
+function askUser(s, ws, msg) {
+  trustAsks.set(s.key, ws.id);
+  s.proc.onExit(() => trustAnswered(s.key));
+  if (s.key.endsWith(':agent')) {
+    // Held until the question is answered (the boot timeout would paste them into it).
+    clearTimeout(booting.get(ws.id));
+    booting.set(ws.id, null);
+    logEvent(ws.id, 'waiting', msg);
+    setStatus(ws.id, 'waiting', msg);
+    if (ws.owner_agent) reportToOwner(ws.id, 'attend une réponse', msg);
+  } else pushWorkspace(ws.id);
+}
+
+// Startup questions, one after the other: trust the working folder, then (Claude Code 2.1.326+) each
+// --add-dir folder never trusted before, asked again at every launch. Unanswered, the session never
+// starts, and the next message pasted + Enter picks "No, exit" (selected first) and quits Claude.
 function watchTrustPrompt(s, ws, project) {
   let seen = '';
+  let folderDone = false;
+  let answering = false; // the fallback loop takes care of the questions that follow
   const sub = s.proc.onData((d) => {
     seen = (seen + d).slice(-4000).replace(/\x1b\[[0-9;?<>]*[a-zA-Z]/g, '');
-    if (!/trust\s*this\s*folder/i.test(seen)) return;
-    sub.dispose();
+    const added = !answering && addDirAsked(seen, ownDirs());
+    if (added) {
+      answering = true;
+      const askOther = (dir) => askUser(s, ws, `Claude demande s'il peut ajouter le dossier ${String(dir).replace(homedir, '~').slice(0, 200)} : ouvre la session et choisis « Yes, add it ».`);
+      if (added.own) answerAddDirs(s, ws, added.dir, () => askOther('demandé'));
+      else askOther(added.dir);
+      return;
+    }
+    if (folderDone || !isFolderTrustAsked(seen)) return;
+    folderDone = true;
+    seen = '';
     if (trustIsKnown(ws, project)) {
       acceptTrust(s);
       logEvent(ws.id, 'trust', `Dossier ${ws.cwd.replace(homedir, '~')} accepté automatiquement`);
       return;
     }
-    trustAsks.set(s.key, ws.id);
-    s.proc.onExit(() => trustAnswered(s.key));
-    const msg = `Claude demande si tu fais confiance au dossier ${ws.cwd.replace(homedir, '~')} : ouvre la session et choisis « Faire confiance ».`;
-    if (s.key.endsWith(':agent')) {
-      // Held until the question is answered (the boot timeout would paste them into it).
-      clearTimeout(booting.get(ws.id));
-      booting.set(ws.id, null);
-      logEvent(ws.id, 'waiting', msg);
-      setStatus(ws.id, 'waiting', msg);
-      if (ws.owner_agent) reportToOwner(ws.id, 'attend une réponse', msg);
-    } else pushWorkspace(ws.id);
+    askUser(s, ws, `Claude demande si tu fais confiance au dossier ${ws.cwd.replace(homedir, '~')} : ouvre la session et choisis « Faire confiance ».`);
   });
   setTimeout(() => sub.dispose(), 60000);
 }
@@ -354,6 +429,7 @@ function startAgentTab(wsId, tabId) {
     args.push('--session-id', tab.session_id);
     if (agent.initialPrompt) args.push('--', agent.initialPrompt);
   }
+  trustOwnDirs();
   const s = spawn(`${wsId}:ag-${tabId}`, CLAUDE, args, ws.cwd, { env: { CLAUDE_HUB_WORKSPACE: ws.id } });
   watchTrustPrompt(s, { ...ws, owner_agent: null, has_conversation: transcriptExists(ws.cwd, tab.session_id) ? 1 : ws.has_conversation }, project);
   return s;
