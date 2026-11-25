@@ -13,7 +13,7 @@ const STATES = {
 };
 
 // saveRef (onboarding): set to an async function that saves a typed URL, true when it is fine to go on.
-export default function CloudflareMcp({ saveRef, autoTest = true }) {
+export default function CloudflareMcp({ saveRef, autoTest = true, inOnboarding = false }) {
   const [cfg, setCfg] = useState(null);
   const [url, setUrl] = useState('');
   const [token, setToken] = useState('');
@@ -112,6 +112,19 @@ export default function CloudflareMcp({ saveRef, autoTest = true }) {
         )}
       </div>
       {result && <div className={`cf-mcp-result ${STATES[result.state]?.[0] || 'red'}`} role="status">{result.message}</div>}
+      {cfg.configured && !cfg.hasToken && result?.state !== 'connected' && (
+        <div className="cf-mcp-howto">
+          <strong>Pour finir la connexion</strong>
+          <ol>
+            <li>Ouvre une session Claude Code (Nouvel espace de travail, ou un terminal).</li>
+            <li>Tape <kbd>/mcp</kbd> puis Entrée.</li>
+            <li>Choisis <strong>cloudflare</strong>, puis <strong>Authenticate</strong>.</li>
+            <li>Connecte-toi dans le navigateur qui s'ouvre, puis reviens ici.</li>
+            <li>Clique sur <strong>Tester</strong> : tu dois voir « Connecté ».</li>
+          </ol>
+          <span className="muted small">À faire une seule fois : ensuite, toutes tes sessions et tes agents ont accès aux outils.{inOnboarding && ' Tu peux aussi terminer l\'onboarding d\'abord et revenir tester depuis Réglages > Intégrations.'}</span>
+        </div>
+      )}
       {error && <div className="error-bar" onClick={() => setError(null)}>{error}</div>}
     </div>
   );

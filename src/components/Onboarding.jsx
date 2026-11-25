@@ -126,7 +126,8 @@ export default function Onboarding({ me, redo, onDone, onCancel }) {
             <>
               <h1>Les outils de ton entreprise</h1>
               <p>Si ton entreprise a un portail MCP Cloudflare, connecte-le : {name.trim()}, tes agents et tes sessions pourront utiliser ses outils. Facultatif, tu pourras le faire plus tard dans Réglages &gt; Intégrations.</p>
-              <CloudflareMcp saveRef={cfSave} />
+              <p className="muted small">Colle l'URL donnée par ton admin et clique sur Connecter : on t'indique ensuite comment finir en une minute.</p>
+              <CloudflareMcp saveRef={cfSave} inOnboarding />
             </>
           )}
 

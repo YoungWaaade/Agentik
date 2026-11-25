@@ -223,7 +223,7 @@ export function claudeStatus(name = NAME) {
   });
 }
 
-const HOW_TO_LOGIN = 'Pour finir la connexion : ouvre une session Claude Code, tape /mcp, choisis « cloudflare » puis « Authenticate » ; le navigateur s\'ouvre pour te connecter. Ensuite, toutes les sessions et les agents y ont accès.';
+const HOW_TO_LOGIN = 'suis les étapes ci-dessous, puis clique sur Tester.';
 
 // state: connected | auth | reachable | error. url given: tests that address (before saving it).
 export async function test({ url } = {}) {
@@ -245,10 +245,10 @@ export async function test({ url } = {}) {
   }
   const c = await claudeStatus();
   if (c.state === 'connected') return { state: 'connected', http: p.http, message: 'Connecté : Claude Code est authentifié sur le portail.' };
-  if (c.state === 'auth') return { state: 'auth', http: p.http, message: `Authentification requise. ${HOW_TO_LOGIN}` };
+  if (c.state === 'auth') return { state: 'auth', http: p.http, message: `Il reste à te connecter : ${HOW_TO_LOGIN}` };
   if (c.state === 'failed') return { state: 'error', http: p.http, message: 'Le portail répond, mais Claude Code n\'arrive pas à s\'y connecter. Essaie /mcp dans une session pour voir le détail.' };
   // Claude Code could not tell: say what the HTTP answer means.
   return p.auth
-    ? { state: 'auth', http: p.http, message: `Portail joignable, état de la connexion inconnu. Si les outils cloudflare n'apparaissent pas : ${HOW_TO_LOGIN}` }
+    ? { state: 'auth', http: p.http, message: `Portail joignable, mais impossible de savoir si tu es connecté. Si les outils cloudflare n'apparaissent pas, ${HOW_TO_LOGIN}` }
     : { state: 'connected', http: p.http, message: 'Portail joignable sans authentification.' };
 }
